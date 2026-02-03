@@ -1,3 +1,4 @@
+import { createClient } from '@/utils/supabase/server'
 import ClockPanel from '@/components/ClockPanel'
 
 export default async function Home() {
