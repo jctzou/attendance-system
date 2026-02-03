@@ -29,11 +29,13 @@ export async function clockIn(userId: string) {
     }
 
     // 2. 獲取使用者設定的上班時間
-    const { data: userSettings } = await supabase
+    const { data: rawSettings } = await supabase
         .from('users')
         .select('work_start_time')
         .eq('id', userId)
         .single()
+
+    const userSettings = rawSettings as any
 
     const targetTimeStr = userSettings?.work_start_time || '09:00:00'
 
@@ -86,11 +88,13 @@ export async function clockOut(userId: string) {
     }
 
     // 2. 獲取使用者設定的下班時間
-    const { data: userSettings } = await supabase
+    const { data: rawSettings } = await supabase
         .from('users')
         .select('work_end_time')
         .eq('id', userId)
         .single()
+
+    const userSettings = rawSettings as any
 
     const targetTimeStr = userSettings?.work_end_time || '18:00:00'
 
