@@ -57,7 +57,7 @@ export async function clockIn(userId: string) {
         work_date: workDate,
         clock_in_time: now.toISOString(),
         status: status
-    })
+    } as any)
 
     if (error) {
         return { error: error.message }
@@ -76,12 +76,14 @@ export async function clockOut(userId: string) {
     const workDate = now.toISOString().split('T')[0]
 
     // 1. 檢查是否有上班卡
-    const { data: record } = await supabase
+    const { data: rawRecord } = await supabase
         .from('attendance')
         .select('id, clock_in_time')
         .eq('user_id', userId)
         .eq('work_date', workDate)
         .single()
+
+    const record = rawRecord as any
 
     if (!record) {
         return { error: '尚未上班打卡，無法下班。' }
@@ -139,7 +141,7 @@ export async function clockOut(userId: string) {
 
     const { error } = await supabase
         .from('attendance')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', record.id)
 
     if (error) {
