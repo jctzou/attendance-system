@@ -2,39 +2,55 @@ import { createClient } from '@/utils/supabase/server'
 
 export default async function Home() {
   const supabase = await createClient()
-  const { data: users, error } = await supabase.from('users').select('*')
-  const userList = users as any[] | null
+
+  // 獲取目前登入使用者
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // 獲取使用者詳細資料 (從 users table)
+  // 為了安全與正確顯示，我們應該用 user.id 去查 users table
+  // 但目前只有 user.email 是確定的。
+  // 這裡我們假設 user 存在 (middleware 已保護)
+
+  let userProfile: any = null
+  if (user) {
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    userProfile = data
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <h1 className="text-4xl font-bold mb-8">員工打卡系統 - 連線測試</h1>
+    <div className="flex-1 w-full flex flex-col gap-20 items-center">
+      <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
+        <div className="w-full max-w-4xl flex justify-between items-center p-3 text-sm">
+          <div className="font-bold text-lg">員工打卡系統</div>
+          <div className="flex items-center gap-4">
+            {userProfile ? (
+              <>
+                <span>你好，{userProfile.display_name || user?.email} ({userProfile.employee_id})</span>
+                <form action="/auth/signout" method="post">
+                  <button className="py-2 px-4 rounded-md no-underline bg-btn-background hover:bg-btn-background-hover">
+                    登出
+                  </button>
+                </form>
+              </>
+            ) : (
+              <span>載入中...</span>
+            )}
+          </div>
+        </div>
+      </nav>
 
-        <div className="w-full p-6 bg-white rounded-lg shadow-md text-slate-800">
-          <h2 className="text-2xl font-bold mb-4">資料庫連線狀態</h2>
-
-          {error ? (
-            <div className="p-4 bg-red-100 text-red-700 rounded">
-              ❌ 連線失敗: {error.message}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-100 text-green-700 rounded">
-                ✅ 連線成功！
-              </div>
-
-              <h3 className="text-xl font-bold mt-4">用戶列表 ({userList?.length || 0})</h3>
-              <ul className="list-disc pl-5">
-                {userList?.map((user) => (
-                  <li key={user.id}>
-                    {user.name} ({user.employee_id}) - {user.role}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      <div className="flex-1 flex flex-col gap-20 max-w-4xl px-3 w-full animate-in fade-in zoom-in duration-500">
+        <div className="flex flex-col gap-6 p-8 rounded-lg bg-gray-50 border shadow-sm">
+          <h2 className="text-2xl font-bold mb-4">今日打卡</h2>
+          <div className="text-center py-10 text-gray-500">
+            (打卡功能即將推出...)
+          </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 }
