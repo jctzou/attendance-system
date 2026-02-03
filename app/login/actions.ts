@@ -16,11 +16,9 @@ export async function login(formData: FormData) {
     })
 
     if (error) {
-        console.error('SERVER ACTION LOGIN ERROR:', error.message)
         return redirect('/login?message=Could not authenticate user')
     }
 
-    console.log('SERVER ACTION LOGIN SUCCESS! Redirecting to /')
     revalidatePath('/', 'layout')
     redirect('/')
 }
