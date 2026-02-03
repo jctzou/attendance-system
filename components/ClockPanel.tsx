@@ -85,32 +85,31 @@ export default function ClockPanel({ userId, userName, userSettings, todayRecord
             <div className="w-full h-px bg-gray-100" />
 
             <div className="flex flex-col items-center gap-4 w-full">
-                {isClockedOut ? (
-                    <div className="bg-green-50 text-green-700 px-6 py-4 rounded-lg flex flex-col items-center">
-                        <span className="font-bold text-xl">🎉 今日已完工</span>
-                        <span className="text-sm mt-1">
-                            工時: {todayRecord?.clock_in_time ?
-                                ((new Date(todayRecord.clock_out_time!).getTime() - new Date(todayRecord.clock_in_time).getTime()) / 3600000).toFixed(2)
-                                : 0} 小時
-                        </span>
-                    </div>
-                ) : isClockedIn ? (
+                {isClockedIn ? (
                     <>
                         <div className="text-center mb-2">
                             <span className="block text-gray-500 text-sm">上班時間</span>
                             <span className="font-bold text-lg">
                                 {new Date(todayRecord!.clock_in_time!).toLocaleTimeString('zh-TW', { hour12: false })}
                             </span>
-                            <span className={`ml-2 text-xs px-2 py-0.5 rounded ${todayRecord?.status === 'late' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                                {todayRecord?.status === 'late' ? '遲到' : '正常'}
+                            <span className={`ml-2 text-xs px-2 py-0.5 rounded ${todayRecord?.status === 'late' || todayRecord?.status === 'early_leave' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                                {todayRecord?.status === 'late' ? '遲到' : todayRecord?.status === 'early_leave' ? '早退' : '正常'}
                             </span>
                         </div>
+
+                        {isClockedOut && (
+                            <div className="bg-green-50 text-green-700 px-6 py-2 rounded-lg flex flex-col items-center w-full mb-2">
+                                <span className="font-bold">✨ 下班時間: {new Date(todayRecord!.clock_out_time!).toLocaleTimeString('zh-TW', { hour12: false })}</span>
+                                <span className="text-xs">今日工時: {todayRecord?.work_hours} 小時</span>
+                            </div>
+                        )}
+
                         <button
                             onClick={handleClockOut}
                             disabled={loading}
-                            className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-lg transition-all active:scale-95 disabled:opacity-50"
+                            className={`w-full py-4 text-white rounded-lg font-bold text-lg transition-all active:scale-95 disabled:opacity-50 ${isClockedOut ? 'bg-gray-400 hover:bg-gray-500' : 'bg-orange-500 hover:bg-orange-600'}`}
                         >
-                            {loading ? '處理中...' : '下班打卡'}
+                            {loading ? '處理中...' : isClockedOut ? '重新下班打卡' : '下班打卡'}
                         </button>
                     </>
                 ) : (
@@ -124,7 +123,7 @@ export default function ClockPanel({ userId, userName, userSettings, todayRecord
                 )}
 
                 {message && (
-                    <div className="mt-2 text-sm font-medium animate-pulse text-gray-700">
+                    <div className="mt-2 text-sm font-medium animate-pulse text-gray-700 text-center">
                         {message}
                     </div>
                 )}

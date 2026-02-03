@@ -136,8 +136,26 @@ export async function clockOut(userId: string) {
         work_hours: workHours,
     }
 
-    if (now < targetDate) {
-        updateData.status = 'early_leave' // 覆蓋為早退
+    // 狀態判斷邏輯：
+    // 如果原本是遲到 (late)，則不論何時下班都是遲到。
+    // 如果原本是正常 (normal) 或早退 (early_leave)，則依據新的下班時間判斷。
+
+    // 獲取原本打卡時的狀態
+    const { data: originalRecord } = await supabase
+        .from('attendance')
+        .select('status')
+        .eq('id', record.id)
+        .single()
+
+    const originalStatus = (originalRecord as any)?.status
+
+    if (originalStatus === 'late') {
+        // 保持遲到
+        updateData.status = 'late'
+    } else if (now < targetDate) {
+        updateData.status = 'early_leave'
+    } else {
+        updateData.status = 'normal'
     }
 
     const { error } = await supabase
