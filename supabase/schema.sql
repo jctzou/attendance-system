@@ -21,6 +21,8 @@ CREATE TABLE public.users (
     role TEXT CHECK (role IN ('employee', 'manager', 'super_admin')) DEFAULT 'employee',
     salary_type TEXT CHECK (salary_type IN ('hourly', 'monthly')) DEFAULT 'hourly',
     salary_amount DECIMAL(10, 2) DEFAULT 0,
+    work_start_time TIME DEFAULT '09:00:00',
+    work_end_time TIME DEFAULT '18:00:00',
     hire_date DATE,
     resign_date DATE,
     is_active BOOLEAN DEFAULT true,
