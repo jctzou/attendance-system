@@ -24,3 +24,26 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 全局按鈕與連結優化 */
+button, 
+[type="button"], 
+[type="submit"],
+.btn-pointer {
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover,
+[type="button"]:hover,
+[type="submit"]:hover {
+  filter: brightness(1.05);
+}
+
+button:active,
+[type="button"]:active,
+[type="submit"]:active {
+  filter: brightness(0.95);
+  transform: scale(0.98);
+}
+

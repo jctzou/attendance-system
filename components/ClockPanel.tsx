@@ -14,6 +14,7 @@ interface Props {
         clock_in_time: string | null
         clock_out_time: string | null
         status: string
+        work_hours: number | string | null
     } | null
 }
 
