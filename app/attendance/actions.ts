@@ -37,18 +37,23 @@ export async function clockIn(userId: string) {
         .single()
 
     const userSettings = rawSettings as any
-
     const targetTimeStr = userSettings?.work_start_time || '09:00:00'
 
     // 3. 判斷狀態 (遲到判定)
-    // 將 "09:00:00" 轉換為當天的 Date 物件進行比較
-    const [targetHour, targetMinute] = targetTimeStr.split(':').map(Number)
-    const targetDate = new Date(now)
-    targetDate.setHours(targetHour, targetMinute, 0, 0)
+    // 使用台北時間進行判斷
+    const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+    const dateStr = taipeiNow.getFullYear() + '-' +
+        String(taipeiNow.getMonth() + 1).padStart(2, '0') + '-' +
+        String(taipeiNow.getDate()).padStart(2, '0')
+
+    const targetDate = new Date(`${dateStr}T${targetTimeStr}`)
+    // 如果 targetDate 是無效的，預設一個
+    if (isNaN(targetDate.getTime())) {
+        targetDate.setHours(9, 0, 0, 0)
+    }
 
     let status = 'normal'
-    // 給予 1 分鐘緩衝? 這裡嚴格執行: 超過即遲到
-    if (now > targetDate) {
+    if (taipeiNow > targetDate) {
         status = 'late'
     }
 
@@ -98,31 +103,17 @@ export async function clockOut(userId: string) {
         .single()
 
     const userSettings = rawSettings as any
-
     const targetTimeStr = userSettings?.work_end_time || '18:00:00'
 
     // 3. 判斷狀態 (早退判定)
-    const [targetHour, targetMinute] = targetTimeStr.split(':').map(Number)
-    const targetDate = new Date(now)
-    targetDate.setHours(targetHour, targetMinute, 0, 0)
+    const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+    const dateStr = taipeiNow.getFullYear() + '-' +
+        String(taipeiNow.getMonth() + 1).padStart(2, '0') + '-' +
+        String(taipeiNow.getDate()).padStart(2, '0')
 
-    let status = 'normal' // 這裡通常需要結合上班狀態，例如如果上班已經遲到，下班早退怎麼算？
-    // 簡化邏輯：如果現在是早退，就標記早退。如果已經是遲到，可能需要保留遲到狀態或複合狀態。
-    // 但資料庫 status 欄位只有一個。
-    // 策略：如果原本是 normal，且現在早退 -> early_leave。
-    // 如果原本是 late，且現在早退 -> late (遲到比較嚴重?) 或 early_leave?
-    // 這裡我們先簡單處理：只要早退就標記早退 (覆蓋遲到狀態)，或者保留遲到？
-    // 為了單純，我們先只判斷早退。若有早退，覆蓋狀態。
-
-    if (now < targetDate) {
-        status = 'early_leave'
-    } else {
-        // 如果沒有早退，且原本並非 normal (例如 late)，則保持原狀?
-        // 需先查詢原本狀態?
-        // 為了 Server Action 簡單，我們先不讀取原本 status，除非我們要實作複雜邏輯。
-        // 但 Update 會覆蓋。
-        // 修正：我們應該只更新 status 若它是 early_leave。若正常下班，則保持原本的 status (可能是 late 或 normal)。
-        // 所以這裡 status 預設為 null (不更新)，只有早退才更新。
+    const targetDate = new Date(`${dateStr}T${targetTimeStr}`)
+    if (isNaN(targetDate.getTime())) {
+        targetDate.setHours(18, 0, 0, 0)
     }
 
     // 計算工時 (小時)
@@ -137,9 +128,6 @@ export async function clockOut(userId: string) {
     }
 
     // 狀態判斷邏輯：
-    // 如果原本是遲到 (late)，則不論何時下班都是遲到。
-    // 如果原本是正常 (normal) 或早退 (early_leave)，則依據新的下班時間判斷。
-
     // 獲取原本打卡時的狀態
     const { data: originalRecord } = await supabase
         .from('attendance')
@@ -147,16 +135,23 @@ export async function clockOut(userId: string) {
         .eq('id', record.id)
         .single()
 
-    const originalStatus = (originalRecord as any)?.status
+    const originalStatus = (originalRecord as any)?.status || 'normal'
+    const isEarlyLeave = taipeiNow < targetDate
 
-    if (originalStatus === 'late') {
-        // 保持遲到
-        updateData.status = 'late'
-    } else if (now < targetDate) {
-        updateData.status = 'early_leave'
+    let finalStatus = originalStatus
+
+    if (isEarlyLeave) {
+        if (originalStatus === 'late') {
+            finalStatus = 'late early_leave'
+        } else if (originalStatus === 'normal') {
+            finalStatus = 'early_leave'
+        }
     } else {
-        updateData.status = 'normal'
+        // 如果沒有早退，保持原狀 (可能是 late 或 normal)
+        finalStatus = originalStatus
     }
+
+    updateData.status = finalStatus
 
     const { error } = await supabase
         .from('attendance')

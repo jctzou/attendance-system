@@ -93,9 +93,21 @@ export default function ClockPanel({ userId, userName, userSettings, todayRecord
                             <span className="font-bold text-lg">
                                 {new Date(todayRecord!.clock_in_time!).toLocaleTimeString('zh-TW', { hour12: false })}
                             </span>
-                            <span className={`ml-2 text-xs px-2 py-0.5 rounded ${todayRecord?.status === 'late' || todayRecord?.status === 'early_leave' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                                {todayRecord?.status === 'late' ? '遲到' : todayRecord?.status === 'early_leave' ? '早退' : '正常'}
-                            </span>
+                            <div className="flex gap-1 mt-1">
+                                {todayRecord?.status.split(' ').map((s) => {
+                                    const statusMap: Record<string, { label: string, color: string }> = {
+                                        'normal': { label: '正常', color: 'bg-green-100 text-green-600' },
+                                        'late': { label: '遲到', color: 'bg-orange-100 text-orange-600' },
+                                        'early_leave': { label: '早退', color: 'bg-red-100 text-red-600' },
+                                    }
+                                    const info = statusMap[s] || { label: s, color: 'bg-gray-100 text-gray-600' }
+                                    return (
+                                        <span key={s} className={`text-xs px-2 py-0.5 rounded ${info.color}`}>
+                                            {info.label}
+                                        </span>
+                                    )
+                                })}
+                            </div>
                         </div>
 
                         {isClockedOut && (
