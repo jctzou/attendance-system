@@ -72,7 +72,7 @@ CREATE TABLE attendance (
     clock_in_time TIMESTAMPTZ,
     clock_out_time TIMESTAMPTZ,
     work_hours DECIMAL(5, 2),
-    status TEXT CHECK (status IN ('normal', 'late', 'early_leave', 'absent')) DEFAULT 'normal',
+    status TEXT DEFAULT 'normal', -- 可能包含多個狀態，如 'late early_leave'
     ip_address INET,
     device_info VARCHAR(255),
     is_edited BOOLEAN DEFAULT false,

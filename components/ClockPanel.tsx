@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { clockIn, clockOut } from '@/app/attendance/actions'
+import { Database } from '@/types/supabase'
+
+type UserRow = Database['public']['Tables']['users']['Row']
+type AttendanceRow = Database['public']['Tables']['attendance']['Row']
 
 interface Props {
     userId: string
@@ -13,7 +17,9 @@ interface Props {
     todayRecord: {
         clock_in_time: string | null
         clock_out_time: string | null
-        status: string
+        is_late: boolean
+        is_early_leave: boolean
+        status: AttendanceRow['status']
         work_hours: number | string | null
     } | null
 }
@@ -37,7 +43,7 @@ export default function ClockPanel({ userId, userName, userSettings, todayRecord
             if (res.error) {
                 setMessage(`❌ ${res.error}`)
             } else {
-                setMessage(res.status === 'late' ? '⚠️ 上班打卡成功 (遲到)' : '✅ 上班打卡成功')
+                setMessage('✅ 上班打卡成功')
             }
         } catch (e) {
             setMessage('❌ 發生錯誤')
@@ -93,20 +99,16 @@ export default function ClockPanel({ userId, userName, userSettings, todayRecord
                             <span className="font-bold text-lg">
                                 {new Date(todayRecord!.clock_in_time!).toLocaleTimeString('zh-TW', { hour12: false })}
                             </span>
-                            <div className="flex gap-1 mt-1">
-                                {todayRecord?.status.split(' ').map((s) => {
-                                    const statusMap: Record<string, { label: string, color: string }> = {
-                                        'normal': { label: '正常', color: 'bg-green-100 text-green-600' },
-                                        'late': { label: '遲到', color: 'bg-orange-100 text-orange-600' },
-                                        'early_leave': { label: '早退', color: 'bg-red-100 text-red-600' },
-                                    }
-                                    const info = statusMap[s] || { label: s, color: 'bg-gray-100 text-gray-600' }
-                                    return (
-                                        <span key={s} className={`text-xs px-2 py-0.5 rounded ${info.color}`}>
-                                            {info.label}
-                                        </span>
-                                    )
-                                })}
+                            <div className="flex gap-1 mt-1 justify-center">
+                                {todayRecord?.is_late && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-600">遲到</span>
+                                )}
+                                {todayRecord?.is_early_leave && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-600">早退</span>
+                                )}
+                                {!todayRecord?.is_late && !todayRecord?.is_early_leave && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-600">正常</span>
+                                )}
                             </div>
                         </div>
 
