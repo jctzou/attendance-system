@@ -41,19 +41,13 @@ export async function clockIn(userId: string) {
 
     // 3. 判斷狀態 (遲到判定)
     // 使用台北時間進行判斷
-    const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
-    const dateStr = taipeiNow.getFullYear() + '-' +
-        String(taipeiNow.getMonth() + 1).padStart(2, '0') + '-' +
-        String(taipeiNow.getDate()).padStart(2, '0')
+    const taipeiDate = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) // YYYY-MM-DD
+    const taipeiTime = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }) // HH:mm:ss
 
-    const targetDate = new Date(`${dateStr}T${targetTimeStr}`)
-    // 如果 targetDate 是無效的，預設一個
-    if (isNaN(targetDate.getTime())) {
-        targetDate.setHours(9, 0, 0, 0)
-    }
+    const workDate = taipeiDate // 確保工作日期也是台北日期
 
     let status = 'normal'
-    if (taipeiNow > targetDate) {
+    if (taipeiTime > targetTimeStr) {
         status = 'late'
     }
 
@@ -106,15 +100,7 @@ export async function clockOut(userId: string) {
     const targetTimeStr = userSettings?.work_end_time || '18:00:00'
 
     // 3. 判斷狀態 (早退判定)
-    const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
-    const dateStr = taipeiNow.getFullYear() + '-' +
-        String(taipeiNow.getMonth() + 1).padStart(2, '0') + '-' +
-        String(taipeiNow.getDate()).padStart(2, '0')
-
-    const targetDate = new Date(`${dateStr}T${targetTimeStr}`)
-    if (isNaN(targetDate.getTime())) {
-        targetDate.setHours(18, 0, 0, 0)
-    }
+    const taipeiTime = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }) // HH:mm:ss
 
     // 計算工時 (小時)
     const clockInTime = new Date(record.clock_in_time)
@@ -136,7 +122,7 @@ export async function clockOut(userId: string) {
         .single()
 
     const originalStatus = (originalRecord as any)?.status || 'normal'
-    const isEarlyLeave = taipeiNow < targetDate
+    const isEarlyLeave = taipeiTime < targetTimeStr
 
     let finalStatus = originalStatus
 
