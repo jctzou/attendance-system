@@ -1,37 +1,48 @@
 import { createClient } from '@/utils/supabase/server'
 import ClockPanel from '@/components/ClockPanel'
+import { Database } from '@/types/supabase'
+import { SupabaseClient } from '@supabase/supabase-js'
+
+type UserRow = Database['public']['Tables']['users']['Row']
+type AttendanceRow = Database['public']['Tables']['attendance']['Row']
 
 export default async function Home() {
-  const supabase = await createClient()
+  const supabase: SupabaseClient<Database> = await createClient()
 
   // 獲取目前登入使用者
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 獲取使用者詳細資料 (Role, Settings)
-  // 改為正確查詢：用 user.id
-  let userProfile: any = null
+  let userProfile: UserRow | null = null
+  let todayRecord: AttendanceRow | null = null
+
   if (user) {
-    const { data } = await supabase
+    // 獲取使用者詳細資料
+    // We use Promise.all to fetch distinct data in parallel for performance
+    const userProfilePromise = supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
 
-    if (data) userProfile = data
-  }
-
-  // 獲取今日打卡紀錄
-  let todayRecord = null
-  if (user) {
     const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase
+    const todayRecordPromise = supabase
       .from('attendance')
       .select('*')
       .eq('user_id', user.id)
       .eq('work_date', today)
       .single()
-    todayRecord = data
+
+    const [userProfileRes, todayRecordRes] = await Promise.all([
+      userProfilePromise,
+      todayRecordPromise
+    ]) as any
+
+    if (userProfileRes.data) userProfile = userProfileRes.data
+    if (todayRecordRes.data) todayRecord = todayRecordRes.data
   }
+
+  // Handle case where user is logged in auth but has no profile (edge case)
+  // If user is not logged in, userProfile is null.
 
   return (
     <div className="flex-1 w-full flex flex-col gap-20 items-center bg-gray-50 min-h-screen">
@@ -54,28 +65,31 @@ export default async function Home() {
                 </form>
               </>
             ) : (
-              <span>載入中...</span>
+              <span>...</span>
             )}
           </div>
         </div>
       </nav>
 
       <div className="flex-1 flex flex-col gap-10 max-w-4xl px-3 w-full animate-in fade-in zoom-in duration-500 pt-10">
-
-        {userProfile && (
+        {userProfile && user ? (
           <div className="flex justify-center">
             <ClockPanel
-              userId={user!.id}
+              userId={user.id}
               userName={userProfile.display_name}
               userSettings={{
-                work_start_time: userProfile.work_start_time || '09:00:00',
-                work_end_time: userProfile.work_end_time || '18:00:00'
+                work_start_time: userProfile.work_start_time,
+                work_end_time: userProfile.work_end_time
               }}
               todayRecord={todayRecord}
             />
           </div>
+        ) : (
+          /* Show nothing or loading state if checked session but no profile */
+          <div className="text-center text-gray-500 mt-10">
+            {user ? '找不到使用者資料' : '請先登入'}
+          </div>
         )}
-
       </div>
     </div>
   )
