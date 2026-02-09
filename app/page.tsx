@@ -58,6 +58,9 @@ export default async function Home() {
                   <a href="/attendance" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
                     打卡記錄
                   </a>
+                  <a href="/leaves" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                    請假管理
+                  </a>
                 </div>
                 <div className="text-right hidden sm:block">
                   <div className="font-bold">{userProfile.display_name}</div>
@@ -89,12 +92,20 @@ export default async function Home() {
               todayRecord={todayRecord}
             />
 
-            <a
-              href="/attendance"
-              className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium flex items-center gap-1"
-            >
-              📋 查看本月打卡與修改記錄 &rarr;
-            </a>
+            <div className="flex gap-6 text-sm font-medium">
+              <a
+                href="/attendance"
+                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+              >
+                📋 打卡與修改記錄 &rarr;
+              </a>
+              <a
+                href="/leaves"
+                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+              >
+                🏖️ 請假管理 &rarr;
+              </a>
+            </div>
           </div>
         ) : (
           /* Show nothing or loading state if checked session but no profile */
