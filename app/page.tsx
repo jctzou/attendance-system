@@ -106,6 +106,17 @@ export default async function Home() {
                 🏖️ 請假管理 &rarr;
               </a>
             </div>
+
+            {userProfile.role === 'manager' || userProfile.role === 'super_admin' ? (
+              <div className="mt-4 pt-6 border-t w-full flex justify-center">
+                <Link
+                  href="/admin/leaves"
+                  className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-black font-bold shadow-md transition-all flex items-center gap-2"
+                >
+                  👮‍♂️ 管理員審核中心
+                </Link>
+              </div>
+            ) : null}
           </div>
         ) : (
           /* Show nothing or loading state if checked session but no profile */

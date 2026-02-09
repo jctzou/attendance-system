@@ -92,3 +92,71 @@ export async function cancelLeave(leaveId: number) {
     revalidatePath('/leaves')
     return { success: true }
 }
+
+/**
+ * [Manager Only] 獲取所有待審核的請假單
+ */
+export async function getPendingLeaves() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Unauthorized' }
+
+    // Check if manager
+    const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single() as any
+
+    if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
+        return { error: 'Permission denied: Managers only' }
+    }
+
+    const { data, error } = await supabase
+        .from('leaves')
+        .select(`
+            *,
+            user:users (
+                display_name,
+                email
+            )
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+
+    if (error) return { error: error.message }
+    return { data }
+}
+
+/**
+ * [Manager Only] 審核請假
+ */
+export async function reviewLeave(leaveId: number, status: 'approved' | 'rejected', comment?: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Unauthorized' }
+
+    // Check if manager
+    const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single() as any
+
+    if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
+        return { error: 'Permission denied' }
+    }
+
+    // @ts-ignore
+    const { error } = await (supabase.from('leaves') as any)
+        .update({ status: status })
+        .eq('id', leaveId)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/leaves')
+    revalidatePath('/admin/leaves')
+    return { success: true }
+}
