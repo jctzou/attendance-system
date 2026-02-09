@@ -117,7 +117,7 @@ export async function getPendingLeaves() {
         .from('leaves')
         .select(`
             *,
-            user:users (
+            user:users!user_id (
                 display_name,
                 email
             )

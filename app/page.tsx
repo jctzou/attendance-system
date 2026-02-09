@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import ClockPanel from '@/components/ClockPanel'
+import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { SupabaseClient } from '@supabase/supabase-js'
 

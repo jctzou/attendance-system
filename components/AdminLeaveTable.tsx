@@ -27,8 +27,8 @@ export default function AdminLeaveTable({ data }: Props) {
             if (res.error) {
                 alert(res.error)
             } else {
-                // Success, page will revalidate
-                // window.location.reload() // Optional if server action revalidatePath works well
+                // Success - reload to show updated list
+                window.location.reload()
             }
         } catch (e) {
             alert('操作失敗')
