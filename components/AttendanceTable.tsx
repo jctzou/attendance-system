@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import EditAttendanceDialog from './EditAttendanceDialog'
+import AttendanceLogDialog from './AttendanceLogDialog'
 
 interface Props {
     data: any[]
@@ -9,6 +10,7 @@ interface Props {
 
 export default function AttendanceTable({ data }: Props) {
     const [editingRecord, setEditingRecord] = useState<any>(null)
+    const [viewingLogsId, setViewingLogsId] = useState<number | null>(null)
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -69,13 +71,21 @@ export default function AttendanceTable({ data }: Props) {
                                         {getStatusText(record.status)}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
                                     <button
                                         onClick={() => setEditingRecord(record)}
                                         className="text-blue-600 hover:text-blue-900 font-medium btn-pointer"
                                     >
                                         修改
                                     </button>
+                                    {record.is_edited && (
+                                        <button
+                                            onClick={() => setViewingLogsId(record.id)}
+                                            className="text-gray-500 hover:text-gray-700 font-medium btn-pointer"
+                                        >
+                                            紀錄
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))
@@ -91,6 +101,13 @@ export default function AttendanceTable({ data }: Props) {
                         // 簡單重整頁面獲取最新數據，或由上層傳入 refresh
                         window.location.reload()
                     }}
+                />
+            )}
+
+            {viewingLogsId && (
+                <AttendanceLogDialog
+                    attendanceId={viewingLogsId}
+                    onClose={() => setViewingLogsId(null)}
                 />
             )}
         </div>

@@ -136,3 +136,117 @@ export async function clockOut(userId: string): Promise<ActionResponse> {
     revalidatePath('/')
     return { success: true }
 }
+
+/**
+ * 獲取打卡歷史記錄
+ */
+export async function getAttendanceHistory(startDate: string, endDate: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Unauthorized' }
+
+    // TODO: 如果是管理員，可以查看別人的記錄
+    const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('work_date', startDate)
+        .lte('work_date', endDate)
+        .order('work_date', { ascending: false })
+
+    if (error) return { error: error.message }
+    return { data }
+}
+
+/**
+ * 獲取修改日誌
+ */
+export async function getAttendanceLogs(attendanceId: number) {
+    const supabase = await createClient()
+
+    // 需要 join editor 資訊
+    const { data, error } = await supabase
+        .from('attendance_edit_logs')
+        .select(`
+            *,
+            editor:editor_id (
+                display_name,
+                email
+            )
+        `)
+        .eq('attendance_id', attendanceId)
+        .order('created_at', { ascending: false })
+
+    if (error) return { error: error.message }
+    return { data }
+}
+
+/**
+ * 修改打卡記錄
+ */
+export async function updateAttendance(
+    attendanceId: number,
+    newClockIn: string | null,
+    newClockOut: string | null,
+    reason: string
+) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Unauthorized' }
+    if (!reason.trim()) return { error: '請填寫修改原因' }
+
+    // 1. 獲取原始資料與驗證權限
+    const { data: original, error: fetchError } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('id', attendanceId)
+        .single()
+
+    if (fetchError || !original) return { error: 'Attendance record not found' }
+
+    // 簡單權限檢查：只能改自己的 (或管理員)
+    if (original.user_id !== user.id) {
+        // 這裡省略管理員檢查，假設只有本人能改，或後續加
+        return { error: 'Permission denied' }
+    }
+
+    // 2. 寫入修改日誌
+    // @ts-ignore
+    const { error: logError } = await (supabase.from('attendance_edit_logs') as any).insert({
+        attendance_id: attendanceId,
+        editor_id: user.id,
+        old_clock_in_time: original.clock_in_time,
+        new_clock_in_time: newClockIn,
+        old_clock_out_time: original.clock_out_time,
+        new_clock_out_time: newClockOut,
+        edit_reason: reason
+    })
+
+    if (logError) return { error: `Log Error: ${logError.message}` }
+
+    // 3. 計算新工時
+    let newWorkHours: any = original.work_hours
+    if (newClockIn && newClockOut) {
+        const inTime = new Date(newClockIn).getTime()
+        const outTime = new Date(newClockOut).getTime()
+        newWorkHours = ((outTime - inTime) / 3600000).toFixed(2)
+    } else if (!newClockOut) {
+        newWorkHours = null
+    }
+
+    // 4. 更新 Attendance
+    // @ts-ignore
+    const { error: updateError } = await (supabase.from('attendance') as any).update({
+        clock_in_time: newClockIn,
+        clock_out_time: newClockOut,
+        work_hours: newWorkHours,
+        is_edited: true
+    }).eq('id', attendanceId)
+
+    if (updateError) return { error: updateError.message }
+
+    revalidatePath('/attendance')
+    return { success: true }
+}
