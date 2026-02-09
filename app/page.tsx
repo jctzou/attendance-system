@@ -54,12 +54,17 @@ export default async function Home() {
           <div className="flex items-center gap-4">
             {userProfile ? (
               <>
+                <div className="hidden sm:flex items-center gap-4 mr-4">
+                  <a href="/attendance" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                    打卡記錄
+                  </a>
+                </div>
                 <div className="text-right hidden sm:block">
                   <div className="font-bold">{userProfile.display_name}</div>
                   <div className="text-xs text-gray-500">{userProfile.email}</div>
                 </div>
                 <form action="/auth/signout" method="post">
-                  <button className="py-2 px-4 rounded-md text-gray-600 hover:bg-gray-100 text-sm font-medium">
+                  <button className="py-2 px-4 rounded-md text-gray-600 hover:bg-gray-100 text-sm font-medium btn-pointer">
                     登出
                   </button>
                 </form>
@@ -73,7 +78,7 @@ export default async function Home() {
 
       <div className="flex-1 flex flex-col gap-10 max-w-4xl px-3 w-full animate-in fade-in zoom-in duration-500 pt-10">
         {userProfile && user ? (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-6">
             <ClockPanel
               userId={user.id}
               userName={userProfile.display_name}
@@ -83,6 +88,13 @@ export default async function Home() {
               }}
               todayRecord={todayRecord}
             />
+
+            <a
+              href="/attendance"
+              className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium flex items-center gap-1"
+            >
+              📋 查看本月打卡與修改記錄 &rarr;
+            </a>
           </div>
         ) : (
           /* Show nothing or loading state if checked session but no profile */
