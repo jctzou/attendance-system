@@ -201,4 +201,18 @@ CREATE POLICY "Create own leaves" ON leaves FOR INSERT
     WITH CHECK (user_id = auth.uid());
 
 CREATE POLICY "Managers approve leaves" ON leaves FOR UPDATE
-    USING ((SELECT role FROM users WHERE id = auth.uid()) IN ('manager', 'super_admin'));
+    USING ((auth.jwt() -> 'user_metadata' ->> 'role') IN ('manager', 'super_admin'));
+
+-- Attendance Edit Logs
+CREATE POLICY "View own logs" ON attendance_edit_logs FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM attendance 
+            WHERE attendance.id = attendance_edit_logs.attendance_id 
+            AND attendance.user_id = auth.uid()
+        ) 
+        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('manager', 'super_admin')
+    );
+
+CREATE POLICY "Insert logs" ON attendance_edit_logs FOR INSERT
+    WITH CHECK (auth.uid() = editor_id);

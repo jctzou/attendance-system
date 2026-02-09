@@ -62,7 +62,6 @@ export async function clockIn(userId: string): Promise<ActionResponse> {
     const isLate = nowSeconds > targetSeconds
 
     // 5. 寫入資料庫
-    // Casting to any to support columns missing in generated types but present in DB
     // @ts-ignore
     const { error } = await (supabase.from('attendance') as any).insert({
         user_id: userId,
