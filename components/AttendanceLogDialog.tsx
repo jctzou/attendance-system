@@ -14,6 +14,7 @@ export default function AttendanceLogDialog({ attendanceId, onClose }: Props) {
 
     useEffect(() => {
         getAttendanceLogs(attendanceId).then(res => {
+            console.log('Dialog received logs:', res)
             if (res.data) {
                 setLogs(res.data)
             }

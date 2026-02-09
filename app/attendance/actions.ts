@@ -170,7 +170,7 @@ export async function getAttendanceLogs(attendanceId: number) {
         .from('attendance_edit_logs')
         .select(`
             *,
-            editor:editor_id (
+            editor:users (
                 display_name,
                 email
             )
@@ -178,7 +178,11 @@ export async function getAttendanceLogs(attendanceId: number) {
         .eq('attendance_id', attendanceId)
         .order('created_at', { ascending: false })
 
-    if (error) return { error: error.message }
+    console.log('[getAttendanceLogs] results:', JSON.stringify(data, null, 2))
+    if (error) {
+        console.error('[getAttendanceLogs] error:', error)
+        return { error: error.message }
+    }
     return { data }
 }
 
