@@ -230,14 +230,50 @@ export async function updateAttendance(
 
     if (logError) return { error: `Log Error: ${logError.message}` }
 
-    // 3. 計算新工時
+    // 3. 計算新工時與狀態
     let newWorkHours: any = original.work_hours
+    let newStatus = 'normal'
+
     if (newClockIn && newClockOut) {
         const inTime = new Date(newClockIn).getTime()
         const outTime = new Date(newClockOut).getTime()
         newWorkHours = ((outTime - inTime) / 3600000).toFixed(2)
+
+        // 重新計算狀態（遲到、早退）
+        // 獲取使用者的標準上下班時間
+        const { data: userData } = await supabase
+            .from('users')
+            .select('work_start_time, work_end_time')
+            .eq('id', original.user_id)
+            .single() as any
+
+        if (userData) {
+            const clockInDate = new Date(newClockIn)
+            const clockOutDate = new Date(newClockOut)
+
+            // 提取時間部分進行比較
+            const clockInTimeStr = clockInDate.toTimeString().split(' ')[0] // HH:MM:SS
+            const clockOutTimeStr = clockOutDate.toTimeString().split(' ')[0]
+
+            const workStartTime = userData.work_start_time || '09:00:00'
+            const workEndTime = userData.work_end_time || '18:00:00'
+
+            const isLate = timeToSeconds(clockInTimeStr) > timeToSeconds(workStartTime)
+            const isEarlyLeave = timeToSeconds(clockOutTimeStr) < timeToSeconds(workEndTime)
+
+            if (isLate && isEarlyLeave) {
+                newStatus = 'late early_leave'
+            } else if (isLate) {
+                newStatus = 'late'
+            } else if (isEarlyLeave) {
+                newStatus = 'early_leave'
+            } else {
+                newStatus = 'normal'
+            }
+        }
     } else if (!newClockOut) {
         newWorkHours = null
+        newStatus = original.status // 保持原狀態
     }
 
     // 4. 更新 Attendance
@@ -246,11 +282,12 @@ export async function updateAttendance(
         clock_in_time: newClockIn,
         clock_out_time: newClockOut,
         work_hours: newWorkHours,
+        status: newStatus,
         is_edited: true
     }).eq('id', attendanceId)
 
-    if (updateError) return { error: updateError.message }
+    if (updateError) return { error: `Update Error: ${updateError.message}` }
 
-    revalidatePath('/attendance')
+    revalidatePath('/')
     return { success: true }
 }
