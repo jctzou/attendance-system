@@ -45,8 +45,17 @@ export default function NotificationBell() {
             fetchUnreadCount()
         }
         setIsOpen(false)
+
+        // 如果是管理員專用連結，先不導航（避免權限問題）
+        // 使用者可以手動點擊導覽列的連結
         if (notification.link) {
-            router.push(notification.link)
+            // 對於 /admin 開頭的連結，使用 window.location 強制重新載入頁面
+            // 這樣可以讓 Server Component 重新檢查權限
+            if (notification.link.startsWith('/admin')) {
+                window.location.href = notification.link
+            } else {
+                router.push(notification.link)
+            }
         }
     }
 
