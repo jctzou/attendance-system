@@ -240,6 +240,8 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "View own notifications" ON notifications FOR SELECT
     USING (user_id = auth.uid());
 
+CREATE POLICY "Update own notifications" ON notifications FOR UPDATE
+    USING (user_id = auth.uid());
+
 CREATE POLICY "System creates notifications" ON notifications FOR INSERT
     WITH CHECK (true); -- Allow system to create notifications for any user
-
