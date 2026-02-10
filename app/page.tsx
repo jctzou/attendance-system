@@ -3,6 +3,7 @@ import ClockPanel from '@/components/ClockPanel'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { SupabaseClient } from '@supabase/supabase-js'
+import NotificationBell from '@/components/NotificationBell'
 
 type UserRow = Database['public']['Tables']['users']['Row']
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
@@ -63,6 +64,7 @@ export default async function Home() {
                     請假管理
                   </a>
                 </div>
+                <NotificationBell />
                 <div className="text-right hidden sm:block">
                   <div className="font-bold">{userProfile.display_name}</div>
                   <div className="text-xs text-gray-500">{userProfile.email}</div>

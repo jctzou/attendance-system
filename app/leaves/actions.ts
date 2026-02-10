@@ -39,6 +39,25 @@ export async function applyLeave(
 
     if (error) return { error: error.message }
 
+    // 通知所有管理員
+    const { data: managers } = await supabase
+        .from('users')
+        .select('id')
+        .in('role', ['manager', 'super_admin'])
+
+    if (managers && managers.length > 0) {
+        const { createNotification } = await import('@/app/notifications/actions')
+        for (const manager of managers) {
+            await createNotification(
+                manager.id,
+                'new_leave_request',
+                '新的請假申請',
+                `有新的請假申請待審核`,
+                '/admin/leaves'
+            )
+        }
+    }
+
     revalidatePath('/leaves')
     return { success: true }
 }
@@ -155,6 +174,25 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
         .eq('id', leaveId)
 
     if (error) return { error: error.message }
+
+    // 通知申請人
+    const { data: leave } = await supabase
+        .from('leaves')
+        .select('user_id')
+        .eq('id', leaveId)
+        .single() as any
+
+    if (leave) {
+        const { createNotification } = await import('@/app/notifications/actions')
+        const isApproved = status === 'approved'
+        await createNotification(
+            leave.user_id,
+            status === 'approved' ? 'leave_approved' : 'leave_rejected',
+            isApproved ? '請假已批准' : '請假已拒絕',
+            isApproved ? '您的請假申請已通過審核' : '您的請假申請未通過審核',
+            '/leaves'
+        )
+    }
 
     revalidatePath('/leaves')
     revalidatePath('/admin/leaves')

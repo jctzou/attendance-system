@@ -216,3 +216,30 @@ CREATE POLICY "View own logs" ON attendance_edit_logs FOR SELECT
 
 CREATE POLICY "Insert logs" ON attendance_edit_logs FOR INSERT
     WITH CHECK (auth.uid() = editor_id);
+
+-- ============================================
+-- 9. 通知表 (notifications)
+-- ============================================
+CREATE TABLE notifications (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, -- leave_approved, leave_rejected, new_leave_request
+    title TEXT NOT NULL,
+    message TEXT,
+    link TEXT,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON notifications(user_id, is_read);
+
+-- RLS for notifications
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "View own notifications" ON notifications FOR SELECT
+    USING (user_id = auth.uid());
+
+CREATE POLICY "System creates notifications" ON notifications FOR INSERT
+    WITH CHECK (true); -- Allow system to create notifications for any user
+
