@@ -40,10 +40,13 @@ export default function NotificationBell() {
     }
 
     const handleNotificationClick = async (notification: any) => {
+        // 先標記為已讀並等待完成
         if (!notification.is_read) {
             await markAsRead(notification.id)
-            fetchUnreadCount()
+            // 稍微延遲確保資料庫更新完成
+            await new Promise(resolve => setTimeout(resolve, 200))
         }
+
         setIsOpen(false)
 
         // 使用 window.location 強制完整頁面重新載入
