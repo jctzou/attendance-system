@@ -128,7 +128,7 @@ export default function AdminSalaryPage() {
                                     <tr key={record.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4">
                                             <Link
-                                                href={`/admin/employee/${record.user_id}?month=${yearMonth}`}
+                                                href={`/attendance?employee=${record.user_id}&month=${yearMonth}`}
                                                 className="hover:text-blue-600"
                                             >
                                                 <div className="font-medium">{record.user?.display_name}</div>
