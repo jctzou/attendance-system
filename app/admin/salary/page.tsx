@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getSalaryRecords, calculateMonthlySalary, upsertSalaryRecord, markAsPaid, addBonus } from './actions'
+import { getSalaryRecords, calculateMonthlySalary, upsertSalaryRecord, markAsPaid, addBonus, getAllUsers } from './actions'
 import Link from 'next/link'
 
 export default function AdminSalaryPage() {
@@ -9,6 +9,7 @@ export default function AdminSalaryPage() {
     const [records, setRecords] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [calculating, setCalculating] = useState<string | null>(null)
+    const [batchCalculating, setBatchCalculating] = useState(false)
     const [showBonusDialog, setShowBonusDialog] = useState<any>(null)
     const [bonusAmount, setBonusAmount] = useState('')
     const [bonusReason, setBonusReason] = useState('')
@@ -43,6 +44,21 @@ export default function AdminSalaryPage() {
             await fetchRecords()
         }
         setCalculating(null)
+    }
+
+    const handleBatchCalculate = async () => {
+        setBatchCalculating(true)
+        const usersRes = await getAllUsers()
+        if (usersRes.data) {
+            for (const user of usersRes.data) {
+                const res = await calculateMonthlySalary(user.id, yearMonth)
+                if (res.data) {
+                    await upsertSalaryRecord(user.id, yearMonth, res.data)
+                }
+            }
+            await fetchRecords()
+        }
+        setBatchCalculating(false)
     }
 
     const handleMarkPaid = async (recordId: number) => {
@@ -83,6 +99,13 @@ export default function AdminSalaryPage() {
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                         🔄 重新整理
+                    </button>
+                    <button
+                        onClick={handleBatchCalculate}
+                        disabled={batchCalculating}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                    >
+                        {batchCalculating ? '計算中...' : '📊 批次計算所有員工'}
                     </button>
                 </div>
 

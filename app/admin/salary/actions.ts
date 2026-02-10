@@ -260,3 +260,34 @@ export async function getBonusHistory(userId: string) {
     if (error) return { error: error.message }
     return { data }
 }
+
+/**
+ * 獲取所有員工
+ */
+export async function getAllUsers() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Unauthorized' }
+
+    // 檢查管理員權限
+    const { data: adminData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single() as any
+
+    if (!adminData || !['manager', 'super_admin'].includes(adminData.role)) {
+        return { error: 'Permission denied: Managers only' }
+    }
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('id, display_name, email, employee_id, salary_type')
+        .eq('is_active', true)
+        .order('employee_id')
+
+    if (error) return { error: error.message }
+    return { data }
+}
+
