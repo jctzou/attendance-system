@@ -246,3 +246,59 @@ CREATE POLICY "Update own notifications" ON notifications FOR UPDATE
 
 CREATE POLICY "System creates notifications" ON notifications FOR INSERT
     WITH CHECK (true); -- Allow system to create notifications for any user
+
+-- ============================================
+-- 10. 薪資記錄表 (salary_records)
+-- ============================================
+CREATE TABLE salary_records (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    year_month TEXT NOT NULL,  -- 格式: '2026-02'
+    base_salary DECIMAL(10, 2),  -- 基本薪資
+    work_hours DECIMAL(6, 2),    -- 總工時（鐘點人員）
+    bonus DECIMAL(10, 2) DEFAULT 0,  -- 獎金
+    deduction DECIMAL(10, 2) DEFAULT 0,  -- 扣款
+    total_salary DECIMAL(10, 2),  -- 總薪資
+    is_paid BOOLEAN DEFAULT false,  -- 是否已發薪
+    paid_at TIMESTAMPTZ,  -- 發薪日期
+    notes TEXT,  -- 備註
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, year_month)
+);
+
+CREATE INDEX idx_salary_records_user_month ON salary_records(user_id, year_month);
+CREATE INDEX idx_salary_records_is_paid ON salary_records(is_paid);
+
+-- RLS for salary_records
+ALTER TABLE salary_records ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Managers view all salary records" ON salary_records FOR SELECT
+    USING ((SELECT role FROM users WHERE id = auth.uid()) IN ('manager', 'super_admin'));
+
+CREATE POLICY "Managers manage salary records" ON salary_records FOR ALL
+    USING ((SELECT role FROM users WHERE id = auth.uid()) IN ('manager', 'super_admin'));
+
+-- ============================================
+-- 11. 獎金表 (bonuses)
+-- ============================================
+CREATE TABLE bonuses (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL,
+    reason TEXT,
+    granted_by UUID REFERENCES users(id),  -- 發放人
+    granted_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_bonuses_user_id ON bonuses(user_id);
+CREATE INDEX idx_bonuses_granted_by ON bonuses(granted_by);
+
+-- RLS for bonuses
+ALTER TABLE bonuses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Managers view all bonuses" ON bonuses FOR SELECT
+    USING ((SELECT role FROM users WHERE id = auth.uid()) IN ('manager', 'super_admin'));
+
+CREATE POLICY "Managers grant bonuses" ON bonuses FOR INSERT
+    WITH CHECK ((SELECT role FROM users WHERE id = auth.uid()) IN ('manager', 'super_admin'));
