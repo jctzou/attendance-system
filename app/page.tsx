@@ -63,6 +63,11 @@ export default async function Home() {
                   <a href="/leaves" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
                     請假管理
                   </a>
+                  {userProfile.role === 'manager' || userProfile.role === 'super_admin' ? (
+                    <Link href="/admin/salary" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                      薪資管理
+                    </Link>
+                  ) : null}
                 </div>
                 <NotificationBell />
                 <div className="text-right hidden sm:block">
