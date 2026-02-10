@@ -190,7 +190,7 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
             status === 'approved' ? 'leave_approved' : 'leave_rejected',
             isApproved ? '請假已批准' : '請假已拒絕',
             isApproved ? '您的請假申請已通過審核' : '您的請假申請未通過審核',
-            '/leaves'
+            '/leaves'  // 員工查看自己的請假頁面
         )
     }
 
