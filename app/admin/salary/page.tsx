@@ -9,7 +9,6 @@ export default function AdminSalaryPage() {
     const [records, setRecords] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [calculating, setCalculating] = useState<string | null>(null)
-    const [batchCalculating, setBatchCalculating] = useState(false)
     const [showBonusDialog, setShowBonusDialog] = useState<any>(null)
     const [bonusAmount, setBonusAmount] = useState('')
     const [bonusReason, setBonusReason] = useState('')
@@ -29,10 +28,30 @@ export default function AdminSalaryPage() {
 
     const fetchRecords = async () => {
         setLoading(true)
+
+        // 先獲取現有記錄
         const res = await getSalaryRecords(yearMonth)
-        if (res.data) {
+
+        // 如果沒有記錄，自動批次計算
+        if (!res.data || res.data.length === 0) {
+            const usersRes = await getAllUsers()
+            if (usersRes.data) {
+                for (const user of usersRes.data) {
+                    const calcRes = await calculateMonthlySalary(user.id, yearMonth)
+                    if (calcRes.data) {
+                        await upsertSalaryRecord(user.id, yearMonth, calcRes.data)
+                    }
+                }
+                // 重新獲取記錄
+                const finalRes = await getSalaryRecords(yearMonth)
+                if (finalRes.data) {
+                    setRecords(finalRes.data)
+                }
+            }
+        } else {
             setRecords(res.data)
         }
+
         setLoading(false)
     }
 
@@ -44,21 +63,6 @@ export default function AdminSalaryPage() {
             await fetchRecords()
         }
         setCalculating(null)
-    }
-
-    const handleBatchCalculate = async () => {
-        setBatchCalculating(true)
-        const usersRes = await getAllUsers()
-        if (usersRes.data) {
-            for (const user of usersRes.data) {
-                const res = await calculateMonthlySalary(user.id, yearMonth)
-                if (res.data) {
-                    await upsertSalaryRecord(user.id, yearMonth, res.data)
-                }
-            }
-            await fetchRecords()
-        }
-        setBatchCalculating(false)
     }
 
     const handleMarkPaid = async (recordId: number) => {
@@ -100,13 +104,6 @@ export default function AdminSalaryPage() {
                     >
                         🔄 重新整理
                     </button>
-                    <button
-                        onClick={handleBatchCalculate}
-                        disabled={batchCalculating}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                    >
-                        {batchCalculating ? '計算中...' : '📊 批次計算所有員工'}
-                    </button>
                 </div>
 
                 {loading ? (
@@ -130,8 +127,13 @@ export default function AdminSalaryPage() {
                                 {records.map((record) => (
                                     <tr key={record.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4">
-                                            <div className="font-medium">{record.user?.display_name}</div>
-                                            <div className="text-sm text-gray-500">{record.user?.email}</div>
+                                            <Link
+                                                href={`/admin/employee/${record.user_id}?month=${yearMonth}`}
+                                                className="hover:text-blue-600"
+                                            >
+                                                <div className="font-medium">{record.user?.display_name}</div>
+                                                <div className="text-sm text-gray-500">{record.user?.email}</div>
+                                            </Link>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 text-xs rounded ${record.user?.salary_type === 'hourly' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
