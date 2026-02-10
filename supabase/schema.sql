@@ -23,6 +23,7 @@ CREATE TABLE public.users (
     salary_amount DECIMAL(10, 2) DEFAULT 0,
     work_start_time TIME DEFAULT '09:00:00',
     work_end_time TIME DEFAULT '18:00:00',
+    break_hours DECIMAL(3, 2) DEFAULT 1.0,
     hire_date DATE,
     resign_date DATE,
     is_active BOOLEAN DEFAULT true,

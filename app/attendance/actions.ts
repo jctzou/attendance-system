@@ -101,10 +101,10 @@ export async function clockOut(userId: string): Promise<ActionResponse> {
         return { error: '尚未上班打卡，無法下班。' }
     }
 
-    // 2. 獲取使用者設定的下班時間
+    // 2. 獲取使用者設定的下班時間、員工類型與午休時間
     const { data: userSettings } = await supabase
         .from('users')
-        .select('work_end_time')
+        .select('work_end_time, salary_type, break_hours')
         .eq('id', userId)
         .single() as any
 
@@ -118,7 +118,13 @@ export async function clockOut(userId: string): Promise<ActionResponse> {
     // 計算工時 (小時)
     const clockInTime = new Date(record.clock_in_time)
     const diffMs = now.getTime() - clockInTime.getTime()
-    const workHours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2))
+    let workHours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2))
+
+    // 如果是鐘點人員，扣除午休時間
+    if (userSettings?.salary_type === 'hourly') {
+        const breakHours = userSettings.break_hours || 1.0
+        workHours = Math.max(0, parseFloat((workHours - breakHours).toFixed(2)))
+    }
 
     // 4. 更新資料庫
     // @ts-ignore
@@ -237,17 +243,23 @@ export async function updateAttendance(
     if (newClockIn && newClockOut) {
         const inTime = new Date(newClockIn).getTime()
         const outTime = new Date(newClockOut).getTime()
-        newWorkHours = ((outTime - inTime) / 3600000).toFixed(2)
+        newWorkHours = parseFloat(((outTime - inTime) / 3600000).toFixed(2))
 
         // 重新計算狀態（遲到、早退）
-        // 獲取使用者的標準上下班時間
+        // 獲取使用者的標準上下班時間、員工類型與午休時間
         const { data: userData } = await supabase
             .from('users')
-            .select('work_start_time, work_end_time')
+            .select('work_start_time, work_end_time, salary_type, break_hours')
             .eq('id', original.user_id)
             .single() as any
 
         if (userData) {
+            // 如果是鐘點人員，扣除午休時間
+            if (userData.salary_type === 'hourly') {
+                const breakHours = userData.break_hours || 1.0
+                newWorkHours = Math.max(0, parseFloat((newWorkHours - breakHours).toFixed(2)))
+            }
+
             const clockInDate = new Date(newClockIn)
             const clockOutDate = new Date(newClockOut)
 
