@@ -1,35 +1,49 @@
-import { createClient } from '@/utils/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
 import { getPendingLeaves } from '@/app/leaves/actions'
 import AdminLeaveTable from '@/components/AdminLeaveTable'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
-export default async function AdminLeavesPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+export default function AdminLeavesPage() {
+    const router = useRouter()
+    const [leaves, setLeaves] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
+    const [userEmail, setUserEmail] = useState('')
 
-    if (!user) {
-        redirect('/')
+    const fetchLeaves = async () => {
+        setLoading(true)
+        setError('')
+        try {
+            const res = await getPendingLeaves()
+            if (res.error) {
+                if (res.error.includes('Permission denied')) {
+                    // Not a manager, redirect
+                    router.push('/')
+                    return
+                }
+                setError(res.error)
+            } else {
+                setLeaves(res.data || [])
+            }
+        } catch (e) {
+            setError('載入失敗')
+        } finally {
+            setLoading(false)
+        }
     }
 
-    // 檢查管理員權限
-    const { data: userData } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single() as any
+    useEffect(() => {
+        // Get user email from somewhere, or just show loading
+        fetchLeaves()
+    }, [])
 
-    if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen">
-                <h1 className="text-2xl font-bold text-red-600 mb-4">權限不足</h1>
-                <p className="text-gray-600 mb-6">此頁面僅限管理員存取。</p>
-                <Link href="/" className="text-blue-600 hover:underline">回首頁</Link>
-            </div>
-        )
+    // Expose refresh function to child component
+    const handleRefresh = () => {
+        fetchLeaves()
     }
-
-    const { data: pendingLeaves, error } = await getPendingLeaves()
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -43,15 +57,22 @@ export default async function AdminLeavesPage() {
             <div className="max-w-6xl mx-auto py-10 px-4">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">待審核申請</h1>
-                    <span className="text-sm text-gray-500">管理員: {user.email}</span>
+                    <button
+                        onClick={handleRefresh}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                        🔄 重新整理
+                    </button>
                 </div>
 
-                {error ? (
+                {loading ? (
+                    <div className="text-center py-10 text-gray-500">載入中...</div>
+                ) : error ? (
                     <div className="bg-red-50 text-red-600 p-4 rounded">
                         錯誤: {error}
                     </div>
                 ) : (
-                    <AdminLeaveTable data={pendingLeaves || []} />
+                    <AdminLeaveTable data={leaves} onSuccess={handleRefresh} />
                 )}
 
                 <div className="mt-8 p-4 bg-blue-50 rounded-lg text-sm text-blue-800">

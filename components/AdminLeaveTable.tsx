@@ -5,6 +5,7 @@ import { reviewLeave } from '@/app/leaves/actions'
 
 interface Props {
     data: any[]
+    onSuccess?: () => void
 }
 
 const LEAVE_TYPE_MAP: Record<string, string> = {
@@ -14,23 +15,30 @@ const LEAVE_TYPE_MAP: Record<string, string> = {
     'other': '其他',
 }
 
-export default function AdminLeaveTable({ data }: Props) {
+export default function AdminLeaveTable({ data, onSuccess }: Props) {
     const [processingId, setProcessingId] = useState<number | null>(null)
 
     const handleReview = async (id: number, status: 'approved' | 'rejected') => {
         const actionText = status === 'approved' ? '批准' : '拒絕'
+        console.log('handleReview called:', { id, status })
         if (!confirm(`確定要${actionText}這筆申請嗎？`)) return
 
         setProcessingId(id)
         try {
+            console.log('Calling reviewLeave...')
             const res = await reviewLeave(id, status)
+            console.log('reviewLeave response:', res)
             if (res.error) {
                 alert(res.error)
             } else {
-                // Success - reload to show updated list
-                window.location.reload()
+                alert(`${actionText}成功！`)
+                // Call parent's refresh function
+                if (onSuccess) {
+                    onSuccess()
+                }
             }
         } catch (e) {
+            console.error('Error in handleReview:', e)
             alert('操作失敗')
         } finally {
             setProcessingId(null)
