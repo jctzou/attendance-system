@@ -54,7 +54,9 @@ export async function getEmployeeAttendance(userId: string, yearMonth: string) {
 
     const [year, month] = yearMonth.split('-')
     const startDate = `${year}-${month}-01`
-    const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0]
+    // 修正：下個月的第 0 天 = 當月最後一天
+    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+    const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
 
     const { data, error } = await supabase
         .from('attendance')
@@ -90,7 +92,9 @@ export async function getEmployeeLeaves(userId: string, yearMonth: string) {
 
     const [year, month] = yearMonth.split('-')
     const startDate = `${year}-${month}-01`
-    const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0]
+    // 修正：下個月的第 0 天 = 當月最後一天
+    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+    const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
 
     const { data, error } = await supabase
         .from('leaves')
