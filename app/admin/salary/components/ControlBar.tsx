@@ -16,9 +16,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({ selectedMonth, onMonthCh
                 <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
                     選擇月份：
                 </label>
-                <div className="relative w-full sm:w-auto">
+                <div className="relative w-full sm:w-auto min-w-0">
                     <input
-                        className="block w-full md:w-64 pl-4 pr-10 py-2.5 text-sm font-bold border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] bg-slate-50 shadow-sm transition-colors outline-none"
+                        className="block w-full max-w-full md:w-64 pl-4 pr-10 py-2.5 text-sm font-bold border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] bg-slate-50 shadow-sm transition-colors outline-none"
                         type="month"
                         value={selectedMonth}
                         onChange={(e) => onMonthChange(e.target.value)}
