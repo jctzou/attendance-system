@@ -216,7 +216,7 @@ export default function AttendancePage() {
                                 >
                                     {employees.map(emp => (
                                         <option key={emp.id} value={emp.id}>
-                                            {emp.display_name} ({emp.employee_id})
+                                            {emp.display_name} {emp.employee_id}
                                         </option>
                                     ))}
                                 </select>

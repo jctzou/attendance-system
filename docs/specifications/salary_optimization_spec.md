@@ -108,8 +108,9 @@
 ## 7. UI 排版與設計規範 (UI/UX Design Analysis)
 
 ### 7.1 頁面結構 (Page Structure)
-
-(略 - 保持原樣)
+-   **控制列 (Control Bar)**:
+    -   **月份選擇**: 在手機版必須防止破版，建議標籤與輸入框採用堆疊 (`flex-col`) 或 自動填滿剩餘空間 (`flex-1`) 的佈局方式。
+    -   **設定按鈕**: 保持顯眼位置。
 
 ### 7.2 員工卡片設計 (Employee Card Design)
 
