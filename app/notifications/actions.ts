@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
  * 獲取我的通知列表
  */
 export async function getMyNotifications() {
-    const supabase = await createClient()
+    const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -27,7 +27,7 @@ export async function getMyNotifications() {
  * 獲取未讀通知數量
  */
 export async function getUnreadCount() {
-    const supabase = await createClient()
+    const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { count: 0 }
@@ -46,7 +46,7 @@ export async function getUnreadCount() {
  * 標記通知為已讀
  */
 export async function markAsRead(notificationId: number) {
-    const supabase = await createClient()
+    const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -67,7 +67,7 @@ export async function markAsRead(notificationId: number) {
  * 全部標記為已讀
  */
 export async function markAllAsRead() {
-    const supabase = await createClient()
+    const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -94,7 +94,7 @@ export async function createNotification(
     message: string,
     link?: string
 ) {
-    const supabase = await createClient()
+    const supabase = await createClient() as any
 
     // @ts-ignore
     const { error } = await (supabase.from('notifications') as any).insert({

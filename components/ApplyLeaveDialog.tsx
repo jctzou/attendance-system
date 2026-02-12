@@ -2,10 +2,14 @@
 
 import { useState } from 'react'
 import { applyLeave } from '@/app/leaves/actions'
+import { Dialog, DialogContent, DialogHeader, DialogFooter } from '@/components/ui/Dialog'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
 interface Props {
     onClose: () => void
     onSuccess: () => void
+    annualLeaveBalance?: any
 }
 
 const LEAVE_TYPES = [
@@ -15,7 +19,7 @@ const LEAVE_TYPES = [
     { value: 'other', label: '其他' },
 ]
 
-export default function ApplyLeaveDialog({ onClose, onSuccess }: Props) {
+export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalance }: Props) {
     const [leaveType, setLeaveType] = useState('sick_leave')
     const [startDate, setStartDate] = useState('')
     const [endDate, setEndDate] = useState('')
@@ -30,6 +34,17 @@ export default function ApplyLeaveDialog({ onClose, onSuccess }: Props) {
             setError('請填寫完整資訊')
             return
         }
+
+        // 前端檢查特休餘額
+        if (leaveType === 'annual_leave' && annualLeaveBalance) {
+            const requestedDays = hours / 8
+            const remainingDays = annualLeaveBalance.total_days - annualLeaveBalance.used_days
+            if (requestedDays > remainingDays) {
+                setError(`特休餘額不足。剩餘: ${remainingDays} 天，申請: ${requestedDays} 天`)
+                return
+            }
+        }
+
         setLoading(true)
         setError('')
 
@@ -49,95 +64,83 @@ export default function ApplyLeaveDialog({ onClose, onSuccess }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold">申請請假</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
+        <Dialog isOpen={true} onClose={onClose} maxWidth="md">
+            <DialogHeader title="申請請假" onClose={onClose} />
+            <DialogContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">假別</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">假別</label>
                         <select
                             value={leaveType}
                             onChange={(e) => setLeaveType(e.target.value)}
-                            className="w-full border rounded-md p-2 text-sm bg-white"
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                         >
                             {LEAVE_TYPES.map(t => (
                                 <option key={t.value} value={t.value}>{t.label}</option>
                             ))}
                         </select>
+                        {/* 顯示特休餘額提示 */}
+                        {leaveType === 'annual_leave' && annualLeaveBalance && (
+                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                剩餘特休: {annualLeaveBalance.total_days - annualLeaveBalance.used_days} 天 / 總計: {annualLeaveBalance.total_days} 天
+                            </div>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">開始日期</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full border rounded-md p-2 text-sm"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">結束日期</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full border rounded-md p-2 text-sm"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">請假時數 (小時)</label>
-                        <input
-                            type="number"
-                            value={hours}
-                            onChange={(e) => setHours(Number(e.target.value))}
-                            min="0.5"
-                            step="0.5"
-                            className="w-full border rounded-md p-2 text-sm"
+                    <div className="grid grid-cols-2 gap-6">
+                        <Input
+                            type="date"
+                            label="開始日期"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            required
+                        />
+                        <Input
+                            type="date"
+                            label="結束日期"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
                             required
                         />
                     </div>
 
+                    <Input
+                        type="number"
+                        label="請假時數 (小時)"
+                        value={hours.toString()}
+                        onChange={(e) => setHours(Number(e.target.value))}
+                        min="0.5"
+                        step="0.5"
+                        required
+                    />
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">請假原因</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">請假原因</label>
                         <textarea
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             required
-                            className="w-full border rounded-md p-2 text-sm h-24 resize-none"
+                            className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent h-24 resize-none"
                             placeholder="請說明請假原因..."
                         />
                     </div>
 
-                    {error && <div className="text-red-600 text-sm">{error}</div>}
+                    {error && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-md">
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium"
-                            disabled={loading}
-                        >
+                    <DialogFooter>
+                        <Button variant="outline" onClick={onClose} disabled={loading} type="button">
                             取消
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md font-medium disabled:opacity-50"
-                            disabled={loading}
-                        >
-                            {loading ? '提交申請...' : '送出申請'}
-                        </button>
-                    </div>
+                        </Button>
+                        <Button type="submit" disabled={loading} isLoading={loading}>
+                            送出申請
+                        </Button>
+                    </DialogFooter>
                 </form>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     )
 }

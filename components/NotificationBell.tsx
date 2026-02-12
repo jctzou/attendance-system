@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getUnreadCount, getMyNotifications, markAsRead } from '@/app/notifications/actions'
+import { getUnreadCount, getMyNotifications, markAsRead, markAllAsRead } from '@/app/notifications/actions'
 import { useRouter } from 'next/navigation'
 
 export default function NotificationBell() {
@@ -123,6 +123,22 @@ export default function NotificationBell() {
                                 ))
                             )}
                         </div>
+
+                        {/* 清除所有通知按鈕 */}
+                        {notifications.length > 0 && (
+                            <div className="border-t bg-gray-50 p-3">
+                                <button
+                                    onClick={async () => {
+                                        await markAllAsRead()
+                                        await fetchNotifications()
+                                        await fetchUnreadCount()
+                                    }}
+                                    className="w-full px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium"
+                                >
+                                    清除所有通知
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </>
             )}

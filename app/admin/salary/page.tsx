@@ -1,254 +1,226 @@
+
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getSalaryRecords, calculateMonthlySalary, upsertSalaryRecord, markAsPaid, addBonus, getAllUsers } from './actions'
-import Link from 'next/link'
+import React, { useState, useEffect } from 'react'
+import { PageContainer } from '@/components/ui/PageContainer'
+import { ControlBar } from './components/ControlBar'
+import { EmployeeCard } from './components/EmployeeCard'
+import { SalarySettingsDialog } from './components/SalarySettingsDialog'
+import { BonusDialog } from './components/BonusDialog'
+import { Dialog, DialogContent, DialogHeader, DialogFooter } from '@/components/ui/Dialog'
+import { Button } from '@/components/ui/Button'
+import {
+    getAllUsers,
+    calculateMonthlySalary,
+    saveSalaryRecord,
+    settleSalary,
+    resettleSalary,
+    type SalaryRecordData
+} from './actions'
 
 export default function AdminSalaryPage() {
+    // --- State ---
     const [yearMonth, setYearMonth] = useState('')
-    const [records, setRecords] = useState<any[]>([])
-    const [loading, setLoading] = useState(false)
-    const [calculating, setCalculating] = useState<string | null>(null)
-    const [showBonusDialog, setShowBonusDialog] = useState<any>(null)
-    const [bonusAmount, setBonusAmount] = useState('')
-    const [bonusReason, setBonusReason] = useState('')
+    const [loading, setLoading] = useState(true)
+    const [records, setRecords] = useState<SalaryRecordData[]>([])
+    const [processingId, setProcessingId] = useState<string | null>(null)
 
+    // Dialogs
+    const [showSettings, setShowSettings] = useState(false)
+    const [bonusTarget, setBonusTarget] = useState<SalaryRecordData | null>(null)
+    const [resettleTarget, setResettleTarget] = useState<SalaryRecordData | null>(null)
+    const [resettleError, setResettleError] = useState<string | null>(null)
+    const [usersList, setUsersList] = useState<any[]>([])
+
+    // --- Effects ---
+
+    // 1. Init Month
     useEffect(() => {
-        // 設定當前月份
         const now = new Date()
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-        setYearMonth(currentMonth)
+        setYearMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
     }, [])
 
+    // 2. Fetch Data
     useEffect(() => {
         if (yearMonth) {
-            fetchRecords()
+            loadData()
         }
     }, [yearMonth])
 
-    const fetchRecords = async () => {
-        setLoading(true)
+    // --- Logic ---
 
-        // 先獲取現有記錄
-        const res = await getSalaryRecords(yearMonth)
-
-        // 如果沒有記錄，自動批次計算
-        if (!res.data || res.data.length === 0) {
+    const loadData = async (silent = false) => {
+        if (!silent) setLoading(true)
+        try {
+            // 1. Get All Users (Employees)
             const usersRes = await getAllUsers()
-            if (usersRes.data) {
-                for (const user of usersRes.data) {
-                    const calcRes = await calculateMonthlySalary(user.id, yearMonth)
-                    if (calcRes.data) {
-                        await upsertSalaryRecord(user.id, yearMonth, calcRes.data)
-                    }
-                }
-                // 重新獲取記錄
-                const finalRes = await getSalaryRecords(yearMonth)
-                if (finalRes.data) {
-                    setRecords(finalRes.data)
-                }
+            if (usersRes.error) {
+                console.error(usersRes.error)
+                return
             }
-        } else {
-            setRecords(res.data)
+            setUsersList(usersRes.data || [])
+
+            // 2. Calculate Salary for each user (Live calculation)
+            const promises = (usersRes.data || []).map(async (user: any) => {
+                const calc = await calculateMonthlySalary(user.id, yearMonth)
+                if (calc.success && calc.data) {
+                    // Auto-save to ensure DB has latest record (optional but good for persistence)
+                    await saveSalaryRecord(calc.data)
+                    return calc.data
+                }
+                return null
+            })
+
+            const results = await Promise.all(promises)
+            setRecords(results.filter(r => r !== null) as SalaryRecordData[])
+
+        } catch (e) {
+            console.error(e)
+        } finally {
+            if (!silent) setLoading(false)
         }
-
-        setLoading(false)
     }
 
-    const handleCalculate = async (userId: string) => {
-        setCalculating(userId)
-        const res = await calculateMonthlySalary(userId, yearMonth)
-        if (res.data) {
-            await upsertSalaryRecord(userId, yearMonth, res.data)
-            await fetchRecords()
+    // Helper to update a single record in the local state
+    const updateLocalRecord = (updatedRecord: SalaryRecordData) => {
+        setRecords(prev => prev.map(r => r.userId === updatedRecord.userId ? updatedRecord : r))
+    }
+
+    const handleSettle = async (userId: string) => {
+        setProcessingId(userId)
+        try {
+            const res = await settleSalary(userId, yearMonth)
+            if (res.success) {
+                // Fetch just this user or rely on returned data? 
+                // The action doesn't return the data, but we know it's settled.
+                // Best practice: Fetch fresh data for this user to be sure.
+                const fresh = await calculateMonthlySalary(userId, yearMonth)
+                if (fresh.data) {
+                    updateLocalRecord(fresh.data)
+                }
+            } else {
+                console.error('結算失敗:', res.error)
+                // Ideally show a toast here, but for now just log
+            }
+        } finally {
+            setProcessingId(null)
         }
-        setCalculating(null)
     }
 
-    const handleMarkPaid = async (recordId: number) => {
-        await markAsPaid(recordId)
-        await fetchRecords()
-    }
+    const handleResettleConfirm = async () => {
+        if (!resettleTarget) return
+        setProcessingId(resettleTarget.userId)
+        setResettleError(null)
 
-    const handleAddBonus = async () => {
-        if (!showBonusDialog || !bonusAmount) return
+        try {
+            const res = await resettleSalary(resettleTarget.userId, yearMonth)
+            if (res.success) {
+                // Close dialog first
+                setResettleTarget(null)
 
-        await addBonus(showBonusDialog.user_id, parseFloat(bonusAmount), bonusReason)
-        setShowBonusDialog(null)
-        setBonusAmount('')
-        setBonusReason('')
-        await fetchRecords()
+                // Get fresh data which should be UNSETTLED now
+                const fresh = await calculateMonthlySalary(resettleTarget.userId, yearMonth)
+                if (fresh.data) {
+                    updateLocalRecord(fresh.data)
+                }
+            } else {
+                setResettleError(res.error || '重新結算失敗')
+            }
+        } catch (e) {
+            setResettleError('發生未預期錯誤')
+        } finally {
+            setProcessingId(null)
+        }
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <nav className="bg-white border-b shadow-sm h-16 flex items-center justify-between px-6">
-                <div className="font-bold text-lg text-blue-600">💰 薪資管理</div>
-                <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
-                    ← 回首頁
-                </Link>
-            </nav>
+        <PageContainer title="薪資管理" description="管理員工每月薪資、獎金與發放狀態" className="p-4 md:p-8">
+            <ControlBar
+                selectedMonth={yearMonth}
+                onMonthChange={setYearMonth}
+                onOpenSettings={() => setShowSettings(true)}
+            />
 
-            <div className="max-w-7xl mx-auto py-10 px-4">
-                <div className="mb-6 flex items-center gap-4">
-                    <label className="font-bold text-gray-700">選擇月份：</label>
-                    <input
-                        type="month"
-                        value={yearMonth}
-                        onChange={(e) => setYearMonth(e.target.value)}
-                        className="px-4 py-2 border rounded-md"
-                    />
-                    <button
-                        onClick={fetchRecords}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                        🔄 重新整理
-                    </button>
+            {loading ? (
+                <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 card-root">
+                    <div className="animate-spin w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <div className="text-slate-500 font-bold">正在計算薪資數據...</div>
                 </div>
+            ) : (
+                <div className="space-y-4">
+                    {records.length > 0 ? (
+                        records.map(record => (
+                            <EmployeeCard
+                                key={record.userId}
+                                data={record}
+                                onSettle={handleSettle}
+                                onResettle={() => {
+                                    setResettleTarget(record)
+                                    setResettleError(null)
+                                }}
+                                onEditBonus={setBonusTarget}
+                                isProcessing={processingId === record.userId}
+                            />
+                        ))
+                    ) : (
+                        <div className="text-center py-20 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 card-root">
+                            無資料
+                        </div>
+                    )}
+                </div>
+            )}
 
-                {loading ? (
-                    <div className="text-center py-10 text-gray-500">載入中...</div>
-                ) : (
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">員工</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">類型</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">工時</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">基本薪資</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">獎金</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">總薪資</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">狀態</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {records.map((record) => (
-                                    <tr key={record.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4">
-                                            <Link
-                                                href={`/attendance?employee=${record.user_id}&month=${yearMonth}`}
-                                                className="hover:text-blue-600"
-                                            >
-                                                <div className="font-medium">{record.user?.display_name}</div>
-                                                <div className="text-sm text-gray-500">{record.user?.email}</div>
-                                            </Link>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 text-xs rounded ${record.user?.salary_type === 'hourly' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                                                }`}>
-                                                {record.user?.salary_type === 'hourly' ? '鐘點' : '月薪'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">{record.work_hours || '-'} hr</td>
-                                        <td className="px-6 py-4">${record.base_salary?.toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                ${record.bonus?.toLocaleString() || 0}
-                                                <button
-                                                    onClick={() => setShowBonusDialog(record)}
-                                                    className="text-blue-600 hover:text-blue-800 text-sm"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 font-bold">${record.total_salary?.toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            {record.is_paid ? (
-                                                <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
-                                                    已發放
-                                                </span>
-                                            ) : (
-                                                <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">
-                                                    未發放
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleCalculate(record.user_id)}
-                                                    disabled={calculating === record.user_id}
-                                                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                                                >
-                                                    {calculating === record.user_id ? '計算中...' : '重算'}
-                                                </button>
-                                                {!record.is_paid && (
-                                                    <button
-                                                        onClick={() => handleMarkPaid(record.id)}
-                                                        className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
-                                                    >
-                                                        標記已發
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            {/* --- Dialogs --- */}
 
-                        {records.length === 0 && (
-                            <div className="text-center py-10 text-gray-500">
-                                此月份尚無薪資記錄
+            <SalarySettingsDialog
+                isOpen={showSettings}
+                onClose={() => setShowSettings(false)}
+                onSuccess={() => loadData(true)} // Silent refresh
+                users={usersList}
+            />
+
+            {bonusTarget && (
+                <BonusDialog
+                    isOpen={!!bonusTarget}
+                    userId={bonusTarget.userId}
+                    displayName={bonusTarget.displayName}
+                    yearMonth={yearMonth}
+                    currentBonus={bonusTarget.bonus}
+                    currentNotes={bonusTarget.notes || ''}
+                    onClose={() => setBonusTarget(null)}
+                    onSuccess={() => loadData(true)} // Silent refresh
+                />
+            )}
+
+            {/* Custom Resettle Confirm Dialog */}
+            <Dialog isOpen={!!resettleTarget} onClose={() => setResettleTarget(null)} maxWidth="sm">
+                <DialogHeader title="確認取消結算" onClose={() => setResettleTarget(null)} />
+                <DialogContent>
+                    <div className="text-slate-600 dark:text-slate-300">
+                        <p className="mb-2">您確定要取消 <strong>{resettleTarget?.displayName}</strong> 的結算嗎？</p>
+                        <p className="text-sm text-slate-500 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                            這將會解除鎖定，並取消員工的薪資記錄，稍後你可以再重新結算
+                        </p>
+                        {resettleError && (
+                            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">error</span>
+                                {resettleError}
                             </div>
                         )}
                     </div>
-                )}
-            </div>
-
-            {/* 追加獎金對話框 */}
-            {showBonusDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-96">
-                        <h3 className="text-lg font-bold mb-4">追加獎金</h3>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium mb-2">員工</label>
-                            <div className="text-gray-700">{showBonusDialog.user?.display_name}</div>
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium mb-2">獎金金額</label>
-                            <input
-                                type="number"
-                                value={bonusAmount}
-                                onChange={(e) => setBonusAmount(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-md"
-                                placeholder="輸入金額"
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium mb-2">獎金原因</label>
-                            <textarea
-                                value={bonusReason}
-                                onChange={(e) => setBonusReason(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-md"
-                                rows={3}
-                                placeholder="輸入獎金原因"
-                            />
-                        </div>
-                        <div className="flex gap-2 justify-end">
-                            <button
-                                onClick={() => {
-                                    setShowBonusDialog(null)
-                                    setBonusAmount('')
-                                    setBonusReason('')
-                                }}
-                                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={handleAddBonus}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                            >
-                                確認追加
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                </DialogContent>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setResettleTarget(null)} disabled={!!processingId}>取消</Button>
+                    <Button
+                        onClick={handleResettleConfirm}
+                        variant="danger"
+                        disabled={!!processingId}
+                        isLoading={!!processingId}
+                    >
+                        {processingId ? '處理中...' : '確定取消結算'}
+                    </Button>
+                </DialogFooter>
+            </Dialog>
+        </PageContainer>
     )
 }

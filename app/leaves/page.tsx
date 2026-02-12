@@ -1,64 +1,100 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getMyLeaves } from './actions'
+import { getMyLeaves, getAnnualLeaveBalance } from './actions'
 import LeaveTable from '@/components/LeaveTable'
 import ApplyLeaveDialog from '@/components/ApplyLeaveDialog'
-import Link from 'next/link'
+import { PageContainer } from '@/components/ui/PageContainer'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 
 export default function LeavesPage() {
     const [leaves, setLeaves] = useState<any[]>([])
+    const [balance, setBalance] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [showApplyDialog, setShowApplyDialog] = useState(false)
 
-    const fetchLeaves = async () => {
+    const fetchData = async () => {
         setLoading(true)
-        const res = await getMyLeaves()
-        if (res.data) {
-            setLeaves(res.data)
+        const [leavesRes, balanceRes] = await Promise.all([
+            getMyLeaves(),
+            getAnnualLeaveBalance()
+        ])
+
+        if (leavesRes.data) {
+            setLeaves(leavesRes.data)
+        }
+        if (balanceRes.data) {
+            setBalance(balanceRes.data)
         }
         setLoading(false)
     }
 
     useEffect(() => {
-        fetchLeaves()
+        fetchData()
     }, [])
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <nav className="bg-white border-b shadow-sm h-16 flex items-center justify-between px-6">
-                <div className="font-bold text-lg text-blue-600">🏖️ 請假管理</div>
-                <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
-                    ← 回首頁
-                </Link>
-            </nav>
+        <PageContainer
+            title="請假管理"
+            description="查看您的請假記錄與特休餘額，並可在此申請新的休假。"
+            action={
+                <Button onClick={() => setShowApplyDialog(true)}>
+                    + 申請請假
+                </Button>
+            }
+        >
+            {/* 特休餘額卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card title={`年度特休總天數 (${new Date().getFullYear()})`}>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                            {balance?.total_days || 0}
+                        </span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">天</span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-2">包含所有已核發的特休假</p>
+                </Card>
 
-            <div className="max-w-5xl mx-auto py-10 px-4">
-                <div className="flex justify-between items-end mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800">我的請假記錄</h1>
-                    <button
-                        onClick={() => setShowApplyDialog(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700 btn-pointer"
-                    >
-                        + 申請請假
-                    </button>
-                </div>
+                <Card title="已使用 (含審核中)">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                            {balance?.used_days || 0}
+                        </span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">天</span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-2">已批准與待審核的申請</p>
+                </Card>
 
+                <Card title="剩餘天數">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-green-600 dark:text-green-400">
+                            {balance ? (balance.total_days - balance.used_days) : 0}
+                        </span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">天</span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-2">目前可申請的特休餘額</p>
+                </Card>
+            </div>
+
+            <Card title="我的請假記錄" className="overflow-hidden">
                 {loading ? (
-                    <div className="text-center py-10 text-gray-500">載入中...</div>
+                    <div className="p-8 text-center text-slate-500">載入中...</div>
                 ) : (
                     <LeaveTable data={leaves} />
                 )}
-            </div>
+            </Card>
 
             {showApplyDialog && (
                 <ApplyLeaveDialog
                     onClose={() => setShowApplyDialog(false)}
                     onSuccess={() => {
-                        fetchLeaves()
+                        setShowApplyDialog(false)
+                        fetchData()
                     }}
+                    annualLeaveBalance={balance}
                 />
             )}
-        </div>
+        </PageContainer>
     )
 }

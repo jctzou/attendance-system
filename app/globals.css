@@ -1,7 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  /* --- System Architecture Whitepaper v2.0 Palette --- */
+
+  /* Brand */
+  --color-primary: #FF5F05;
+  /* Corporate Orange */
+
+  /* Backgrounds */
+  --color-background-light: #E0E0E0;
+  --color-background-dark: #0F172A;
+
+  /* Surfaces (Cards) */
+  --color-card-light: #FFFFFF;
+  --color-card-dark: #1E293B;
+
+  /* Status Colors (Semantic Aliases) */
+  --color-success: #10B981;
+  /* Emerald-500 */
+  --color-warning: #F59E0B;
+  /* Amber-500 */
+  --color-error: #F43F5E;
+  /* Rose-500 */
+
+  /* Default Tokens (Next.js/Tailwind mapping) */
+  --background: var(--color-background-light);
   --foreground: #171717;
 }
 
@@ -10,13 +33,23 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Mapping Whitepaper Vars to Tailwind Classes */
+  --color-primary: var(--color-primary);
+
+  /* Extensions for Whitepaper naming */
+  --color-bg-light: var(--color-background-light);
+  --color-bg-dark: var(--color-background-dark);
+  --color-surface-light: var(--color-card-light);
+  --color-surface-dark: var(--color-card-dark);
+
+  --radius-xl: 12px;
+  /* Standard rounded-xl */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: var(--color-background-dark);
+  --foreground: #ededed;
 }
 
 body {
@@ -25,25 +58,60 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* 全局按鈕與連結優化 */
-button, 
-[type="button"], 
-[type="submit"],
-.btn-pointer {
-  cursor: pointer !important;
-  transition: all 0.2s ease-in-out;
+/* Global Reset & Utility Overrides */
+button,
+[type="button"],
+[type="submit"] {
+  cursor: pointer;
 }
 
-button:hover,
-[type="button"]:hover,
-[type="submit"]:hover {
-  filter: brightness(1.05);
+/* Hide scrollbar for clean UI in certain containers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-button:active,
-[type="button"]:active,
-[type="submit"]:active {
-  filter: brightness(0.95);
-  transform: scale(0.98);
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
+.dark .card-root {
+  background-color: var(--color-card-dark) !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.dark .card-root .text-slate-900,
+.dark .card-root .text-slate-800,
+.dark .card-root .text-slate-700 {
+  color: #f8fafc !important;
+}
+
+.dark .card-root .text-slate-600,
+.dark .card-root .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .page-title {
+  color: #ffffff !important;
+}
+
+.dark .leave-table-root {
+  background-color: var(--color-card-dark) !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.dark .leave-table-root table {
+  color: #f8fafc !important;
+}
+
+.dark .leave-table-root thead {
+  background-color: #0f172a !important;
+  /* bg-slate-900 */
+}
+
+.dark .leave-table-root tbody tr:hover {
+  background-color: #334155 !important;
+  /* bg-slate-700 */
+}
