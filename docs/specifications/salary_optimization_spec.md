@@ -109,10 +109,10 @@
 
 ### 7.1 頁面結構 (Page Structure)
 -   **控制列 (Control Bar)**:
-    -   **月份選擇**: 在手機版必須防止破版。
-        -   容器需設定 `min-w-0` 防止 Flex Item 撐開。
-        -   輸入框需設定 `w-full` 搭配 `max-w-full`。
-        -   建議標籤與輸入框採用堆疊 (`flex-col`) 佈局。
+    -   **月份選擇**:
+        -   採用與打卡記錄頁面一致的佈局方案。
+        -   使用 `flex items-center gap-2` (標籤與輸入框並排)。
+        -   輸入框設定 `w-full sm:w-auto`，利用 `flex-shrink` 自動適應寬度，防止破版。
     -   **設定按鈕**: 保持顯眼位置。
 
 ### 7.2 員工卡片設計 (Employee Card Design)
