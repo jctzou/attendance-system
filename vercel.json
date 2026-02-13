@@ -1,0 +1,8 @@
+{
+    "crons": [
+        {
+            "path": "/api/cron/annual-leave",
+            "schedule": "0 16 * * *"
+        }
+    ]
+}

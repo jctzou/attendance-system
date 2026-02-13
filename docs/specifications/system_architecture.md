@@ -34,6 +34,21 @@
 | `salary_amount` | Numeric | 基本薪資或時薪費率 |
 | `work_start_time` | Time | 排班開始時間 (例如：'09:00') |
 | `work_end_time` | Time | 排班結束時間 (例如：'18:00') |
+| `onboard_date` | Date | 到職日 (特休計算基準) |
+| `annual_leave_total` | Numeric | 本年度特休總天數 |
+| `annual_leave_used` | Numeric | 本年度已休特休天數 |
+| `last_reset_date` | Date | 上次特休重置日期 |
+
+### `annual_leave_logs` (特休記錄)
+特休發放與結算軌跡。
+| 欄位 | 類型 | 說明 |
+| :--- | :--- | :--- |
+| `id` | BigInt | 主鍵 |
+| `user_id` | UUID | 外鍵連結至 `users` |
+| `year` | Integer | 年資年度 |
+| `action` | Text | `'grant'`(發放), `'reset'`(結算) |
+| `days_change` | Numeric | 異動天數 |
+| `description` | Text | 說明 |
 
 ### `attendance` (出勤)
 每日工作記錄。

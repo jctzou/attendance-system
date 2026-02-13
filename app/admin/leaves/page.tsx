@@ -102,8 +102,8 @@ export default function AdminLeavesPage() {
                 <button
                     onClick={() => setActiveTab('leaves')}
                     className={`pb-3 px-4 font-medium transition-colors ${activeTab === 'leaves'
-                            ? 'text-primary border-b-2 border-primary'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        ? 'text-primary border-b-2 border-primary'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                 >
                     請假申請 {leaves.length > 0 && `(${leaves.length})`}
@@ -111,8 +111,8 @@ export default function AdminLeavesPage() {
                 <button
                     onClick={() => setActiveTab('cancellations')}
                     className={`pb-3 px-4 font-medium transition-colors ${activeTab === 'cancellations'
-                            ? 'text-primary border-b-2 border-primary'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        ? 'text-primary border-b-2 border-primary'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                 >
                     取消申請 {cancellations.length > 0 && `(${cancellations.length})`}
@@ -123,13 +123,35 @@ export default function AdminLeavesPage() {
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                     {activeTab === 'leaves' ? '待審核請假申請' : '待審核取消申請'}
                 </h2>
-                <button
-                    onClick={handleRefresh}
-                    className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1"
-                >
-                    <span className="material-symbols-outlined text-sm">refresh</span>
-                    重新整理
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={async () => {
+                            if (!confirm('確定要執行「年度特休計算」嗎？\n這將檢查所有員工的到職日，並為今日滿週年者發放特休。')) return;
+                            try {
+                                const res = await fetch('/api/cron/annual-leave', { method: 'POST' });
+                                const data = await res.json();
+                                if (data.success) {
+                                    alert(`執行成功！\n處理人數: ${data.processed}\n詳細資訊: ${JSON.stringify(data.details, null, 2)}`);
+                                } else {
+                                    alert(`執行失敗: ${data.error}`);
+                                }
+                            } catch (e) {
+                                alert('執行失敗');
+                            }
+                        }}
+                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 px-3 py-1 border border-indigo-200 rounded hover:bg-indigo-50"
+                    >
+                        <span className="material-symbols-outlined text-sm">schedule</span>
+                        執行特休計算
+                    </button>
+                    <button
+                        onClick={handleRefresh}
+                        className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+                    >
+                        <span className="material-symbols-outlined text-sm">refresh</span>
+                        重新整理
+                    </button>
+                </div>
             </div>
 
             {loading ? (

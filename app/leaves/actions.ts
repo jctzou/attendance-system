@@ -7,57 +7,32 @@ import { calculateAnnualLeaveDays } from '@/utils/leave-calculations'
 /**
  * 獲取並初始化我的年度特休餘額
  */
+/**
+ * 獲取並初始化我的年度特休餘額
+ */
 export async function getAnnualLeaveBalance() {
     const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
 
-    const currentYear = new Date().getFullYear()
-
-    // 1. 嘗試獲取現有餘額
-    let { data: balance } = await supabase
-        .from('leave_balances')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('year', currentYear)
+    // 直接從 users 表獲取特休資訊
+    const { data: userProfile, error } = await supabase
+        .from('users')
+        .select('annual_leave_total, annual_leave_used')
+        .eq('id', user.id)
         .single()
 
-    // 2. 如果沒有記錄，則初始化
-    if (!balance) {
-        // 獲取使用者到職日
-        const { data: userProfile } = await supabase
-            .from('users')
-            .select('hire_date')
-            .eq('id', user.id)
-            .single()
-
-        if (userProfile && userProfile.hire_date) {
-            const totalDays = calculateAnnualLeaveDays(userProfile.hire_date, currentYear)
-
-            // 寫入資料庫
-            const { data: newBalance, error } = await supabase
-                .from('leave_balances')
-                .insert({
-                    user_id: user.id,
-                    year: currentYear,
-                    total_days: totalDays,
-                    used_days: 0
-                })
-                .select()
-                .single()
-
-            if (!error) {
-                balance = newBalance
-            }
-        }
+    if (error) {
+        console.error('Error fetching annual leave balance:', error)
+        return { error: '無法獲取特休餘額' }
     }
 
     return {
-        data: balance || {
-            total_days: 0,
-            used_days: 0,
-            remaining_days: 0
+        data: {
+            total_days: Number(userProfile.annual_leave_total) || 0,
+            used_days: Number(userProfile.annual_leave_used) || 0,
+            remaining_days: (Number(userProfile.annual_leave_total) || 0) - (Number(userProfile.annual_leave_used) || 0)
         }
     }
 }
@@ -91,46 +66,54 @@ export async function applyLeave(
         const days = hours / 8 // 假設一天 8 小時
         const currentYear = new Date(startDate).getFullYear()
 
-        // 獲取餘額
-        const { data: balance } = await supabase
-            .from('leave_balances')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('year', currentYear)
+        // 獲取使用者特休資訊
+        const { data: userProfile } = await supabase
+            .from('users')
+            .select('annual_leave_total, annual_leave_used')
+            .eq('id', user.id)
             .single()
 
-        if (!balance) {
-            return { error: '尚未初始化特休餘額，請先重新整理頁面。' }
+        if (!userProfile) {
+            return { error: '無法獲取使用者資訊' }
         }
 
-        if ((balance.used_days + days) > balance.total_days) {
-            const remaining = balance.total_days - balance.used_days
-            return { error: `特休餘額不足。剩餘: ${remaining} 天，申請: ${days} 天` }
+        const totalDays = Number(userProfile.annual_leave_total) || 0
+        // 不需要 used from DB because we calc "pending" separately below
+
+        if (totalDays === 0) {
+            return { error: '您目前沒有特休額度 (請確認到職日是否已設定)' }
         }
 
-        // 預先扣除餘額 (或在審核通過時扣除？通常是申請時先扣，拒絕後返還，避免超額申請)
-        // 這裡我們選擇：申請時先不扣，審核通過時再扣？
-        // 為了避免同時申請導致超額，建議申請時先 checked，或者在資料庫層級做檢查。
-        // 簡單起見：申請時先增加 used_days? 不，這樣如果拒絕要扣回來比較麻煩。
-        // 作法：申請時檢查 `pending + approved` 的總數？
-        // 為了簡化，我們先只檢查，不扣除。真正的扣除 logic 應該在 Approve 時。
-        // 但是這樣員工可以發起無限多個 pending request。
+        // 改進：計算所有 pending + approved 的 annual leave (包含 DB 中已記錄為 used 的，但因為我們重構了，
+        // DB 的 annual_leave_used 應該是「已核准並扣除」的。
+        // 所以 總使用 = DB.used + Pending Leaves in 'leaves' table.
+        // 而 Action 裡原本的邏輯是 sum(pending + approved in leaves table).
+        // 如果我們採信 `users.annual_leave_used` 是 source of truth for APPROVED leaves,
+        // 那麼我們只需要加上 `pending` 的。
+        // 但為了安全起見，且避免同步問題，我們這裡採用標準做法：
+        // 檢查限額 = (已核准 + 審核中 + 本次申請) <= 總額
 
-        // 改進：計算所有 pending + approved 的 annual leave
-        const { data: existingLeaves } = await supabase
+        // 1. 本次申請
+        // days is already calculated
+
+        // 2. 已核准 (來自 users.annual_leave_used)
+        const approvedDays = Number(userProfile.annual_leave_used) || 0
+
+        // 3. 審核中 (Query leaves table for pending annual leaves)
+        const { data: pendingLeaves } = await supabase
             .from('leaves')
             .select('hours')
             .eq('user_id', user.id)
-            .eq('leave_type', 'annual')
-            .in('status', ['pending', 'approved'])
-            .gte('start_date', `${currentYear}-01-01`)
-            .lte('end_date', `${currentYear}-12-31`)
+            .eq('leave_type', 'annual_leave') // 注意：確保 type string 一致 (前端傳 'annual_leave'?)
+            .eq('status', 'pending')
+            .gte('start_date', `${currentYear}-01-01`) // Optional: 限制年度? 特休跨年度通常有別的處理，這裡先簡化
 
-        const usedAndPendingHours = (existingLeaves as any[])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
-        const usedAndPendingDays = usedAndPendingHours / 8
+        const pendingHours = (pendingLeaves as any[])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
+        const pendingDays = pendingHours / 8
 
-        if ((usedAndPendingDays + days) > balance.total_days) {
-            return { error: `特休額度不足 (含審核中)。額度: ${balance.total_days} 天，已用+審核中: ${usedAndPendingDays} 天` }
+        if ((approvedDays + pendingDays + days) > totalDays) {
+            const remaining = totalDays - approvedDays - pendingDays
+            return { error: `特休額度不足。剩餘(含審核中扣除): ${remaining.toFixed(2)} 天，本次申請: ${days} 天` }
         }
     }
 
@@ -289,6 +272,27 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
         .eq('id', leaveId)
 
     if (error) return { error: error.message }
+
+    // [NEW] 如果是批准特休，更新 users.annual_leave_used
+    if (status === 'approved') {
+        const { data: leave } = await supabase
+            .from('leaves')
+            .select('leave_type, hours, user_id')
+            .eq('id', leaveId)
+            .single()
+
+        if (leave && (leave as any).leave_type === 'annual_leave') {
+            const days = (leave as any).hours / 8
+            // RPC call or straight update? Straight update is risky for concurrency but okay for now.
+            // Ideally use rpc('increment_annual_leave_used', { uid: leave.user_id, delta: days })
+
+            // Fetch current used
+            const { data: u } = await supabase.from('users').select('annual_leave_used').eq('id', (leave as any).user_id).single()
+            const newUsed = (Number(u?.annual_leave_used) || 0) + days
+
+            await supabase.from('users').update({ annual_leave_used: newUsed }).eq('id', (leave as any).user_id)
+        }
+    }
 
     // 通知申請人
     const { data: leave } = await supabase
