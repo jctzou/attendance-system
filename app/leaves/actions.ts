@@ -41,7 +41,7 @@ export async function applyLeave(
     leaveType: string,
     startDate: string,
     endDate: string,
-    hours: number,
+    days: number,
     reason: string
 ) {
 
@@ -53,6 +53,11 @@ export async function applyLeave(
         return { error: '請填寫完整資訊' }
     }
 
+    // 驗證天數 (最小單位 0.5)
+    if (days <= 0 || days % 0.5 !== 0) {
+        return { error: '請假天數必須大於 0 且為 0.5 的倍數' }
+    }
+
     // 簡單檢查日期順序
     if (new Date(startDate) > new Date(endDate)) {
         return { error: '結束日期不能早於開始日期' }
@@ -60,7 +65,6 @@ export async function applyLeave(
 
     // 特休假餘額檢查 (Annual Leave)
     if (leaveType === 'annual_leave') {
-        const days = hours / 8 // 假設一天 8 小時
         const currentYear = new Date(startDate).getFullYear()
 
         // 獲取使用者特休資訊
@@ -75,23 +79,14 @@ export async function applyLeave(
         }
 
         const totalDays = Number(userProfile.annual_leave_total) || 0
-        // 不需要 used from DB because we calc "pending" separately below
 
         if (totalDays === 0) {
             return { error: '您目前沒有特休額度 (請確認到職日是否已設定)' }
         }
 
-        // 改進：計算所有 pending + approved 的 annual leave (包含 DB 中已記錄為 used 的，但因為我們重構了，
-        // DB 的 annual_leave_used 應該是「已核准並扣除」的。
-        // 所以 總使用 = DB.used + Pending Leaves in 'leaves' table.
-        // 而 Action 裡原本的邏輯是 sum(pending + approved in leaves table).
-        // 如果我們採信 `users.annual_leave_used` 是 source of truth for APPROVED leaves,
-        // 那麼我們只需要加上 `pending` 的。
-        // 但為了安全起見，且避免同步問題，我們這裡採用標準做法：
         // 檢查限額 = (已核准 + 審核中 + 本次申請) <= 總額
 
-        // 1. 本次申請
-        // days is already calculated
+        // 1. 本次申請: days
 
         // 2. 已核准 (來自 users.annual_leave_used)
         const approvedDays = Number(userProfile.annual_leave_used) || 0
@@ -99,18 +94,17 @@ export async function applyLeave(
         // 3. 審核中 (Query leaves table for pending annual leaves)
         const { data: pendingLeaves } = await supabase
             .from('leaves')
-            .select('hours')
+            .select('days')
             .eq('user_id', user.id)
-            .eq('leave_type', 'annual_leave') // 注意：確保 type string 一致 (前端傳 'annual_leave'?)
+            .eq('leave_type', 'annual_leave')
             .eq('status', 'pending')
-            .gte('start_date', `${currentYear}-01-01`) // Optional: 限制年度? 特休跨年度通常有別的處理，這裡先簡化
+            .gte('start_date', `${currentYear}-01-01`)
 
-        const pendingHours = (pendingLeaves || [])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
-        const pendingDays = pendingHours / 8
+        const pendingDays = (pendingLeaves || [])?.reduce((sum: number, l: any) => sum + (l.days || 0), 0) || 0
 
         if ((approvedDays + pendingDays + days) > totalDays) {
             const remaining = totalDays - approvedDays - pendingDays
-            return { error: `特休額度不足。剩餘(含審核中扣除): ${remaining.toFixed(2)} 天，本次申請: ${days} 天` }
+            return { error: `特休額度不足。剩餘(含審核中扣除): ${remaining.toFixed(1)} 天，本次申請: ${days} 天` }
         }
     }
 
@@ -119,7 +113,8 @@ export async function applyLeave(
         leave_type: leaveType,
         start_date: startDate,
         end_date: endDate,
-        hours: hours,
+        days: days,
+        hours: days * 8, // Legacy support: DB requires hours not null
         reason: reason,
         status: 'pending' // 預設待審核
     })
@@ -272,14 +267,12 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
     if (status === 'approved') {
         const { data: leave } = await supabase
             .from('leaves')
-            .select('leave_type, hours, user_id')
+            .select('leave_type, days, user_id')
             .eq('id', leaveId)
             .single()
 
         if (leave && leave.leave_type === 'annual_leave') {
-            const days = (leave.hours || 0) / 8
-            // RPC call or straight update? Straight update is risky for concurrency but okay for now.
-            // Ideally use rpc('increment_annual_leave_used', { uid: leave.user_id, delta: days })
+            const days = Number(leave.days) || 0
 
             // Fetch current used
             const { data: u } = await supabase.from('users').select('annual_leave_used').eq('id', leave.user_id).single()
@@ -489,6 +482,34 @@ export async function reviewLeaveCancellation(
             .eq('id', cancellation.leave_id)
 
         if (leaveUpdateError) return { error: leaveUpdateError.message }
+
+        // [Fix] 如果是「特休」，必須將已扣除的天數加回來
+        const { data: cancelledLeave } = await supabase
+            .from('leaves')
+            .select('leave_type, days, user_id')
+            .eq('id', cancellation.leave_id)
+            .single()
+
+        if (cancelledLeave && cancelledLeave.leave_type === 'annual_leave') {
+            const daysToRestore = Number(cancelledLeave.days) || 0
+
+            // Fetch current balance
+            const { data: u } = await supabase
+                .from('users')
+                .select('annual_leave_used')
+                .eq('id', cancelledLeave.user_id)
+                .single()
+
+            const currentUsed = Number(u?.annual_leave_used) || 0
+            // Avoid negative usage (safety check)
+            const newUsed = Math.max(0, currentUsed - daysToRestore)
+
+            await supabase.from('users')
+                .update({ annual_leave_used: newUsed })
+                .eq('id', cancelledLeave.user_id)
+
+            // Log the restoration? Optional.
+        }
     }
 
     // 4. 發送通知給申請人

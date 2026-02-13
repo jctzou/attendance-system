@@ -130,7 +130,7 @@ export interface Database {
                     status: 'pending' | 'approved' | 'rejected'
                     created_at: string
                     updated_at: string
-                    hours: number | null
+                    days: number | null
                 }
                 Insert: {
                     id?: number
@@ -143,6 +143,7 @@ export interface Database {
                     created_at?: string
                     updated_at?: string
                     hours?: number | null
+                    days?: number | null
                 }
                 Update: {
                     id?: number
@@ -154,7 +155,7 @@ export interface Database {
                     status: 'pending' | 'approved' | 'rejected' | 'cancelled'
                     created_at?: string
                     updated_at?: string
-                    hours?: number | null
+                    days?: number | null
                 }
                 Relationships: []
             }

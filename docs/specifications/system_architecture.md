@@ -72,7 +72,8 @@
 | `leave_type` | Text | 例如：`'annual'`(特休), `'sick'`(病假), `'personal'`(事假) |
 | `start_date` | Timestamp | 請假開始時間 |
 | `end_date` | Timestamp | 請假結束時間 |
-| `status` | Text | `'pending'`(待審核), `'approved'`(已核准), `'rejected'`(已駁回) |
+| `days` | Numeric | 請假天數 (最小單位 0.5 天) |
+| `status` | Text | `'pending'`(待審核), `'approved'`(已核准), `'rejected'`(已駁回), `'cancelled'`(已取消) |
 
 ### `salary_records` (薪資記錄)
 每月薪資快照。
@@ -132,6 +133,15 @@
         -   **Header**: 必須包含標題與關閉按鈕 (X)。
         -   **Footer**: 必須包含操作按鈕，**主要動作**在右側，**取消動作**在左側 (或左側對齊)。
         -   **Destructive Action**: 若為刪除/取消類操作，確認按鈕必須使用紅色 (`bg-red-500`)。
+
+5.  **互動列表與網格 (Interactive Lists & Grids)**:
+    -   **項目狀態 (Item States)**:
+        -   **預設 (Default)**: `bg-white` (Dark: `bg-slate-800`), `border-slate-200`.
+        -   **選取/使用中 (Active)**: `border-[var(--color-primary)]` 或 `ring-[var(--color-primary)]`.
+        -   **停用/排除 (Disabled/Excluded)**: `bg-slate-50` (Dark: `bg-slate-900`), `text-slate-400`, `line-through` (若為剔除項目).
+        -   **特殊強調 (例假日/警告)**: 必須使用 **Rose/Red** 色系區隔。
+            -   Light: `bg-rose-50`, `border-rose-100`, `text-rose-600`
+            -   Dark: `bg-rose-900/10`, `border-rose-900/30`, `text-rose-400`
 
 ---
 
@@ -262,3 +272,111 @@
 -   **表格響應式策略 (Responsive Tables)**:
     -   **手機版卡片化 (Card View)**: 在小螢幕 (`< md`) 上，**禁止** 使用橫向捲動表格 (Horizontal Scroll Table) 顯示關鍵操作資料。必須將每一列 (Row) 轉換為獨立的 **卡片 (Card)** 堆疊顯示，確保所有資訊與操作按鈕完整可見。
     -   **桌面版表格 (Table View)**: 在大螢幕 (`>= md`) 上維持標準表格佈局。
+
+---
+
+## 11. 嚴格開發規範與設計原則 (Strict Coding Standards)
+
+> **生效日期**: 2026-02-13
+> **適用範圍**: 所有後端邏輯 (Server Actions), API Routes, 及 Supabase Client 互動。
+
+為了確保系統在 **Vercel** 與 **Supabase** 等嚴格環境下能順利部署並維持穩定，本專案採用以下開發規範。所有程式碼提交 (Commit) 前必須通過 `tsc --noEmit` 檢查。
+
+### 11.1 Supabase 型別定義規範
+
+Supabase 的 TypeScript 型別自動生成 (`supabase gen types`) 在某些邊緣情況下可能不完整，導致嚴格模式下的型別推斷失效 (回傳 `never`)。
+
+#### 手動修正 `types/supabase.ts`
+若自動生成的型別導致 `never` 錯誤，必須確認 `types/supabase.ts` 對應的 Table 定義包含以下關鍵欄位：
+
+1.  **Relationships**: 即使沒有關聯，也必須顯式定義為空陣列。
+    ```typescript
+    Relationships: []
+    ```
+2.  **Schema Top-Level Keys**: `Database` 介面必須包含所有 Schema 頂層鍵值，即使是空的：
+    ```typescript
+    Views: { [_ in never]: never }
+    Functions: { [_ in never]: never }
+    Enums: { [_ in never]: never }
+    CompositeTypes: { [_ in never]: never }
+    ```
+
+**原因**: TypeScript 的結構化型別系統在比對 `GenericSchema` 時，若缺少這些鍵值，會判定介面不匹配而回退至 `never`。
+
+#### Enum 同步
+`types/supabase.ts` 中的 Enum 定義 (例如 `status`) **必須** 與資料庫中的 Check Constraint 完全一致。
+-   **嚴禁** 在程式碼中使用字串字面量 (String Literal) 賦值給 Enum 欄位，除非該字面量已定義在型別中。
+-   **範例**: 若 DB 新增 `cancelled` 狀態，TypeScript 定義檔必須同步更新，否則 `update({ status: 'cancelled' })` 會報錯。
+
+### 11.2 嚴禁 `any` 與型別推斷策略
+
+本專案權限極高 (涉及薪資與休假)，**嚴格禁止** 使用 `any` 來繞過型別檢查。
+
+#### 優先使用明確型別 (Explicit Typing)
+當 Supabase Client (`supabase.from(...).select(...)`) 的自動推斷失效時，**不可** 使用 `as any`。應採用以下策略：
+
+**策略 A (推薦): 使用 `.returns<T>()`**
+Supabase 官方提供的型別斷言方法。
+```typescript
+const { data } = await supabase
+    .from('users')
+    .select('id, name')
+    .returns<{ id: string, name: string }[]>() // 明確宣告回傳結構
+```
+
+**策略 B (備案): 結果轉型 (Result Casting)**
+若 `.returns()` 仍無法解決 (例如複雜 Join 或 `single()` 推斷錯誤)，可對 `await` 結果進行轉型，但必須定義完整的 Response 結構：
+```typescript
+const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .single() as { data: UserRow | null, error: PostgrestError | null }
+```
+
+#### Server Actions 參數
+Server Action 的參數 **不可** 定義為 `any`。簡易參數可直接定義，複雜物件應定義 Interface。
+```typescript
+// BAD
+export async function updateProfile(data: any) { ... }
+
+// GOOD
+interface ProfileUpdateData {
+    displayName: string;
+    email: string;
+}
+export async function updateProfile(data: ProfileUpdateData) { ... }
+```
+
+### 11.3 錯誤處理與與防禦性程式設計
+
+#### 必須檢查 `error`
+在存取 `data` 之前，**必須** 先檢查 `error` 是否存在。
+```typescript
+const { data, error } = await supabase...
+
+if (error) {
+    console.error('Query failed:', error)
+    return { error: '發生錯誤' }
+}
+
+// 只有在檢查過 error 後才能安全使用 data
+console.log(data.id)
+```
+
+#### 空值處理 (Null Safety)
+資料庫的 `Row` 定義中，許多欄位可能是 `null` (例如 `avatar_url`, `annual_leave_used`)。使用前必須進行 Null Check 或提供預設值。
+```typescript
+// BAD
+const usedDays = user.annual_leave_used + 5; // Object is possibly 'null'
+
+// GOOD
+const usedDays = (user.annual_leave_used || 0) + 5;
+```
+
+### 11.4 部署檢查清單 (Deployment Checklist)
+
+在推送到 Vercel 之前，請執行以下命令確保環境健康：
+
+1.  **型別檢查**: `npx tsc --noEmit` (必須 0 錯誤)
+2.  **Lint 檢查**: `npm run lint`
+3.  **依賴檢查**: 確認 `package.json` 中的 `@supabase/supabase-js` 版本與本地開發環境一致。

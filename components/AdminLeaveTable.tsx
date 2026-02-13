@@ -79,8 +79,8 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                                         <span className="font-mono">{leave.start_date} ~ {leave.end_date}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-slate-400">時數:</span>
-                                        <span className="font-medium">{leave.hours} 小時</span>
+                                        <span className="text-slate-400">天數:</span>
+                                        <span className="font-medium">{leave.days} 天</span>
                                     </div>
                                 </div>
                             </div>
@@ -125,7 +125,7 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">申請人</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">假別</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">時間 / 時數</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">時間 / 天數</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">原因</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">申請時間</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">審核</th>
@@ -149,7 +149,7 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
                                     <div className="font-mono">{leave.start_date} ~ {leave.end_date}</div>
-                                    <div className="text-xs text-slate-400 mt-0.5">共 {leave.hours} 小時</div>
+                                    <div className="text-xs text-slate-400 mt-0.5">共 {leave.days} 天</div>
                                 </td>
                                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 max-w-xs truncate" title={leave.reason}>
                                     {leave.reason}

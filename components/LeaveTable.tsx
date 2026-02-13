@@ -51,7 +51,7 @@ export default function LeaveTable({ data }: Props) {
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">假別</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">日期</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">時數</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">天數</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">原因</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">狀態</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">操作</th>
@@ -77,7 +77,7 @@ export default function LeaveTable({ data }: Props) {
                                         {leave.start_date} ~ {leave.end_date}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
-                                        {leave.hours} hr
+                                        {leave.days} 天
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 max-w-xs truncate" title={leave.reason}>
                                         {leave.reason}

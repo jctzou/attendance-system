@@ -23,6 +23,28 @@ export default function AdminEmployeesPage() {
         annualLeaveTotal: 0
     })
 
+    const handleRunAnnualLeaveCheck = async () => {
+        if (!confirm('確定要執行全體員工的年資特休計算檢查嗎？此操作會自動更新符合條件者的特休總額。')) return
+
+        setLoading(true)
+        try {
+            const res = await fetch('/api/cron/annual-leave')
+            const data = await res.json()
+
+            if (data.success) {
+                alert(`執行完成！\n\n更新結果：\n${data.data.results.map((r: any) => `${r.user}: ${r.status}${r.days ? ` (+${r.days}天)` : ''}`).join('\n') || '無變更'}`)
+                fetchEmployees()
+            } else {
+                alert(`執行失敗: ${data.error}`)
+            }
+        } catch (err) {
+            console.error(err)
+            alert('執行發生錯誤')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const fetchEmployees = async () => {
         setLoading(true)
         const res = await getEmployees()
@@ -70,7 +92,16 @@ export default function AdminEmployeesPage() {
     }
 
     return (
-        <PageContainer title="員工資料管理" description="設定員工基本資料、到職日與特休額度">
+        <PageContainer
+            title="員工資料管理"
+            description="設定員工基本資料、到職日與特休額度"
+            action={
+                <Button variant="outline" onClick={handleRunAnnualLeaveCheck} disabled={loading}>
+                    <span className="material-symbols-outlined text-sm mr-1">update</span>
+                    執行年度特休計算
+                </Button>
+            }
+        >
             <Card>
                 {loading ? (
                     <div className="p-8 text-center text-slate-500">載入中...</div>
