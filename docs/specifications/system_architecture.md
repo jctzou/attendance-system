@@ -192,6 +192,7 @@
 ### 出勤判定邏輯
 -   **基準時間**：系統應以 `users.work_start_time` 為準。超過 1 分鐘即標註 `status = 'late'`。
 -   **防呆機制**：同一 `user_id` 在同一 `work_date` 僅允許一筆 `attendance` 記錄（除非特定排班需求）。重複打卡應視為 **更新 (Update)** 而非新增 (Insert)。
+-   **狀態重算 (Recalculation)**：任何涉及時間的修改 (包含補登、修改、取消下班)，**必須** 重新讀取使用者的班表設定 (`work_start_time`, `work_end_time`) 並執行完整的狀態判定邏輯 (`determineAttendanceStatus`)。禁止依賴舊有的狀態字串進行推斷。
 
 ---
 

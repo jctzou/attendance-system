@@ -171,14 +171,22 @@ export async function cancelClockOut(userId: string): Promise<ActionResponse> {
         return { error: '尚未下班打卡,無需取消。' }
     }
 
-    // 2. 回復狀態
-    // 如果之前是'late early_leave'，取消下班後應該變回 'late' (如果遲到的話)
-    // 這裡簡化處理：如果本來就有 late，則保留 late，否則 normal
-    // 更精確的做法是重新讀取上班時間與設定值重算，但這裡直接從字串判斷
-    let newStatus = 'normal'
-    if (record.status && record.status.includes('late')) {
-        newStatus = 'late'
-    }
+    // 2. 重新計算狀態 (Recalculate Status)
+    // 必須讀取使用者的班表設定，以確保狀態正確 (例如原本遲到，取消下班後仍應為遲到)
+    const { data: userSettings } = await supabase
+        .from('users')
+        .select('work_start_time')
+        .eq('id', userId)
+        .single()
+
+    const workStartTime = userSettings?.work_start_time || '09:00:00'
+
+    // Convert DB UTC time to Local Time string for calculation
+    const clockInDate = new Date(record.clock_in_time)
+    const inTimeStr = clockInDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false })
+
+    // Recalculate status with null clockOut
+    const newStatus = determineAttendanceStatus(inTimeStr, null, workStartTime, '18:00:00')
 
     // 3. 更新資料庫
     const { error } = await supabase.from('attendance')
