@@ -18,6 +18,7 @@ export async function getAnnualLeaveBalance() {
         .from('users')
         .select('annual_leave_total, annual_leave_used')
         .eq('id', user.id)
+        .returns<{ annual_leave_total: number | null, annual_leave_used: number | null }>()
         .single()
 
     if (error) {
@@ -68,6 +69,7 @@ export async function applyLeave(
             .from('users')
             .select('annual_leave_total, annual_leave_used')
             .eq('id', user.id)
+            .returns<{ annual_leave_total: number | null, annual_leave_used: number | null }>()
             .single()
 
         if (!userProfile) {
@@ -104,6 +106,7 @@ export async function applyLeave(
             .eq('leave_type', 'annual_leave') // 注意：確保 type string 一致 (前端傳 'annual_leave'?)
             .eq('status', 'pending')
             .gte('start_date', `${currentYear}-01-01`) // Optional: 限制年度? 特休跨年度通常有別的處理，這裡先簡化
+            .returns<{ hours: number | null }[]>()
 
         const pendingHours = (pendingLeaves || [])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
         const pendingDays = pendingHours / 8
