@@ -16,7 +16,7 @@ export async function POST(request: Request) {
             if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
             const { data: admin } = await supabase.from('users').select('role').eq('id', user.id).single()
-            if (!admin || !['manager', 'super_admin'].includes(admin.role)) {
+            if (!admin || !['manager', 'super_admin'].includes((admin as any).role)) {
                 return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
             }
         }
