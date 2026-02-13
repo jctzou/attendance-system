@@ -102,7 +102,7 @@ export async function POST(request: Request) {
                 // Use existing util, pass 'currentYear' or 'currentYear + 1'?
                 // calculateAnnualLeaveDays calculates based on "end of targetYear".
                 // If today is anniversary, we should calculate what they get for this newly started year.
-                // Actually, labor law is: "Worker who has worked for..."
+                // Actually, labor law: "Worker who has worked for..."
                 // 1 year service -> 7 days.
                 // So on 1st anniversary, yearsOfService = 1. Grant 7.
 
@@ -138,20 +138,20 @@ export async function POST(request: Request) {
                 // Or simply: SET total = newDays. used = 0.
 
                 // Update User
-                await supabase.from('users').update({
+                await (supabase.from('users') as any).update({
                     annual_leave_total: daysToGrant,
                     annual_leave_used: 0,
                     last_reset_date: todayStr
-                } as any).eq('id', emp.id)
+                }).eq('id', emp.id)
 
                 // Log it
-                await supabase.from('annual_leave_logs').insert({
+                await (supabase.from('annual_leave_logs') as any).insert({
                     user_id: emp.id,
                     year: yearsOfService, // Or 0.5
                     action: 'grant',
                     days_change: daysToGrant,
                     description: `Automatic grant: ${action} (Tenure: ${yearsOfService.toFixed(1)} years)`
-                } as any)
+                })
 
                 // Also log the "Reset" of previous balance if it was > 0?
                 // Simplification for now.
