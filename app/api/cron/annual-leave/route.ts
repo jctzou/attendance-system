@@ -142,7 +142,7 @@ export async function POST(request: Request) {
                     annual_leave_total: daysToGrant,
                     annual_leave_used: 0,
                     last_reset_date: todayStr
-                }).eq('id', emp.id)
+                } as any).eq('id', emp.id)
 
                 // Log it
                 await supabase.from('annual_leave_logs').insert({
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
                     action: 'grant',
                     days_change: daysToGrant,
                     description: `Automatic grant: ${action} (Tenure: ${yearsOfService.toFixed(1)} years)`
-                })
+                } as any)
 
                 // Also log the "Reset" of previous balance if it was > 0?
                 // Simplification for now.
