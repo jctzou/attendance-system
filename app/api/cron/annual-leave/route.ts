@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
         const results = []
 
-        for (const emp of empls) {
+        for (const emp of (empls as any[])) {
             const onboard = new Date(emp.onboard_date)
             // Check if today is the anniversary (Month and Day match)
             // Note: onboard_date is YYYY-MM-DD.
