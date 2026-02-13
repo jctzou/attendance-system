@@ -18,8 +18,9 @@ export async function getAnnualLeaveBalance() {
         .from('users')
         .select('annual_leave_total, annual_leave_used')
         .eq('id', user.id)
-        .returns<{ annual_leave_total: number | null, annual_leave_used: number | null }>()
-        .single()
+        .select('annual_leave_total, annual_leave_used')
+        .eq('id', user.id)
+        .single() as { data: { annual_leave_total: number | null, annual_leave_used: number | null } | null, error: any }
 
     if (error) {
         console.error('Error fetching annual leave balance:', error)
@@ -69,8 +70,9 @@ export async function applyLeave(
             .from('users')
             .select('annual_leave_total, annual_leave_used')
             .eq('id', user.id)
-            .returns<{ annual_leave_total: number | null, annual_leave_used: number | null }>()
-            .single()
+            .select('annual_leave_total, annual_leave_used')
+            .eq('id', user.id)
+            .single() as { data: { annual_leave_total: number | null, annual_leave_used: number | null } | null, error: any }
 
         if (!userProfile) {
             return { error: '無法獲取使用者資訊' }
@@ -103,10 +105,11 @@ export async function applyLeave(
             .from('leaves')
             .select('hours')
             .eq('user_id', user.id)
+            .select('hours')
+            .eq('user_id', user.id)
             .eq('leave_type', 'annual_leave') // 注意：確保 type string 一致 (前端傳 'annual_leave'?)
             .eq('status', 'pending')
-            .gte('start_date', `${currentYear}-01-01`) // Optional: 限制年度? 特休跨年度通常有別的處理，這裡先簡化
-            .returns<{ hours: number | null }[]>()
+            .gte('start_date', `${currentYear}-01-01`) as { data: { hours: number | null }[] | null, error: any } // Optional: 限制年度? 特休跨年度通常有別的處理，這裡先簡化
 
         const pendingHours = (pendingLeaves || [])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
         const pendingDays = pendingHours / 8
