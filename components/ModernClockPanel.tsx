@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { clockIn, clockOut, cancelClockOut } from '@/app/attendance/actions'
 import { Database } from '@/types/supabase'
 import { Dialog, DialogHeader, DialogContent, DialogFooter } from '@/components/ui/Dialog'
+import { ATTENDANCE_STATUS_MAP } from '@/app/attendance/constants'
 
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
 
@@ -30,6 +31,10 @@ export default function ModernClockPanel({
     const [isPending, startTransition] = useTransition()
     const [message, setMessage] = useState('')
 
+    // Local state for immediate feedback
+    // Initialize with server data, but allow client updates
+    const [attendanceRecord, setAttendanceRecord] = useState<AttendanceRow | null>(initialRecord)
+
     // Hourly: Pre-clock-in slot selection
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<Date | null>(null)
 
@@ -37,23 +42,32 @@ export default function ModernClockPanel({
     // Default to 1.0 hr
     const [breakDuration, setBreakDuration] = useState<number>(1.0)
 
-    // Optimistic UI state
-    // We store the clock-in time locally for immediate feedback before server revalidates
-    const [optimisticClockIn, setOptimisticClockIn] = useState<Date | null>(null)
+    // Validation (Optimistic UI state is integrated into attendanceRecord now)
+    // We can still use optimisticClockIn for very fast "button click" feedback if needed, 
+    // but updating attendanceRecord immediately upon return is cleaner.
 
     // Confirmation Modal State
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
-    // Sync with initial record
+    // Helper functions moved inside component body
+    const getStatusStyle = (status: string | undefined | null) => {
+        if (!status || status === 'normal') return 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+        if (status === 'late') return 'bg-orange-100 text-orange-600'
+        return 'bg-red-100 text-red-600'
+    }
+
+    const getStatusLabel = (status: string | undefined | null) => {
+        if (!status) return '正常'
+        return ATTENDANCE_STATUS_MAP[status] || status
+    }
+
+    // Sync with initial record (server revalidation)
     useEffect(() => {
-        if (initialRecord?.clock_in_time) {
-            setOptimisticClockIn(new Date(initialRecord.clock_in_time))
-        } else {
-            setOptimisticClockIn(null)
+        if (initialRecord) {
+            setAttendanceRecord(initialRecord)
         }
 
         // If user already clocked out, and is hourly, try to restore break duration if available
-        // Note: break_duration might not be available on older records without migration, so we default to 1.0
         if (initialRecord && salaryType === 'hourly' && (initialRecord as any).break_duration) {
             setBreakDuration((initialRecord as any).break_duration)
         }
@@ -116,26 +130,23 @@ export default function ModernClockPanel({
     const handleClockIn = async () => {
         setMessage('')
 
-        // Immediate Feedback: Set optimistic time
-        const now = new Date()
-        const timeToSet = salaryType === 'hourly' && selectedTimeSlot ? selectedTimeSlot : now
-        setOptimisticClockIn(timeToSet)
-
         startTransition(async () => {
             try {
                 // 鐘點人員使用選中的時間，月薪人員使用當前時間
-                // Note: clockIn action handles undefined time by using server time
                 const timeToUse = salaryType === 'hourly' && selectedTimeSlot ? selectedTimeSlot : undefined
+
+                // Optimistic Update (Can be refined, but let's wait for server response for accuracy on status)
+                // Or set a temp loading state? isPending handles loading UI.
+
                 const res = await clockIn(userId, timeToUse)
                 if (res.error) {
                     setMessage(`❌ ${res.error}`)
-                    setOptimisticClockIn(null) // Revert on error
-                } else {
+                } else if (res.data) {
                     setMessage('✅ 上班打卡成功')
+                    setAttendanceRecord(res.data) // Immediate Update
                 }
             } catch (e) {
                 setMessage('❌ 發生錯誤')
-                setOptimisticClockIn(null)
             }
         })
     }
@@ -150,8 +161,9 @@ export default function ModernClockPanel({
                 const res = await clockOut(userId, timeToUse, salaryType === 'hourly' ? breakDuration : undefined)
                 if (res.error) {
                     setMessage(`❌ ${res.error}`)
-                } else {
+                } else if (res.data) {
                     setMessage('✅ 下班打卡成功')
+                    setAttendanceRecord(res.data) // Immediate Update
                 }
             } catch (e) {
                 setMessage('❌ 發生錯誤')
@@ -171,8 +183,9 @@ export default function ModernClockPanel({
                 const res = await cancelClockOut(userId)
                 if (res.error) {
                     setMessage(`❌ ${res.error}`)
-                } else {
+                } else if (res.data) {
                     setMessage('✅ 已取消下班打卡')
+                    setAttendanceRecord(res.data) // Immediate Update
                 }
             } catch (e) {
                 setMessage('❌ 發生錯誤')
@@ -184,8 +197,8 @@ export default function ModernClockPanel({
         return date.toLocaleTimeString('zh-TW', { hour12: false })
     }
 
-    const isClockedIn = !!optimisticClockIn
-    const isClockedOut = !!initialRecord?.clock_out_time
+    const isClockedIn = !!attendanceRecord?.clock_in_time
+    const isClockedOut = !!attendanceRecord?.clock_out_time
 
     return (
         <>
@@ -293,13 +306,10 @@ export default function ModernClockPanel({
                         <>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">上班時間</p>
                             <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 font-mono mb-3">
-                                {optimisticClockIn ? optimisticClockIn.toLocaleTimeString('zh-TW', { hour12: false }) : '--:--:--'}
+                                {attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { hour12: false }) : '--:--:--'}
                             </p>
-                            <span className={`inline-flex items-center px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${initialRecord?.status === 'late'
-                                ? 'bg-orange-100 text-orange-600'
-                                : 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                }`}>
-                                {initialRecord?.status === 'late' ? '遲到' : '正常'}
+                            <span className={`inline-flex items-center px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusStyle(attendanceRecord?.status)}`}>
+                                {getStatusLabel(attendanceRecord?.status)}
                             </span>
                         </>
                     ) : (
@@ -313,14 +323,19 @@ export default function ModernClockPanel({
                             <div className="space-y-4">
                                 <div className="text-green-600 font-bold text-lg border border-green-200 bg-green-50 rounded-xl py-4 flex flex-col items-center gap-1">
                                     <div className="flex items-center gap-3 text-base">
-                                        <span className="text-slate-500 font-normal">上班: {initialRecord?.clock_in_time ? new Date(initialRecord.clock_in_time).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                                        <span className="text-slate-500 font-normal">上班: {attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}</span>
                                         <span className="text-slate-300">|</span>
-                                        <span>下班: {initialRecord?.clock_out_time ? new Date(initialRecord.clock_out_time).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                                        <span>下班: {attendanceRecord?.clock_out_time ? new Date(attendanceRecord.clock_out_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}</span>
                                     </div>
-                                    {salaryType === 'hourly' && (initialRecord as any).break_duration && (
+                                    {salaryType === 'hourly' && (attendanceRecord as any).break_duration && (
                                         <span className="text-sm text-green-700/70 mt-1 font-medium bg-green-100/50 px-3 py-0.5 rounded-full">
-                                            午休扣除: {(initialRecord as any).break_duration} hr
+                                            午休扣除: {(attendanceRecord as any).break_duration} hr
                                         </span>
+                                    )}
+                                    {attendanceRecord?.work_hours !== undefined && attendanceRecord?.work_hours !== null && (
+                                        <div className="mt-2 text-2xl font-bold font-mono text-green-700">
+                                            工時: {Number(attendanceRecord.work_hours).toFixed(1)} hr
+                                        </div>
                                     )}
                                 </div>
                                 <button

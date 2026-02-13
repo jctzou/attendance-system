@@ -1,12 +1,156 @@
-# 系統架構白皮書 (系統重構 v2.0)
+# 系統架構白皮書 (System Architecture v2.0)
 
-> **狀態**: 草稿
-> **日期**: 2026-02-11
-> **目的**: 作為考勤與薪資管理系統深度重構的「單一事實來源 (Single Source of Truth)」。
+> **狀態**: 正式版 (Release)
+> **日期**: 2026-02-13
+> **目的**: 本文件為系統開發的「單一事實來源 (Single Source of Truth)」，定義所有全域規範、資料庫結構與技術標準。
+
+---
 
 ## 1. 系統概觀
 
-本系統是一個基於 **Next.js 14+ (App Router)** 的應用程式，整合 **Supabase** 作為後端服務（認證、資料庫、即時更新）。系統設計旨在管理員工出勤、請假及薪資計算，並具備嚴格的角色存取控制 (RBAC)。
+本系統是一個基於 **Next.js 14+ (App Router)** 的應用程式，整合 **Supabase** 作為後端服務。
+
+### 核心技術棧
+-   **Framework**: Next.js 15 (App Router)
+-   **Language**: TypeScript (Strict Mode)
+-   **Database**: PostgreSQL (via Supabase)
+-   **Styling**: Tailwind CSS v4
+-   **State**: React Server Components (RSC) + Server Actions + React Hooks
+
+---
+
+## 2. 資料庫綱要 (Database Schema)
+
+所有資料表結構以此定義為準。
+
+### `users` (使用者)
+員工基本資料與設定。
+
+| 欄位 | 類型 | 必填 | 說明 |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | Yes | PK, linked to `auth.users` |
+| `display_name` | Text | Yes | 顯示名稱 |
+| `employee_id` | Text | Yes | 員工編號 (Unique) |
+| `avatar_url` | Text | No | 頭像 URL (Supabase Storage: `avatars`) |
+| `role` | Enum | Yes | `'employee'`, `'manager'`, `'super_admin'` |
+| `salary_type` | Enum | Yes | `'monthly'`(月薪), `'hourly'`(時薪) |
+| `salary_amount` | Numeric | Yes | 基本薪資或時薪 |
+| `work_start_time` | Time | Yes | 排班開始 (Local Time HH:mm:ss) |
+| `work_end_time` | Time | Yes | 排班結束 (Local Time HH:mm:ss) |
+| `onboard_date` | Date | Yes | **到職日** (特休計算基準) |
+| `annual_leave_total` | Numeric | No | 本年度特休總天數 |
+| `annual_leave_used` | Numeric | No | 本年度已休特休天數 |
+| `last_reset_date` | Date | No | 上次特休重置日期 |
+
+### `attendance` (出勤)
+每日打卡記錄。
+
+| 欄位 | 類型 | 說明 |
+| :--- | :--- | :--- |
+| `id` | BigInt | PK |
+| `user_id` | UUID | FK -> users.id |
+| `work_date` | Date | **台北時間**日期 (YYYY-MM-DD) |
+| `clock_in_time` | Timestamptz | 上班打卡 (UTC ISO) |
+| `clock_out_time` | Timestamptz | 下班打卡 (UTC ISO) |
+| `work_hours` | Numeric | 計算工時 (小數點 2 位) |
+| `break_duration` | Numeric | 午休扣除時數 (Hourly Only) |
+| `status` | Text | `'normal'`, `'late'`, `'early_leave'`, `'absent'` |
+| `is_edited` | Boolean | 是否經過手動修改 |
+
+### `leaves` (請假)
+| 欄位 | 類型 | 說明 |
+| :--- | :--- | :--- |
+| `id` | BigInt | PK |
+| `user_id` | UUID | FK -> users.id |
+| `leave_type` | Text | `annual`, `sick`, `personal`, `compensatory`, `marriage`, `funeral`, `maternity`, `paternity` |
+| `start_date` | Timestamptz | 開始時間 |
+| `end_date` | Timestamptz | 結束時間 |
+| `days` | Numeric | 天數 (最小單位 0.5) |
+| `status` | Text | `'pending'`, `'approved'`, `'rejected'`, `'cancelled'` |
+
+### `salary_records` (薪資記錄)
+| 欄位 | 類型 | 說明 |
+| :--- | :--- | :--- |
+| `id` | BigInt | PK |
+| `user_id` | UUID | FK -> users.id |
+| `year_month` | Text | `YYYY-MM` |
+| `base_salary` | Numeric | 本薪 |
+| `bonus` | Numeric | 獎金 |
+| `total_salary` | Numeric | 實發金額 |
+| `is_paid` | Boolean | 是否結算 |
+| `settled_data` | JSONB | **結算快照** (Snapshot) |
+
+### `annual_leave_logs` (特休軌跡)
+| 欄位 | 類型 | 說明 |
+| :--- | :--- | :--- |
+| `id` | BigInt | PK |
+| `user_id` | UUID | FK -> users.id |
+| `year` | Integer | 年資年度 |
+| `action` | Text | `'grant'`(發放), `'reset'`(結算) |
+| `days_change` | Numeric | 異動天數 |
+| `description` | Text | 說明 |
+
+---
+
+## 3. 全域 UI/UX 設計規範
+
+### 3.1 色彩系統 (Color System)
+-   **Primary**: `var(--color-primary)` (#FF5F05 - 企業橘)
+-   **Surface**:
+    -   Light: `bg-white`, `border-slate-200`
+    -   Dark: `bg-slate-900`, `border-slate-700`
+-   **Status Colors**:
+    -   **Success**: Emerald (`text-emerald-600 bg-emerald-100`)
+    -   **Warning**: Amber/Orange (`text-orange-600 bg-orange-100`)
+    -   **Error/Destructive**: Rose/Red (`text-red-600 bg-red-100`)
+
+### 3.2 元件規範
+-   **Card**: `rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 bg-[var(--color-card-light)]`
+-   **Dialog/Modal**:
+    -   必須使用 `fixed inset-0` 遮罩。
+    -   禁止使用原生 `confirm/alert`。
+    -   表單提交禁止使用 `<form>` (防止換頁)，一律使用 `onClick` + `server action`。
+-   **Inputs**:
+    -   手機版寬度 `w-full`，桌面版 `w-auto`。
+    -   必須顯示 Loading 狀態。
+
+---
+
+## 4. 時區與邏輯標準 (Timezone & Logic Standards)
+
+### 4.1 單一時區規範
+系統所有業務邏輯強制以 **Asia/Taipei (UTC+8)** 為基準。
+
+-   **前端顯示**: 所有時間 (UTC ISO) 必須轉換為 `Asia/Taipei` 顯示。
+-   **後端計算**: 接收到 UTC 時間後，必須轉為台北時間進行比對。
+-   **資料庫儲存**:
+    -   `Timestamptz` 欄位存 UTC。
+    -   `Date` 欄位 (如 `work_date`) 存台北時間的日期字串 (YYYY-MM-DD)。
+    -   `Time` 欄位 (如 `work_start_time`) 存台北時間的 HH:mm:ss。
+
+### 4.2 出勤判定 (Grace Period)
+-   **遲到 (Late)**: 實際上班 > 表定上班 + **59秒** 寬容值。
+-   **早退 (Early Leave)**: 實際下班 < 表定下班 (0秒寬容)。
+
+---
+
+## 5. 開發規範 (Development Standards)
+
+### 5.1 Server Actions
+-   **路徑**: `app/[feature]/actions.ts`
+-   **驗證**: 所有輸入參數必須使用 **Zod** 驗證。
+-   **權限**: 每個 Action 第一步必須檢查 `getUserProfile` 確認 `role`。
+-   **回傳**: 統一格式 `{ success: boolean, data?: T, error?: string }`。
+
+### 5.2 TypeScript
+-   **Strict Mode**: Enabled.
+-   **No Any**: 嚴禁使用 `any`。若 Supabase 推斷失敗，使用 `.returns<T>()` 或定義介面轉型。
+-   **Supabase Types**: 保持 `types/supabase.ts` 與資料庫同步，Enum 需嚴格對應。
+
+### 5.3 錯誤處理
+-   **Inline Error**: 錯誤訊息應顯示於 UI 元件附近，而非全域 Alert。
+-   **Recoverable**: 驗證錯誤應可修正並重試。
+
 
 ### 核心技術
 -   **框架**: Next.js 15 (App Router)
@@ -192,7 +336,11 @@
 ### 出勤判定邏輯
 -   **基準時間**：系統應以 `users.work_start_time` 為準。超過 1 分鐘即標註 `status = 'late'`。
 -   **防呆機制**：同一 `user_id` 在同一 `work_date` 僅允許一筆 `attendance` 記錄（除非特定排班需求）。重複打卡應視為 **更新 (Update)** 而非新增 (Insert)。
--   **狀態重算 (Recalculation)**：任何涉及時間的修改 (包含補登、修改、取消下班)，**必須** 重新讀取使用者的班表設定 (`work_start_time`, `work_end_time`) 並執行完整的狀態判定邏輯 (`determineAttendanceStatus`)。禁止依賴舊有的狀態字串進行推斷。
+-   **統一計算核心 (Centralized Calculation)**：任何涉及打卡時間的寫入（新增/修改/補登/取消下班），**必須** 呼叫同一套計算邏輯 function (e.g. `calculateAttendanceFields`)。該核心必須：
+    1.  讀取最新 `users` 設定 (`work_start_time`, `work_end_time`)。
+    2.  將 ISO 時間轉換為台北時間字串 (`HH:mm:ss`)。
+    3.  重新執行 `determineAttendanceStatus`。
+    4.  **禁止** 在個別 API 中自行撰寫判斷式，以確保邏輯一致。
 
 ---
 

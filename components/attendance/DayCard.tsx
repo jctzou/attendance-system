@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/Card'
-import { LEAVE_TYPE_MAP, WEEKDAY_MAP } from '@/app/attendance/constants'
+import { LEAVE_TYPE_MAP, WEEKDAY_MAP, ATTENDANCE_STATUS_MAP } from '@/app/attendance/constants'
 
 interface DayCardProps {
     date: string
@@ -92,7 +92,7 @@ export function DayCard({
                     {/* Hourly: Hide Status. Monthly: Show Status */}
                     {!isHourly && att.status !== 'normal' && (
                         <div className="text-red-600 dark:text-red-400 font-medium">
-                            {att.status === 'late' ? '遲到' : att.status === 'early_leave' ? '早退' : '遲到早退'}
+                            {ATTENDANCE_STATUS_MAP[att.status] || att.status}
                         </div>
                     )}
 

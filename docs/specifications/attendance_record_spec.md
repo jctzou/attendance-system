@@ -171,10 +171,11 @@ const LEAVE_TYPE_MAP: Record<string, string> = {
 
 ---
 
-## 6. 技術實作規範 (Technical Implementation Guidelines)
+## 6. 技術實作規範
 
 > **⚠️ 開發必讀**: 本模組需嚴格遵守 [系統架構白皮書](system_architecture.md) 中的全域規範。
 
-### 6.1 時區與驗證 (Timezone & Validation)
--   **時區處理**: 請參照 `system_architecture.md` 第 10.1 節。所有的時間顯示與輸入皆需轉換為本地時間格式。
--   **驗證邏輯**: 請參照 `system_architecture.md` 第 10.2 節。必須實作即時且具備恢復性的錯誤檢查 (e.g., 上班時間不可晚於下班時間)。
+### 6.1 參照標準
+-   **時區處理**: 請參照 `system_architecture.md` 第 4.1 節。
+-   **驗證邏輯**: 請參照 `system_architecture.md` 第 5.1 節 (Zod) 與 5.3 節 (Error Handling)。
+-   **資料結構**: 請參照 `system_architecture.md` 第 2 節。

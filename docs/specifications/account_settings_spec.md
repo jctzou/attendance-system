@@ -73,27 +73,12 @@
 
 ---
 
-## 4. 資料庫綱要變更 (Schema Changes)
+## 4. 資料結構參照 (Data Schema Reference)
 
-需對現有 `users` 資料表進行擴充以支援頭像功能。
+請參照 `system_architecture.md` 第 2 節之 definition。
 
-### 4.1 Users Table Migration
-```sql
-ALTER TABLE users 
-ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-
--- Policy Update (若有需要)
--- 確保使用者可以 UPDATE 自己的 avatar_url
-```
-
-### 4.2 Storage Policy
--   **Bucket**: `avatars`
--   **Public Access**: True (為了效能與方便顯示)
--   **RLS Policies**:
-    -   `SELECT`: Public (任何人可讀取頭像)。
-    -   `INSERT`: Authenticated Users (任何登入使用者可上傳)。
-    -   `UPDATE`: Owner (僅能更新自己的檔案)。
-    -   `DELETE`: Owner (僅能刪除自己的檔案，需匹配 `uid` 前綴)。
+-   **Users**: 已擴充 `avatar_url` 欄位。
+-   **Storage**: 確認使用 `avatars` bucket，並設定適當的 RLS Policy (Public Read, Owner Update).
 
 ---
 

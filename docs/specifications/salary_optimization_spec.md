@@ -29,11 +29,11 @@
 | **未結算 (Unsettled)** | `salary_records.is_paid = false` | 顯示即時計算數據，允許編輯獎金，允許結算。 |
 | **已結算 (Settled)** | `salary_records.is_paid = true` | 顯示結算當下快照 (Snapshot)，數據唯讀，允許展開查看即時數據，允許取消結算。 |
 
-### 2.2 色彩計畫 (依據統一設計規範)
--   **卡片底色**: 統一使用 `bg-[var(--color-card-light)]` (Dark: `bg-[var(--color-card-dark)]`)。
+### 2.2 視覺規範
+-   遵循 `system_architecture.md` 之全域設計。
 -   **狀態區分**:
     -   **未結算**: 使用標準邊框色 `border-slate-200`。
-    -   **已結算**: 使用 **Emerald** 色系邊框 (`border-emerald-500`) 與文字強調，以區別唯讀狀態。
+    -   **已結算**: 使用 **Emerald** 色系邊框 (`border-emerald-500`) 與文字強調。
 
 ---
 

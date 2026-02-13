@@ -26,3 +26,11 @@ export const WEEKDAY_MAP: Record<number, string> = {
     5: '五',
     6: '六',
 }
+
+export const ATTENDANCE_STATUS_MAP: Record<string, string> = {
+    'normal': '正常',
+    'late': '遲到',
+    'early_leave': '早退',
+    'late early_leave': '遲到早退',
+    'absent': '缺席'
+}

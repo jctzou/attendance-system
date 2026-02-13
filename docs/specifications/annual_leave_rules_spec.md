@@ -36,35 +36,12 @@
 
 ---
 
-## 2. 系統架構變更 (Schema Changes)
+## 2. 資料結構參照 (Data Schema Reference)
 
-為支援上述規則，需擴充現有資料表。
+請參照 `system_architecture.md` 第 2 節之 `users` 與 `annual_leave_logs` 資料表定義。
 
-### 2.1 `users` 資料表 (擴充)
-新增年資結算相關欄位：
-
-| 欄位名稱 | 類型 | 必填 | 說明 |
-| :--- | :--- | :--- | :--- |
-| `onboard_date` | `Date` | **Yes** | **到職日**。計算年資之唯一基準。 |
-| `annual_leave_total` | `Numeric` | No | 本年度「應給」特休總天數 (e.g., 7.0)。 |
-| `annual_leave_used` | `Numeric` | No | 本年度「已休」特休總天數 (e.g., 2.5)。 |
-| `last_reset_date` | `Date` | No | 上次發放/重置特休的日期 (用於防止重複執行)。 |
-
-*(註：剩餘天數 = `annual_leave_total` - `annual_leave_used`)*
-*(註：`leave_balance` 概念將由上述欄位取代，以求精確)*
-
-### 2.2 `annual_leave_logs` (新增 - 軌跡記錄)
-記錄特休發放與結算的歷史軌跡。
-
-| 欄位名稱 | 類型 | 說明 |
-| :--- | :--- | :--- |
-| `id` | `BigInt` | PK |
-| `user_id` | `UUID` | FK -> users.id |
-| `year` | `Integer` | 歸屬年度 (以年資數表示，如 0.5, 1, 2) |
-| `action` | `Text` | `'grant'` (發放), `'reset'` (結算歸零) |
-| `days_change` | `Numeric` | 異動天數 (e.g., +3, -3, +7) |
-| `description` | `Text` | 系統備註 (e.g., "滿半年發放 3 天") |
-| `created_at` | `Timestamptz` | 執行時間 |
+-   **Users 擴充**: `onboard_date`, `annual_leave_total`, `annual_leave_used`, `last_reset_date`.
+-   **Logs**: `annual_leave_logs` Table.
 
 ---
 

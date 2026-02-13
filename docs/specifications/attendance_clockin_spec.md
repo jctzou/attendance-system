@@ -67,7 +67,10 @@
 
 ### 3.1 上班打卡 (Clock In)
 -   **觸發條件**: 當日尚未有 `clock_in_time` 記錄。
--   **立即回饋**: 點擊按鈕後，**介面必須立即顯示上班打卡時間** (Taipei Time HH:mm:ss)，不可有延遲感。此規則適用於 **月薪制** 與 **鐘點制** 所有員工。
+-   **立即回饋與一致性 (Immediate Feedback & Consistency)**: 
+    -   點擊按鈕後，**介面必須立即顯示「上班打卡時間」** (Taipei Time HH:mm:ss) 與 **「出勤狀態」**。
+    -   不需要重新整理網頁。
+    -   **顯示一致性**: 打卡後的 UI 顯示樣式與內容，必須與「重新整理頁面後載入」的完全一致（字體大小、元件結構、狀態標籤樣式等）。
 -   **遲到判定 (Lateness Logic)**:
     -   比對 `now` 與 `users.work_start_time`。
     -   若 `now > work_start_time` (容許誤差 0 分鐘)，標記 `status = 'late'`。

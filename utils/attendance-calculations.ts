@@ -52,8 +52,17 @@ export function determineAttendanceStatus(
     workStartTimeStr: string = '09:00:00',
     workEndTimeStr: string = '18:00:00'
 ): string {
-    const isLate = clockInTimeStr ? timeToSeconds(clockInTimeStr) > timeToSeconds(workStartTimeStr) : false
-    const isEarlyLeave = clockOutTimeStr ? timeToSeconds(clockOutTimeStr) < timeToSeconds(workEndTimeStr) : false
+    // 遲到判定：給予 59 秒寬容值 (即 09:00:59 前都算正常，09:01:00 算遲到)
+    // Late check: > workStartTime + 59 seconds
+    const isLate = clockInTimeStr
+        ? timeToSeconds(clockInTimeStr) > (timeToSeconds(workStartTimeStr) + 59)
+        : false
+
+    // 早退判定：嚴格判定，但可視需求調整
+    // Early leave check: < workEndTime
+    const isEarlyLeave = clockOutTimeStr
+        ? timeToSeconds(clockOutTimeStr) < timeToSeconds(workEndTimeStr)
+        : false
 
     if (isLate && isEarlyLeave) {
         return 'late early_leave'

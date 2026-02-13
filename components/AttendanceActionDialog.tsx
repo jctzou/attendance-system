@@ -21,18 +21,11 @@ interface Props {
 
 type Tab = 'attendance' | 'leave'
 
-// Helper: Convert UTC/ISO string to Local ISO String (YYYY-MM-DDTHH:mm) for input[type="datetime-local"]
-const toLocalISOString = (isoString?: string | null) => {
-    if (!isoString) return ''
-    const date = new Date(isoString)
-    const pad = (n: number) => n.toString().padStart(2, '0')
-    const year = date.getFullYear()
-    const month = pad(date.getMonth() + 1)
-    const day = pad(date.getDate())
-    const hours = pad(date.getHours())
-    const minutes = pad(date.getMinutes())
-    return `${year}-${month}-${day}T${hours}:${minutes}`
-}
+import { toLocalISOString, toLocalDateString, toUTCISOString } from '@/utils/date-helpers'
+
+// ... imports
+
+// Remove manual toLocalISOString helper
 
 export default function AttendanceActionDialog({ date, existingRecord, existingLeave, onClose, onSuccess, isAdmin = false }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('attendance')
@@ -55,15 +48,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
 
     // 1. Initialize Data
     useEffect(() => {
-        const fetchUserType = async () => {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { data } = await supabase.from('users').select('salary_type').eq('id', user.id).single() as any
-                if (data) setUserSalaryType(data.salary_type)
-            }
-        }
-        fetchUserType()
+        // ... fetchUserType ...
 
         if (existingRecord) {
             setMode('edit')
@@ -88,8 +73,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
 
         if (existingLeave) {
             setLeaveType(existingLeave.leave_type)
-            setLeaveStart(existingLeave.start_date.split('T')[0])
-            setLeaveEnd(existingLeave.end_date.split('T')[0])
+            setLeaveStart(toLocalDateString(existingLeave.start_date))
+            setLeaveEnd(toLocalDateString(existingLeave.end_date))
             setLeaveReason(existingLeave.reason || '')
         } else {
             setLeaveStart(date)
@@ -97,20 +82,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         }
     }, [existingRecord, existingLeave, date])
 
-    // 2. Real-time Validation Effect
-    useEffect(() => {
-        if (clockIn && clockOut) {
-            // Use direct string comparison for ISO format (YYYY-MM-DDTHH:mm)
-            // This avoids any potential Date parsing or timezone consistency issues
-            if (clockIn >= clockOut) {
-                setValidationError('上班時間不可晚於或等於下班時間')
-            } else {
-                setValidationError(null)
-            }
-        } else {
-            setValidationError(null)
-        }
-    }, [clockIn, clockOut])
+    // ... validation ...
 
     // 3. Handlers
     const handleAttendanceSubmit = async (e: React.FormEvent) => {
@@ -120,8 +92,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         setLoading(true)
         try {
             // Convert Local ISO -> UTC ISO for DB
-            const utcClockIn = clockIn ? new Date(clockIn).toISOString() : null
-            const utcClockOut = clockOut ? new Date(clockOut).toISOString() : null
+            const utcClockIn = toUTCISOString(clockIn)
+            const utcClockOut = toUTCISOString(clockOut)
 
             let res
             if (mode === 'edit') {

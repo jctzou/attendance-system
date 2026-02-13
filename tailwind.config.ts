@@ -10,7 +10,7 @@ const config: Config = {
     theme: {
         extend: {
             colors: {
-                primary: "#FF5F05", // Refined orange
+                primary: "var(--color-primary)", // Refined orange from globals.css
                 "background-light": "#E0E0E0",
                 "background-dark": "#0F172A",
                 "card-light": "#FFFFFF",
