@@ -69,10 +69,10 @@ export interface Database {
                     created_at?: string
                     updated_at?: string
                     onboard_date?: string | null
-                    annual_leave_total?: number | null
                     annual_leave_used?: number | null
                     last_reset_date?: string | null
                 }
+                Relationships: []
             }
             attendance: {
                 Row: {
@@ -117,6 +117,7 @@ export interface Database {
                     created_at?: string
                     updated_at?: string
                 }
+                Relationships: []
             }
             leaves: {
                 Row: {
@@ -138,7 +139,7 @@ export interface Database {
                     start_date: string
                     end_date: string
                     reason?: string | null
-                    status?: 'pending' | 'approved' | 'rejected'
+                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
                     created_at?: string
                     updated_at?: string
                     hours?: number | null
@@ -150,11 +151,12 @@ export interface Database {
                     start_date?: string
                     end_date?: string
                     reason?: string | null
-                    status?: 'pending' | 'approved' | 'rejected'
+                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
                     created_at?: string
                     updated_at?: string
                     hours?: number | null
                 }
+                Relationships: []
             }
             salary_records: {
                 Row: {
@@ -205,6 +207,7 @@ export interface Database {
                     created_at?: string
                     updated_at?: string
                 }
+                Relationships: []
             }
             leave_balances: {
                 Row: {
@@ -234,6 +237,7 @@ export interface Database {
                     created_at?: string
                     updated_at?: string
                 }
+                Relationships: []
             }
             attendance_edit_logs: {
                 Row: {
@@ -269,6 +273,7 @@ export interface Database {
                     edit_reason?: string
                     created_at?: string
                 }
+                Relationships: []
             }
             annual_leave_logs: {
                 Row: {
@@ -298,6 +303,7 @@ export interface Database {
                     description?: string | null
                     created_at?: string
                 }
+                Relationships: []
             }
             leave_cancellations: {
                 Row: {
@@ -316,7 +322,7 @@ export interface Database {
                     leave_id: number
                     user_id: string
                     cancel_reason: string
-                    status?: 'pending' | 'approved' | 'rejected'
+                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
                     reviewed_by?: string | null
                     reviewed_at?: string | null
                     created_at?: string
@@ -327,13 +333,26 @@ export interface Database {
                     leave_id?: number
                     user_id?: string
                     cancel_reason?: string
-                    status?: 'pending' | 'approved' | 'rejected'
+                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
                     reviewed_by?: string | null
                     reviewed_at?: string | null
                     created_at?: string
                     updated_at?: string
                 }
+                Relationships: []
             }
+        }
+        Views: {
+            [_ in never]: never
+        }
+        Functions: {
+            [_ in never]: never
+        }
+        Enums: {
+            [_ in never]: never
+        }
+        CompositeTypes: {
+            [_ in never]: never
         }
     }
 }
