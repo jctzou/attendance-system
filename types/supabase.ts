@@ -26,6 +26,10 @@ export interface Database {
                     is_active: boolean
                     created_at: string
                     updated_at: string
+                    onboard_date: string | null
+                    annual_leave_total: number | null
+                    annual_leave_used: number | null
+                    last_reset_date: string | null
                 }
                 Insert: {
                     id: string
@@ -43,6 +47,10 @@ export interface Database {
                     is_active?: boolean
                     created_at?: string
                     updated_at?: string
+                    onboard_date?: string | null
+                    annual_leave_total?: number | null
+                    annual_leave_used?: number | null
+                    last_reset_date?: string | null
                 }
                 Update: {
                     id?: string
@@ -60,6 +68,10 @@ export interface Database {
                     is_active?: boolean
                     created_at?: string
                     updated_at?: string
+                    onboard_date?: string | null
+                    annual_leave_total?: number | null
+                    annual_leave_used?: number | null
+                    last_reset_date?: string | null
                 }
             }
             attendance: {
@@ -252,6 +264,35 @@ export interface Database {
                     old_clock_out_time?: string | null
                     new_clock_out_time?: string | null
                     edit_reason?: string
+                    created_at?: string
+                }
+            }
+            annual_leave_logs: {
+                Row: {
+                    id: string
+                    user_id: string
+                    year: number
+                    action: string
+                    days_change: number
+                    description: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    year: number
+                    action: string
+                    days_change: number
+                    description?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    year?: number
+                    action?: string
+                    days_change?: number
+                    description?: string | null
                     created_at?: string
                 }
             }
