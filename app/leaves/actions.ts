@@ -288,7 +288,7 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
 
             // Fetch current used
             const { data: u } = await supabase.from('users').select('annual_leave_used').eq('id', (leave as any).user_id).single()
-            const newUsed = (Number(u?.annual_leave_used) || 0) + days
+            const newUsed = (Number((u as any)?.annual_leave_used) || 0) + days
 
             await supabase.from('users').update({ annual_leave_used: newUsed }).eq('id', (leave as any).user_id)
         }
