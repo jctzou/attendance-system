@@ -68,11 +68,11 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <span className="text-xl font-bold">{data.displayName[0]}</span>
+                            <span className="text-xl font-bold">{(data.displayName || '?')[0]}</span>
                         )}
                     </div>
                     <div>
-                        <div className={`font-bold text-lg ${theme.text}`}>{data.displayName}</div>
+                        <div className={`font-bold text-lg ${theme.text}`}>{data.displayName || 'Unknown'}</div>
                         <div className="flex items-center gap-2 mt-1">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide
                                 ${isHourly ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'}`}>

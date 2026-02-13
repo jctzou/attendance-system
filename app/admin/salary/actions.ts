@@ -160,7 +160,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
             data: {
                 id: existingRecord.id,
                 userId,
-                displayName: userData.display_name,
+                displayName: userData.display_name || 'Unknown',
                 avatarUrl: userData.avatar_url, // Always use current avatar
                 yearMonth,
                 type: (settledData.salaryType as SalaryType) || 'monthly',
@@ -251,7 +251,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     const result: SalaryRecordData = {
         id: existingRecord?.id,
         userId,
-        displayName: userData.display_name,
+        displayName: userData.display_name || 'Unknown',
         avatarUrl: userData.avatar_url,
         yearMonth,
         type: salaryType,
