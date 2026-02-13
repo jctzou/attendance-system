@@ -7,11 +7,8 @@ import { calculateAnnualLeaveDays } from '@/utils/leave-calculations'
 /**
  * 獲取並初始化我的年度特休餘額
  */
-/**
- * 獲取並初始化我的年度特休餘額
- */
 export async function getAnnualLeaveBalance() {
-    const supabase = await createClient() as any
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -48,7 +45,7 @@ export async function applyLeave(
     reason: string
 ) {
 
-    const supabase = await createClient() as any
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -108,7 +105,7 @@ export async function applyLeave(
             .eq('status', 'pending')
             .gte('start_date', `${currentYear}-01-01`) // Optional: 限制年度? 特休跨年度通常有別的處理，這裡先簡化
 
-        const pendingHours = (pendingLeaves as any[])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
+        const pendingHours = (pendingLeaves || [])?.reduce((sum: number, l: any) => sum + (l.hours || 0), 0) || 0
         const pendingDays = pendingHours / 8
 
         if ((approvedDays + pendingDays + days) > totalDays) {
@@ -117,8 +114,7 @@ export async function applyLeave(
         }
     }
 
-    // @ts-ignore
-    const { error } = await (supabase.from('leaves') as any).insert({
+    const { error } = await supabase.from('leaves').insert({
         user_id: user.id,
         leave_type: leaveType,
         start_date: startDate,
@@ -193,7 +189,7 @@ export async function cancelLeave(leaveId: number) {
         .from('leaves')
         .select('status, user_id')
         .eq('id', leaveId)
-        .single() as any
+        .single()
 
     if (!leave) return { error: 'Leave not found' }
     if (leave.user_id !== user.id) return { error: 'Permission denied' }
@@ -224,7 +220,7 @@ export async function getPendingLeaves() {
         .from('users')
         .select('role')
         .eq('id', user.id)
-        .single() as any
+        .single()
 
     if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
         return { error: 'Permission denied: Managers only' }
@@ -260,14 +256,13 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
         .from('users')
         .select('role')
         .eq('id', user.id)
-        .single() as any
+        .single()
 
     if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
         return { error: 'Permission denied' }
     }
 
-    // @ts-ignore
-    const { error } = await (supabase.from('leaves') as any)
+    const { error } = await supabase.from('leaves')
         .update({ status: status })
         .eq('id', leaveId)
 
@@ -281,16 +276,16 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
             .eq('id', leaveId)
             .single()
 
-        if (leave && (leave as any).leave_type === 'annual_leave') {
-            const days = (leave as any).hours / 8
+        if (leave && leave.leave_type === 'annual_leave') {
+            const days = (leave.hours || 0) / 8
             // RPC call or straight update? Straight update is risky for concurrency but okay for now.
             // Ideally use rpc('increment_annual_leave_used', { uid: leave.user_id, delta: days })
 
             // Fetch current used
-            const { data: u } = await supabase.from('users').select('annual_leave_used').eq('id', (leave as any).user_id).single()
-            const newUsed = (Number((u as any)?.annual_leave_used) || 0) + days
+            const { data: u } = await supabase.from('users').select('annual_leave_used').eq('id', leave.user_id).single()
+            const newUsed = (Number(u?.annual_leave_used) || 0) + days
 
-            await supabase.from('users').update({ annual_leave_used: newUsed }).eq('id', (leave as any).user_id)
+            await supabase.from('users').update({ annual_leave_used: newUsed }).eq('id', leave.user_id)
         }
     }
 
@@ -299,7 +294,7 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
         .from('leaves')
         .select('user_id')
         .eq('id', leaveId)
-        .single() as any
+        .single()
 
     if (leave) {
         const { createNotification } = await import('@/app/notifications/actions')
@@ -323,7 +318,7 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
  * 只能取消已批准的請假
  */
 export async function cancelLeaveRequest(leaveId: number, cancelReason: string) {
-    const supabase = await createClient() as any
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -336,7 +331,7 @@ export async function cancelLeaveRequest(leaveId: number, cancelReason: string) 
         .from('leaves')
         .select('id, user_id, status, start_date, end_date, leave_type')
         .eq('id', leaveId)
-        .single() as any
+        .single()
 
     if (!leave) return { error: '請假記錄不存在' }
     if (leave.user_id !== user.id) return { error: '無權限操作' }
@@ -350,15 +345,14 @@ export async function cancelLeaveRequest(leaveId: number, cancelReason: string) 
         .select('id, status')
         .eq('leave_id', leaveId)
         .eq('status', 'pending')
-        .single() as any
+        .single()
 
     if (existingCancellation) {
         return { error: '已有待審核的取消申請' }
     }
 
     // 3. 創建取消申請記錄
-    // @ts-ignore
-    const { error: insertError } = await (supabase.from('leave_cancellations') as any).insert({
+    const { error: insertError } = await supabase.from('leave_cancellations').insert({
         leave_id: leaveId,
         user_id: user.id,
         cancel_reason: cancelReason,
@@ -379,7 +373,7 @@ export async function cancelLeaveRequest(leaveId: number, cancelReason: string) 
             .from('users')
             .select('display_name')
             .eq('id', user.id)
-            .single() as any
+            .single()
 
         const userName = userData?.display_name || '員工'
 
@@ -403,7 +397,7 @@ export async function cancelLeaveRequest(leaveId: number, cancelReason: string) 
  * [Manager Only] 獲取所有待審核的取消申請
  */
 export async function getPendingCancellations() {
-    const supabase = await createClient() as any
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
@@ -413,7 +407,7 @@ export async function getPendingCancellations() {
         .from('users')
         .select('role')
         .eq('id', user.id)
-        .single() as any
+        .single()
 
     if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
         return { error: 'Permission denied: Managers only' }
@@ -458,7 +452,7 @@ export async function reviewLeaveCancellation(
         .from('users')
         .select('role')
         .eq('id', user.id)
-        .single() as any
+        .single()
 
     if (!userData || !['manager', 'super_admin'].includes(userData.role)) {
         return { error: 'Permission denied' }
@@ -469,7 +463,7 @@ export async function reviewLeaveCancellation(
         .from('leave_cancellations')
         .select('id, leave_id, user_id, status')
         .eq('id', cancellationId)
-        .single() as any
+        .single()
 
     if (!cancellation) return { error: '取消申請不存在' }
     if (cancellation.status !== 'pending') {
@@ -478,8 +472,7 @@ export async function reviewLeaveCancellation(
 
     // 2. 更新取消申請狀態
     const newStatus = approved ? 'approved' : 'rejected'
-    // @ts-ignore
-    const { error: updateError } = await (supabase.from('leave_cancellations') as any)
+    const { error: updateError } = await supabase.from('leave_cancellations')
         .update({
             status: newStatus,
             reviewed_by: user.id,
@@ -491,8 +484,7 @@ export async function reviewLeaveCancellation(
 
     // 3. 如果批准,更新原請假記錄狀態為 cancelled
     if (approved) {
-        // @ts-ignore
-        const { error: leaveUpdateError } = await (supabase.from('leaves') as any)
+        const { error: leaveUpdateError } = await supabase.from('leaves')
             .update({ status: 'cancelled' })
             .eq('id', cancellation.leave_id)
 

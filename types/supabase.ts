@@ -129,6 +129,7 @@ export interface Database {
                     status: 'pending' | 'approved' | 'rejected'
                     created_at: string
                     updated_at: string
+                    hours: number | null
                 }
                 Insert: {
                     id?: number
@@ -140,6 +141,7 @@ export interface Database {
                     status?: 'pending' | 'approved' | 'rejected'
                     created_at?: string
                     updated_at?: string
+                    hours?: number | null
                 }
                 Update: {
                     id?: number
@@ -151,6 +153,7 @@ export interface Database {
                     status?: 'pending' | 'approved' | 'rejected'
                     created_at?: string
                     updated_at?: string
+                    hours?: number | null
                 }
             }
             salary_records: {
@@ -294,6 +297,41 @@ export interface Database {
                     days_change?: number
                     description?: string | null
                     created_at?: string
+                }
+            }
+            leave_cancellations: {
+                Row: {
+                    id: number
+                    leave_id: number
+                    user_id: string
+                    cancel_reason: string
+                    status: 'pending' | 'approved' | 'rejected'
+                    reviewed_by: string | null
+                    reviewed_at: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: number
+                    leave_id: number
+                    user_id: string
+                    cancel_reason: string
+                    status?: 'pending' | 'approved' | 'rejected'
+                    reviewed_by?: string | null
+                    reviewed_at?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: number
+                    leave_id?: number
+                    user_id?: string
+                    cancel_reason?: string
+                    status?: 'pending' | 'approved' | 'rejected'
+                    reviewed_by?: string | null
+                    reviewed_at?: string | null
+                    created_at?: string
+                    updated_at?: string
                 }
             }
         }
