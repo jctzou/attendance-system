@@ -28,6 +28,7 @@
 | `id` | UUID | 主鍵 (連結至 `auth.users`) |
 | `display_name` | Text | 使用者全名 |
 | `employee_id` | Text | 員工編號 (例如：EMP001) |
+| `avatar_url` | Text | 頭像圖片 URL (Supabase Storage) |
 | `role` | Enum | `'employee'`(員工), `'manager'`(經理), `'super_admin'`(超級管理員) |
 | `salary_type` | Enum | `'monthly'`(月薪), `'hourly'`(時薪) |
 | `salary_amount` | Numeric | 基本薪資或時薪費率 |
@@ -209,4 +210,40 @@
 
 ---
 
-> 本文件為 **唯一事實來源 (Sole Source of Truth)**。任何實作上的變更皆需先更新本文件。
+## 10. 核心技術實作規範 (Core Technical Standards)
+
+### 10.1 時區處理 (Timezone Handling)
+資料庫儲存的是 **UTC ISO String** (e.g., `...T01:00:00Z`)，但在前端 `<input type="datetime-local">` 顯示時，**必須轉換為本地時間格式字符串 (Asia/Taipei)**。
+
+-   **錯誤做法**: 直接將 DB 的 UTC ISO String 塞入 input `value`。
+    -   *後果*: 瀏覽器會忽略 `Z` 或無法解析，導致顯示時間偏移 (e.g., 09:00 顯示為 17:00)。
+-   **正確做法**: 使用 Helper Function 轉換為 `YYYY-MM-DDTHH:mm` (Local Time)。
+    ```typescript
+    const toLocalISOString = (isoString: string) => {
+        const date = new Date(isoString); // Browser converts UTC to Local Date Object
+        // Manually format to YYYY-MM-DDTHH:mm using local components
+        // (getFullYear, getMonth, etc.)
+        // DO NOT use toISOString() here as it converts back to UTC.
+    }
+    ```
+-   **資料提交**: 提交給 Backend Action 前，需將 Input 的 Local String 轉回 **UTC ISO String** (`new Date(localString).toISOString()`)。
+
+### 10.2 驗證邏輯 (Validation Logic)
+驗證必須是 **即時 (Real-time)** 且 **具備恢復性 (Recoverable)**。
+
+-   **即時檢查**: 當輸入變更時 (e.g., `onChange`) 立即觸發驗證。
+-   **錯誤恢復**:
+### 10.3 響應式佈局與輸入元件 (RWD & Inputs)
+為確保在 iOS Safari 及小螢幕裝置上的相容性，所有控制列 (Control Bar) 與輸入元件需遵守以下規範：
+
+-   **控制列佈局 (Control Bars)**:
+    -   **統一模式**: 使用 `flex items-center gap-2` (標籤與輸入框並排)。
+    -   **避免堆疊**: 除非空間極度受限，否則避免在手機版強制 `flex-col`，以維持操作一致性。
+-   **輸入框寬度 (Input Sizing)**:
+    -   **彈性縮放**: 設定 `w-full sm:w-auto`。
+    -   **防止破版**: 利用 `flex-shrink` 讓輸入框自動適應剩餘空間。
+    -   **iOS Safari 修正**: 若遇容器溢出問題，可於 Flex 父容器加入 `min-w-0` 或於輸入框加入 `max-w-full`。
+
+-   **表格響應式策略 (Responsive Tables)**:
+    -   **手機版卡片化 (Card View)**: 在小螢幕 (`< md`) 上，**禁止** 使用橫向捲動表格 (Horizontal Scroll Table) 顯示關鍵操作資料。必須將每一列 (Row) 轉換為獨立的 **卡片 (Card)** 堆疊顯示，確保所有資訊與操作按鈕完整可見。
+    -   **桌面版表格 (Table View)**: 在大螢幕 (`>= md`) 上維持標準表格佈局。

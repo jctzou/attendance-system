@@ -60,8 +60,16 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
             {/* Header */}
             <div className="p-6 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-xl font-bold shadow-sm ${theme.iconBg}`}>
-                        {data.displayName[0]}
+                    <div className={`h-12 w-12 rounded-full overflow-hidden flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 ${theme.iconBg} relative`}>
+                        {data.avatarUrl ? (
+                            <img
+                                src={data.avatarUrl}
+                                alt={data.displayName}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <span className="text-xl font-bold">{data.displayName[0]}</span>
+                        )}
                     </div>
                     <div>
                         <div className={`font-bold text-lg ${theme.text}`}>{data.displayName}</div>

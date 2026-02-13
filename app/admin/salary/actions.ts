@@ -27,6 +27,7 @@ export interface SalaryRecordData {
     yearMonth: string
     type: SalaryType
     status: 'SETTLED' | 'UNSETTLED'
+    avatarUrl?: string | null // New field
 
     // Financials
     baseSalary: number
@@ -80,6 +81,7 @@ export async function getAllUsers(): Promise<ActionResponse<any[]>> {
         .select(`
             id,
             display_name,
+            avatar_url,
             email,
             employee_id,
             salary_type,
@@ -130,7 +132,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     // 1. Get User Data
     const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('display_name, salary_type, salary_amount')
+        .select('display_name, avatar_url, salary_type, salary_amount')
         .eq('id', userId)
         .single()
 
@@ -159,6 +161,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
                 id: existingRecord.id,
                 userId,
                 displayName: userData.display_name,
+                avatarUrl: userData.avatar_url, // Always use current avatar
                 yearMonth,
                 type: (settledData.salaryType as SalaryType) || 'monthly',
                 status: 'SETTLED',
@@ -249,6 +252,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
         id: existingRecord?.id,
         userId,
         displayName: userData.display_name,
+        avatarUrl: userData.avatar_url,
         yearMonth,
         type: salaryType,
         status: 'UNSETTLED',

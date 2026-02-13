@@ -29,15 +29,11 @@
 | **未結算 (Unsettled)** | `salary_records.is_paid = false` | 顯示即時計算數據，允許編輯獎金，允許結算。 |
 | **已結算 (Settled)** | `salary_records.is_paid = true` | 顯示結算當下快照 (Snapshot)，數據唯讀，允許展開查看即時數據，允許取消結算。 |
 
-### 2.2 色彩計劃 (依據統一設計規範)
--   **全域一致性 (Consistency)**: 為了維持視覺統一，**所有核心互動卡片**（包含薪資卡片 `EmployeeCard` 與打卡面板 `ClockPanel`）皆必須使用 **白色背景 (`bg-white` / Dark: `bg-slate-900`)**。
--   **未結算卡片**:
-    -   背景色: `bg-white` (Dark: `bg-slate-900`)
-    -   邊框: `border-slate-200` (Dark: `border-slate-700`)
--   **已結算卡片**:
-    -   背景色: `bg-white` (Dark: `bg-slate-900`)
-    -   邊框: `border-emerald-500` (Dark: `border-emerald-600`) - **以加邊框取代底色異動**，保持卡片一致性。
-    -   文字: 主要數據使用 `text-emerald-700` (Dark: `text-emerald-400`) 以強化已完成感。
+### 2.2 色彩計畫 (依據統一設計規範)
+-   **卡片底色**: 統一使用 `bg-[var(--color-card-light)]` (Dark: `bg-[var(--color-card-dark)]`)。
+-   **狀態區分**:
+    -   **未結算**: 使用標準邊框色 `border-slate-200`。
+    -   **已結算**: 使用 **Emerald** 色系邊框 (`border-emerald-500`) 與文字強調，以區別唯讀狀態。
 
 ---
 
@@ -110,15 +106,18 @@
 ### 7.1 頁面結構 (Page Structure)
 -   **控制列 (Control Bar)**:
     -   **月份選擇**:
-        -   採用與打卡記錄頁面一致的佈局方案。
-        -   使用 `flex items-center gap-2` (標籤與輸入框並排)。
-        -   輸入框設定 `w-full sm:w-auto`，利用 `flex-shrink` 自動適應寬度，防止破版。
+        -   請參照 `system_architecture.md` 第 10.3 節 (響應式佈局規範)。
+        -   採用標準 `flex items-center gap-2` 模式。
     -   **設定按鈕**: 保持顯眼位置。
 
 ### 7.2 員工卡片設計 (Employee Card Design)
 
 #### 層次 A: 識別與狀態 (Header Left)
-(略 - 保持原樣)
+-   **頭像 (Avatar)**: 顯示員工頭像 (圓形)，若無則顯示首字縮寫。
+-   **姓名**: 粗體顯示。
+-   **標籤 (Tags)**:
+    -   **工資類型**: `鐘點` (Sky Blue) / `月薪` (Indigo)。
+    -   **結算狀態**: 若已結算，顯示 `已結算` (Emerald + Lock Icon)。
 
 #### 層次 B: 關鍵數據 (Header Center/Right)
 為方便快速瀏覽，關鍵數字直接顯示於卡片右側（**手機版需完整顯示**，即使堆疊排列）：

@@ -41,10 +41,10 @@
 #### 2.2.1 日卡片 (Day Card) 設計
 每個日期為一個獨立的 `Card` 元件，點擊後觸發互動（詳見第 3 節）。
 
-**卡片狀態與樣式**:
--   **今天 (Today)**: `bg-blue-50 border-blue-400 ring-2 ring-blue-200`。
--   **週末 (Weekend)**: `bg-red-50 border-red-200` (若無記錄顯示 "例假日")。
--   **平日 (Weekday)**: `bg-white border-slate-200`。
+**卡片狀態與樣式 (需對應 Global Design System)**:
+-   **今天 (Today)**: `bg-blue-50 border-blue-400`。
+-   **週末 (Weekend)**: `bg-red-50 border-red-200`。
+-   **平日 (Weekday)**: `bg-[var(--color-card-light)] border-slate-200`。
 
 **內容顯示規則 (依薪資類型區分)**:
 
@@ -173,29 +173,8 @@ const LEAVE_TYPE_MAP: Record<string, string> = {
 
 ## 6. 技術實作規範 (Technical Implementation Guidelines)
 
-> **⚠️ 此章節為開發必讀，旨在防止常見錯誤 (e.g., 時區偏移、驗證失效)。**
+> **⚠️ 開發必讀**: 本模組需嚴格遵守 [系統架構白皮書](system_architecture.md) 中的全域規範。
 
-### 6.1 時區處理 (Timezone Handling)
-資料庫儲存的是 **UTC ISO String** (e.g., `...T01:00:00Z`)，但在前端 `<input type="datetime-local">` 顯示時，**必須轉換為本地時間格式字符串**。
-
--   **錯誤做法**: 直接將 DB 的 UTC ISO String 塞入 input `value`。
-    -   *後果*: 瀏覽器會忽略 `Z` 或無法解析，導致顯示時間偏移 (e.g., 09:00 顯示為 17:00)。
--   **正確做法**: 使用 Helper Function 轉換為 `YYYY-MM-DDTHH:mm` (Local Time)。
-    ```typescript
-    const toLocalISOString = (isoString: string) => {
-        const date = new Date(isoString); // Browser converts UTC to Local Date Object
-        // Manually format to YYYY-MM-DDTHH:mm using local components
-        // (getFullYear, getMonth, etc.)
-        // DO NOT use toISOString() here as it converts back to UTC.
-    }
-    ```
--   **資料提交**: 提交給 Backend Action 前，需將 Input 的 Local String 轉回 **UTC ISO String** (`new Date(localString).toISOString()`)。
-
-### 6.2 驗證邏輯 (Validation Logic)
-驗證必須是 **即時 (Real-time)** 且 **具備恢復性 (Recoverable)**。
-
--   **即時檢查**: 當 `ClockIn` 或 `ClockOut` 變更時立即觸發 `useEffect`。
--   **錯誤恢復**:
-    -   當 `ClockIn >= ClockOut` -> 設定錯誤訊息 `validationError`，禁用提交按鈕。
-    -   當用戶修正時間後 -> **立即清除** `validationError` (設為 null)，**立即啟用** 提交按鈕。
--   **禁止狀態**: 只要 `validationError` 存在，提交按鈕必須為 `disabled`。
+### 6.1 時區與驗證 (Timezone & Validation)
+-   **時區處理**: 請參照 `system_architecture.md` 第 10.1 節。所有的時間顯示與輸入皆需轉換為本地時間格式。
+-   **驗證邏輯**: 請參照 `system_architecture.md` 第 10.2 節。必須實作即時且具備恢復性的錯誤檢查 (e.g., 上班時間不可晚於下班時間)。

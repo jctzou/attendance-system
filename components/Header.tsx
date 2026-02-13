@@ -39,11 +39,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, userProfile }) => {
 
                     {userProfile && (
                         <div className="flex items-center border-l border-slate-200 dark:border-slate-700 ml-2 pl-2">
-                            <button className="p-0.5 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-800 hover:border-primary transition-colors">
-                                <div className="w-8 h-8 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold">
-                                    {userProfile.display_name?.[0] || 'U'}
+                            <a href="/account" className="block p-0.5 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-800 hover:border-primary transition-colors">
+                                <div className="w-8 h-8 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden">
+                                    {userProfile?.avatar_url ? (
+                                        <img src={userProfile.avatar_url} alt="Av" className="w-full h-full object-cover" />
+                                    ) : (
+                                        userProfile.display_name?.[0] || 'U'
+                                    )}
                                 </div>
-                            </button>
+                            </a>
                         </div>
                     )}
                 </div>

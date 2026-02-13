@@ -81,17 +81,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
 
                 {userProfile && (
                     <div className="p-6 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shadow-inner">
-                                {userProfile.display_name?.[0] || 'User'}
+                        <Link
+                            href="/account"
+                            onClick={onClose}
+                            className="flex items-center space-x-4 mb-4 hover:bg-slate-50 dark:hover:bg-slate-800 p-2 -mx-2 rounded-lg transition-colors group"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shadow-inner group-hover:ring-2 ring-primary transition-all">
+                                {userProfile?.avatar_url ? (
+                                    <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    userProfile.display_name?.[0] || 'U'
+                                )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{userProfile.display_name}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{userProfile.email}</p>
+                            <div className="flex-1 min-w-0 text-left">
+                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">
+                                    {userProfile.display_name}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                    帳號設定
+                                </p>
                             </div>
-                        </div>
-                        <form action="/auth/signout" method="post" className="mt-4">
-                            <button className="w-full text-xs text-slate-500 hover:text-red-500 flex items-center justify-center gap-1 py-2">
+                            <span className="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm">settings</span>
+                        </Link>
+
+                        <form action="/auth/signout" method="post">
+                            <button className="w-full text-xs text-slate-500 hover:text-red-500 flex items-center justify-center gap-1 py-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                                 <span className="material-symbols-outlined text-sm">logout</span>
                                 登出系統
                             </button>
