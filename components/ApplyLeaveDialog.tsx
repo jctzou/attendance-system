@@ -10,6 +10,7 @@ interface Props {
     onClose: () => void
     onSuccess: () => void
     annualLeaveBalance?: any
+    salaryType?: string
 }
 
 const LEAVE_TYPES = [
@@ -19,7 +20,7 @@ const LEAVE_TYPES = [
     { value: 'other', label: '其他' },
 ]
 
-export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalance }: Props) {
+export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalance, salaryType = 'monthly' }: Props) {
     const [leaveType, setLeaveType] = useState('sick_leave')
     const [startDate, setStartDate] = useState('')
     const [endDate, setEndDate] = useState('')
@@ -127,11 +128,11 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                             onChange={(e) => setLeaveType(e.target.value)}
                             className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow"
                         >
-                            {LEAVE_TYPES.map(t => (
+                            {LEAVE_TYPES.filter(t => salaryType !== 'hourly' || t.value !== 'annual_leave').map(t => (
                                 <option key={t.value} value={t.value}>{t.label}</option>
                             ))}
                         </select>
-                        {leaveType === 'annual_leave' && annualLeaveBalance && (
+                        {leaveType === 'annual_leave' && annualLeaveBalance && salaryType !== 'hourly' && (
                             <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">info</span>
                                 剩餘特休: {annualLeaveBalance.total_days - annualLeaveBalance.used_days} 天 / 總計: {annualLeaveBalance.total_days} 天

@@ -219,7 +219,7 @@ export default function ModernClockPanel({
                                         key={idx}
                                         onClick={() => setSelectedTimeSlot(slot)}
                                         className={`py-4 px-2 rounded-xl border-2 transition-all ${isSelected(slot)
-                                            ? 'border-primary bg-orange-50/50 text-primary'
+                                            ? 'border-primary bg-orange-50/50 dark:bg-transparent text-primary'
                                             : 'border-slate-100 dark:border-neutral-800 hover:border-primary/30 text-slate-600'
                                             }`}
                                     >
