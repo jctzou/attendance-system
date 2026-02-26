@@ -39,7 +39,7 @@ export default function MainLayout({ children, userProfile }: MainLayoutProps) {
                 </div>
                 <footer className="pb-6 px-4 w-full text-center">
                     <p className="text-[10px] md:text-xs text-slate-500 dark:text-neutral-600">
-                        © 2026 Enterprise Attendance Management System
+                        Niizo &copy; Enterprise Attendance Management System
                     </p>
                 </footer>
             </main>
