@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { SupabaseClient } from '@supabase/supabase-js'
 import ModernClockPanel from '@/components/ModernClockPanel'
-import NotificationBell from '@/components/NotificationBell'
+import { getCurrentWorkingEmployees } from '@/app/attendance/actions'
+import WorkingEmployeesList from '@/components/WorkingEmployeesList'
 
 type UserRow = Database['public']['Tables']['users']['Row']
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
@@ -45,24 +46,33 @@ export default async function Home() {
     if (todayRecordRes.data) todayRecord = todayRecordRes.data
   }
 
+  // 取得今日打卡上班中員工
+  const workingRes = await getCurrentWorkingEmployees()
+  const workingEmployees = workingRes.success ? workingRes.data : []
+
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-      {userProfile && user ? (
-        <ModernClockPanel
-          userId={user.id}
-          userName={userProfile.display_name}
-          salaryType={userProfile.salary_type}
-          userSettings={{
-            work_start_time: userProfile.work_start_time || '09:00:00',
-            work_end_time: userProfile.work_end_time || '18:00:00'
-          }}
-          todayRecord={todayRecord}
-        />
-      ) : (
-        <div className="text-center text-slate-500">
-          {user ? '找不到使用者資料' : '請先登入系統'}
-        </div>
-      )}
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] py-8">
+      <div className="w-full max-w-[480px] flex flex-col gap-8 px-4">
+        {userProfile && user ? (
+          <ModernClockPanel
+            userId={user.id}
+            userName={userProfile.display_name}
+            salaryType={userProfile.salary_type}
+            userSettings={{
+              work_start_time: userProfile.work_start_time || '09:00:00',
+              work_end_time: userProfile.work_end_time || '18:00:00'
+            }}
+            todayRecord={todayRecord}
+          />
+        ) : (
+          <div className="text-center text-slate-500 bg-white dark:bg-neutral-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-neutral-700">
+            {user ? '找不到使用者資料' : '請先登入系統'}
+          </div>
+        )}
+
+        {/* 即時上下班員工 Avatar 列 (Client Component) */}
+        <WorkingEmployeesList initialEmployees={workingEmployees} />
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { Database } from '@/types/supabase'
 import { z } from 'zod'
@@ -143,6 +144,14 @@ export async function clockIn(userId: string, customTime?: Date): Promise<Action
             newRecord.is_edited = true;
         }
 
+        // 這裡不再使用 adminClient 以避免 SUPABASE_SERVICE_ROLE_KEY 缺失問題
+        // 直接使用當下的 supabase (已帶有該打卡員工的 JWT) 向公用頻道發送廣播
+        supabase.channel('public:attendance_sync').send({
+            type: 'broadcast',
+            event: 'sync',
+            payload: { action: 'clockIn' }
+        })
+
         revalidatePath('/')
         return newRecord
     })
@@ -212,6 +221,13 @@ export async function clockOut(userId: string, customTime?: Date, breakDuration?
             });
         }
 
+        // 這裡不再使用 adminClient 以避免 SUPABASE_SERVICE_ROLE_KEY 缺失問題
+        supabase.channel('public:attendance_sync').send({
+            type: 'broadcast',
+            event: 'sync',
+            payload: { action: 'clockOut' }
+        })
+
         revalidatePath('/')
         return updatedRecord
     })
@@ -255,6 +271,13 @@ export async function cancelClockOut(userId: string): Promise<ActionResult<Atten
             .select().single()
 
         if (error) throw new Error(error.message)
+
+        // 這裡不再使用 adminClient 以避免 SUPABASE_SERVICE_ROLE_KEY 缺失問題
+        supabase.channel('public:attendance_sync').send({
+            type: 'broadcast',
+            event: 'sync',
+            payload: { action: 'cancelClockOut' }
+        })
 
         revalidatePath('/')
         return updatedRecord
@@ -532,5 +555,46 @@ export async function getEmployeeLeaveRecords(employeeId: string, yearMonth: str
 
         if (error) throw new Error(error.message)
         return data || []
+    })
+}
+
+/**
+ * 取得目前正在上班的員工清單 (包含 Avatar 與名稱)
+ * 定義：今日有打上班卡，且尚未打下班卡。
+ * 註：使用 adminClient 來繞過 RLS，讓一般員工也能看見其他人的頭像。
+ */
+export async function getCurrentWorkingEmployees(): Promise<ActionResult<{ user: { id: string, display_name: string, avatar_url: string | null } }[]>> {
+    return withErrorHandling(async () => {
+        const supabaseAdmin = createAdminClient()
+        const todayStr = getTaipeiDateString(new Date().toISOString())
+
+        const { data, error } = await supabaseAdmin
+            .from('attendance')
+            .select(`
+                clock_in_time,
+                users (
+                    id,
+                    display_name,
+                    avatar_url
+                )
+            `)
+            .eq('work_date', todayStr)
+            .not('clock_in_time', 'is', null)
+            .is('clock_out_time', null)
+            .order('clock_in_time', { ascending: true })
+
+        if (error) {
+            console.error('Fetch working employees error:', error)
+            throw new Error('無法取得目前上班員工清單')
+        }
+
+        // 過濾掉可能因為 foreign key reference 失敗而造成 users 為 null 的髒資料
+        const validData = data
+            .filter((row: any) => row.users)
+            .map((row: any) => ({
+                user: Array.isArray(row.users) ? row.users[0] : row.users // 防範一對多或是 single 問題
+            }))
+
+        return validData as any
     })
 }
