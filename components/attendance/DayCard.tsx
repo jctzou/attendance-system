@@ -63,7 +63,7 @@ export function DayCard({
                     {day}日
                     {isToday && <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">今天</span>}
                 </div>
-                <div className={`text-xs px-1.5 py-0.5 rounded ${getBadgeStyle()}`}>
+                <div className={`text-xs w-6 h-6 flex items-center justify-center rounded-full ${getBadgeStyle()}`}>
                     {weekdayText}
                 </div>
             </div>
