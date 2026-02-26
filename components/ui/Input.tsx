@@ -24,7 +24,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     id={inputId}
                     ref={ref}
                     className={`
-                        w-full px-4 py-3 rounded-xl font-bold
+                        box-border appearance-none w-full px-4 py-3 rounded-xl font-bold
                         bg-slate-50 dark:bg-neutral-800
                         border transition-all outline-none
                         ${error
