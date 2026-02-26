@@ -41,7 +41,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCropComplete, o
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden w-full max-w-md flex flex-col h-[80vh] md:h-[600px]">
+            <div className="bg-white dark:bg-neutral-800 rounded-2xl overflow-hidden w-full max-w-md flex flex-col h-[80vh] md:h-[600px]">
                 <div className="relative flex-1 bg-black">
                     <Cropper
                         image={imageSrc}
@@ -72,7 +72,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ imageSrc, onCropComplete, o
                     <div className="flex gap-3">
                         <button
                             onClick={onCancel}
-                            className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-neutral-300 font-medium hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors"
                         >
                             取消
                         </button>

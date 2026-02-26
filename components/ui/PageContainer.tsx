@@ -27,7 +27,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                             </h1>
                         )}
                         {description && (
-                            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+                            <p className="text-slate-500 dark:text-neutral-400 mt-1 text-sm">
                                 {description}
                             </p>
                         )}

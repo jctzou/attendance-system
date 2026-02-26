@@ -42,10 +42,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
             />
 
             <aside
-                className={`fixed top-0 left-0 h-full w-[280px] bg-white dark:bg-slate-900 z-[70] shadow-2xl flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] 
+                className={`fixed top-0 left-0 h-full w-[280px] bg-white dark:bg-neutral-800 z-[70] shadow-2xl flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] 
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
             >
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="p-6 border-b border-slate-100 dark:border-neutral-800 flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                         <div className="bg-primary/10 p-2 rounded-lg">
                             <span className="material-symbols-outlined text-primary text-2xl">calendar_month</span>
@@ -54,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors md:hidden"
+                        className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-neutral-800 rounded-lg transition-colors md:hidden"
                     >
                         <span className="material-symbols-outlined">close</span>
                     </button>
@@ -70,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
                                 onClick={() => onClose()}
                                 className={`flex items-center space-x-3 p-4 rounded-xl transition-all ${isActive
                                     ? 'bg-primary/10 text-primary font-bold shadow-sm'
-                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium'
+                                    : 'text-slate-600 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-800 font-medium'
                                     }`}
                             >
                                 <span className="material-symbols-outlined">{item.icon}</span>
@@ -81,13 +81,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
                 </nav>
 
                 {userProfile && (
-                    <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+                    <div className="p-6 border-t border-slate-100 dark:border-neutral-800">
                         <Link
                             href="/account"
                             onClick={onClose}
-                            className="flex items-center space-x-4 mb-4 hover:bg-slate-50 dark:hover:bg-slate-800 p-2 -mx-2 rounded-lg transition-colors group"
+                            className="flex items-center space-x-4 mb-4 hover:bg-slate-50 dark:hover:bg-neutral-800 p-2 -mx-2 rounded-lg transition-colors group"
                         >
-                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shadow-inner group-hover:ring-2 ring-primary transition-all">
+                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-neutral-700 overflow-hidden flex items-center justify-center font-bold text-slate-600 dark:text-neutral-300 shadow-inner group-hover:ring-2 ring-primary transition-all">
                                 {userProfile?.avatar_url ? (
                                     <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -98,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
                                 <p className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">
                                     {userProfile.display_name}
                                 </p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                <p className="text-xs text-slate-500 dark:text-neutral-400 truncate">
                                     帳號設定
                                 </p>
                             </div>
@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
                         </Link>
 
                         <form action="/auth/signout" method="post">
-                            <button className="w-full text-xs text-slate-500 hover:text-red-500 flex items-center justify-center gap-1 py-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+                            <button className="w-full text-xs text-slate-500 hover:text-red-500 flex items-center justify-center gap-1 py-2 border-t border-slate-100 dark:border-neutral-800 pt-3">
                                 <span className="material-symbols-outlined text-sm">logout</span>
                                 登出系統
                             </button>

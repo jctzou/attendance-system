@@ -292,9 +292,34 @@
     *   **開發守則**：對話框的外框容器（如 `components/ui/Dialog.tsx`）必須在螢幕大於 `md` 的斷點時，加上與側欄等寬的推擠補償 `md:pl-[calc(280px+1rem)]` 以保持彈跳視窗完美座落於右側實際工作區的正中央。
 
 ### 10.2 顏色與主題系統 (Theme)
-*   **深色模式支援 (Dark Mode)**：
-    *   全面採納 TailwindCSS 的 `dark:` 前綴。
-    *   所有 Custom Component 包含 `ActionDialogs`、`NotificationBell` 等，均需要雙雙考量亮色與暗色板本（如：`bg-white dark:bg-slate-800`）。確保系統任何角落皆擁有統一質感的高級體驗。
+
+為了確保跨系統、跨裝置的視覺一致性，並維持企業級應用的專業與沈穩感，所有 UI 開發皆須嚴格遵守以下色彩規範：
+
+#### 10.2.1 基礎色彩定義 (Color Palette)
+*   **主色調 (Primary)**: 系統品牌色 (`orange-500` 系為主色)，用於主要的 Call-to-Action 按鈕、重要焦點與活躍狀態。
+*   **亮色模式背景 (Light Mode Backgrounds)**:
+    *   主畫面底板 (App Background): `bg-background-light` (預設為 `#E0E0E0`) 或 `bg-slate-50`。
+    *   卡片容器 (Cards/Surfaces): `bg-white`，建立與底板間微微浮出的立體景深。
+*   **深色模式背景 (Dark Mode Backgrounds)**:
+    *   **純灰階紀律**: 嚴禁使用帶有色偏的冷灰或暖灰（如 `slate`, `gray`, `zinc` 等家族），全系統深色底板**必須統一採用純無彩度的 `neutral` 色階**。
+    *   主畫面底板 (App Background): 最深色的 `neutral-900` (`#171717`)。
+    *   側邊欄與上方導覽列 (Navigation/Sidebar): 微亮的 `neutral-800`。
+    *   卡片容器 (Cards/Surfaces): 獨立的元件層級 `neutral-800` 或利用半透明白色 (`white/5`) 提亮，建立明顯層級與景深感。
+
+#### 10.2.2 狀態提示與互動色彩紀律 (State & Interaction Colors)
+*   **警告與語意色彩 (Semantic Colors)**:
+    *   ✅ 成功/已完成 (Success): 以 `emerald` 綠色系為主 (`emerald-500`)。
+    *   ⚠️ 警告/待處理 (Warning): 以 `orange` 橘色系為主 (`orange-500`)。
+    *   🚨 錯誤/拒絕 (Error/Destructive): 以 `rose` 或 `red` 紅色系為主 (`rose-500`)。
+*   **狀態辨識的色彩紀律 (State Indication)**:
+    為維持版面的專業度與長時間閱讀的舒適性，當 UI 必須呈現如「啟用/停用」、「結算/未結算」、「例假/上班」的列表或卡片狀態時，**嚴禁**大面積地修改該區塊內的「實體文字或背景主題顏色」（例如將整個卡片內的數字和文字都變紅或變綠）。狀態差異的展現應收斂於：
+    1.  **專用的狀態微章 (Badge)**: 於右上角或標題旁使用半透明底色的小徽章 (`bg-[color]-100` / `dark:bg-[color]-900/40`) 標示狀態。
+    2.  **卡片背景底色的微調**: 利用系統既有色階產生「下沉」或「提亮」的錯覺。例如：(亮色) `white` 退為微灰 `slate-50 / neutral-50`；(暗色) `neutral-900` 微微浮出為 `neutral-900/40`。以此區分靜態或非活躍的物件，確保任何狀態下數據的絕對可讀性。
+
+#### 10.2.3 深色模式實作規範 (Dark Mode)
+*   **全面採用 Tailwind v4 `dark:` 前綴**：所有 Custom Component（如 `Card`、`LeaveTable`、`ActionDialogs` 等）皆須實作亮色與暗色雙版本的 Utility Classes。
+*   **全域深色切換機制 (Global Dark Mode Toggle)**：因專案使用 Tailwind CSS v4，若要由 `<ThemeToggle />` 手動切換 `<html>` 標籤的 `.dark` class 來改變全站主題，必須確保在 `app/globals.css` 頂端宣告 `@custom-variant dark (&:is(.dark *));`，以喚醒對應的 `dark:` 偽樣式。
+*   **嚴禁硬刻樣式 (No Hardcoded CSS Overrides)**：絕對禁止在 `globals.css` 內部使用寫死的自訂 Class + `!important`（如 `.dark .card-root { background-color: ... !important; }`）來強行調整深色背景。所有顏色變化都必須收斂回歸到 React 元件階層的 Tailwind 原生 class。
 
 ### 9.2 全域元件快取刷新 (Global Layout Revalidation)
 -   **痛點與問題**：在 Next.js App Router 中，位於根目錄 `layout.tsx` 裡面的全域元件（如 Header 內的 `NotificationBell`），由於其高度快取的特性，常見的 `revalidatePath('/')` 有時無法順利觸發其內部 Server Component 的重新渲染。

@@ -171,7 +171,7 @@ export default function AccountSettingsPage({ userProfile }: { userProfile: any 
                             className="relative group cursor-pointer mb-4"
                             onClick={handleAvatarClick}
                         >
-                            <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 border-4 border-white dark:border-slate-700 shadow-lg relative">
+                            <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 border-4 border-white dark:border-neutral-700 shadow-lg relative">
                                 {previewUrl ? (
                                     <img
                                         src={previewUrl}
@@ -201,20 +201,20 @@ export default function AccountSettingsPage({ userProfile }: { userProfile: any 
                         <h2 className="text-xl font-bold text-slate-800 dark:text-white text-center">
                             {displayName || '未設定名稱'}
                         </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
+                        <p className="text-sm text-slate-500 dark:text-neutral-400 text-center mb-4">
                             {userProfile?.email}
                         </p>
 
-                        <div className="w-full border-t border-slate-100 dark:border-slate-700 pt-4 space-y-2">
+                        <div className="w-full border-t border-slate-100 dark:border-neutral-700 pt-4 space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">員工編號</span>
-                                <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
+                                <span className="font-mono font-medium text-slate-700 dark:text-neutral-300">
                                     {userProfile?.employee_id || '-'}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">職稱</span>
-                                <span className="font-medium text-slate-700 dark:text-slate-300">
+                                <span className="font-medium text-slate-700 dark:text-neutral-300">
                                     {{
                                         'admin': '管理員',
                                         'manager': '經理',

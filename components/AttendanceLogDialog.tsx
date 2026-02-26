@@ -42,9 +42,9 @@ export default function AttendanceLogDialog({ attendanceId, onClose }: Props) {
                 ) : (
                     <div className="space-y-4">
                         {logs.map((log) => (
-                            <Card key={log.id} padding="p-4" className="bg-slate-50 dark:bg-slate-800 border !border-slate-200 dark:!border-slate-700 shadow-none">
+                            <Card key={log.id} padding="p-4" className="bg-slate-50 dark:bg-neutral-800 border !border-slate-200 dark:!border-slate-700 shadow-none">
                                 <div className="flex justify-between items-start mb-3">
-                                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                    <div className="text-sm font-bold text-slate-800 dark:text-neutral-200">
                                         修改者: {log.editor?.display_name || 'Unknown'}
                                     </div>
                                     <div className="text-xs text-slate-500">
@@ -53,10 +53,10 @@ export default function AttendanceLogDialog({ attendanceId, onClose }: Props) {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-                                    <div className="bg-white dark:bg-slate-900 rounded p-2 border border-slate-100 dark:border-slate-800">
+                                    <div className="bg-white dark:bg-neutral-900 rounded p-2 border border-slate-100 dark:border-neutral-800">
                                         <span className="text-xs text-slate-400 block mb-1 uppercase font-bold tracking-wider">Original</span>
-                                        <div className="text-slate-600 dark:text-slate-400">In: {formatTime(log.old_clock_in_time)}</div>
-                                        <div className="text-slate-600 dark:text-slate-400">Out: {formatTime(log.old_clock_out_time)}</div>
+                                        <div className="text-slate-600 dark:text-neutral-400">In: {formatTime(log.old_clock_in_time)}</div>
+                                        <div className="text-slate-600 dark:text-neutral-400">Out: {formatTime(log.old_clock_out_time)}</div>
                                     </div>
                                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 border border-blue-100 dark:border-blue-800/50">
                                         <span className="text-xs text-blue-400 block mb-1 uppercase font-bold tracking-wider">New</span>
@@ -65,9 +65,9 @@ export default function AttendanceLogDialog({ attendanceId, onClose }: Props) {
                                     </div>
                                 </div>
 
-                                <div className="text-sm bg-white dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800">
+                                <div className="text-sm bg-white dark:bg-neutral-900 p-2 rounded border border-slate-100 dark:border-neutral-800">
                                     <span className="text-slate-400 mr-2 font-medium">原因:</span>
-                                    <span className="text-slate-700 dark:text-slate-300">{log.edit_reason}</span>
+                                    <span className="text-slate-700 dark:text-neutral-300">{log.edit_reason}</span>
                                 </div>
                             </Card>
                         ))}

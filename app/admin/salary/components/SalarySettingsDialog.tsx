@@ -80,7 +80,7 @@ export const SalarySettingsDialog: React.FC<Props> = ({ isOpen, onClose, onSucce
     const ListView = (
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-xs tracking-wider font-bold">
+                <thead className="bg-slate-50 dark:bg-neutral-800/50 text-slate-500 uppercase text-xs tracking-wider font-bold">
                     <tr>
                         <th className="px-4 py-3 rounded-l-lg">員工姓名</th>
                         <th className="px-4 py-3">類型</th>
@@ -90,8 +90,8 @@ export const SalarySettingsDialog: React.FC<Props> = ({ isOpen, onClose, onSucce
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {users.map(user => (
-                        <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
-                            <td className="px-4 py-4 font-bold text-slate-700 dark:text-slate-200">
+                        <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-neutral-800/50 group transition-colors">
+                            <td className="px-4 py-4 font-bold text-slate-700 dark:text-neutral-200">
                                 {user.display_name}
                                 <div className="text-xs text-slate-400 font-normal">{user.employee_id}</div>
                             </td>
@@ -103,7 +103,7 @@ export const SalarySettingsDialog: React.FC<Props> = ({ isOpen, onClose, onSucce
                                     {user.salary_type === 'hourly' ? '鐘點' : '月薪'}
                                 </span>
                             </td>
-                            <td className="px-4 py-4 font-mono text-slate-600 dark:text-slate-300">
+                            <td className="px-4 py-4 font-mono text-slate-600 dark:text-neutral-300">
                                 ${user.salary_amount?.toLocaleString()}
                             </td>
                             <td className="px-4 py-4 text-right">
@@ -125,9 +125,9 @@ export const SalarySettingsDialog: React.FC<Props> = ({ isOpen, onClose, onSucce
     // EDIT VIEW CONTENT
     const EditView = (
         <div className="space-y-6">
-            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 text-center">
+            <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-xl border border-slate-100 dark:border-neutral-700 text-center">
                 <div className="text-sm text-slate-400 mb-1">正在編輯</div>
-                <div className="text-xl font-bold text-slate-800 dark:text-slate-200">{editingUser?.display_name}</div>
+                <div className="text-xl font-bold text-slate-800 dark:text-neutral-200">{editingUser?.display_name}</div>
             </div>
 
             <div>
@@ -138,7 +138,7 @@ export const SalarySettingsDialog: React.FC<Props> = ({ isOpen, onClose, onSucce
                         onClick={() => setSalaryType('monthly')}
                         className={`p-4 rounded-xl border text-center transition-all ${salaryType === 'monthly'
                             ? 'border-[var(--color-primary)] bg-orange-50 dark:bg-orange-900/20 text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
-                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            : 'border-slate-200 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-800'
                             }`}
                     >
                         <div className="font-bold">月薪制</div>
@@ -149,7 +149,7 @@ export const SalarySettingsDialog: React.FC<Props> = ({ isOpen, onClose, onSucce
                         onClick={() => setSalaryType('hourly')}
                         className={`p-4 rounded-xl border text-center transition-all ${salaryType === 'hourly'
                             ? 'border-[var(--color-primary)] bg-orange-50 dark:bg-orange-900/20 text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
-                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            : 'border-slate-200 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-800'
                             }`}
                     >
                         <div className="font-bold">鐘點制</div>

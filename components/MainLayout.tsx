@@ -21,7 +21,7 @@ export default function MainLayout({ children, userProfile }: MainLayoutProps) {
     }
 
     return (
-        <div className="min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 transition-colors duration-300 font-display">
+        <div className="min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-neutral-200 transition-colors duration-300 font-display">
             <Sidebar
                 isOpen={isDrawerOpen}
                 onClose={() => setIsDrawerOpen(false)}
@@ -38,7 +38,7 @@ export default function MainLayout({ children, userProfile }: MainLayoutProps) {
                     {children}
                 </div>
                 <footer className="pb-6 px-4 w-full text-center">
-                    <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-600">
+                    <p className="text-[10px] md:text-xs text-slate-500 dark:text-neutral-600">
                         © 2026 Enterprise Attendance Management System
                     </p>
                 </footer>

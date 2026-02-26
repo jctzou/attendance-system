@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 
 :root {
   /* --- System Architecture Whitepaper v2.0 Palette --- */
@@ -9,11 +10,13 @@
 
   /* Backgrounds */
   --color-background-light: #E0E0E0;
-  --color-background-dark: #0F172A;
+  /* Original Dark (Slate-900 Bluish): #0F172A */
+  --color-background-dark: #171717;
 
   /* Surfaces (Cards) */
   --color-card-light: #FFFFFF;
-  --color-card-dark: #1E293B;
+  /* Original Dark Card (Slate-800 Bluish): #1E293B */
+  --color-card-dark: #262626;
 
   /* Status Colors (Semantic Aliases) */
   --color-success: #10B981;
@@ -73,45 +76,4 @@ button,
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-.dark .card-root {
-  background-color: var(--color-card-dark) !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
-}
-
-.dark .card-root .text-slate-900,
-.dark .card-root .text-slate-800,
-.dark .card-root .text-slate-700 {
-  color: #f8fafc !important;
-}
-
-.dark .card-root .text-slate-600,
-.dark .card-root .text-slate-500 {
-  color: #cbd5e1 !important;
-}
-
-.dark .page-title {
-  color: #ffffff !important;
-}
-
-.dark .leave-table-root {
-  background-color: var(--color-card-dark) !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
-}
-
-.dark .leave-table-root table {
-  color: #f8fafc !important;
-}
-
-.dark .leave-table-root thead {
-  background-color: #0f172a !important;
-  /* bg-slate-900 */
-}
-
-.dark .leave-table-root tbody tr:hover {
-  background-color: #334155 !important;
-  /* bg-slate-700 */
 }

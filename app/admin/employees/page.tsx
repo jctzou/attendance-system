@@ -149,7 +149,7 @@ export default function AdminEmployeesPage() {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800">
+                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-neutral-800">
                                 <tr>
                                     <th className="px-6 py-3">員工 / Email</th>
                                     <th className="px-6 py-3">角色 / 狀態</th>
@@ -161,7 +161,7 @@ export default function AdminEmployeesPage() {
                             </thead>
                             <tbody>
                                 {employees.map((emp) => (
-                                    <tr key={emp.id} className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${!emp.is_active ? 'opacity-60 bg-slate-50' : 'bg-white dark:bg-slate-900'}`}>
+                                    <tr key={emp.id} className={`border-b border-slate-100 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800/50 ${!emp.is_active ? 'opacity-60 bg-slate-50' : 'bg-white dark:bg-neutral-900'}`}>
                                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                                             <div className="flex items-center gap-2">
                                                 <span>{emp.display_name || '未命名'}</span>
@@ -178,7 +178,7 @@ export default function AdminEmployeesPage() {
                                                 {ROLE_MAP[emp.role] || emp.role}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                                        <td className="px-6 py-4 text-slate-600 dark:text-neutral-400">
                                             {emp.onboard_date || <span className="text-slate-300">-</span>}
                                         </td>
                                         <td className="px-6 py-4">
@@ -188,7 +188,7 @@ export default function AdminEmployeesPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{emp.annual_leave_total}</span>
+                                            <span className="font-bold text-slate-700 dark:text-neutral-300">{emp.annual_leave_total}</span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <Button size="sm" variant="secondary" onClick={() => handleEdit(emp)}>
@@ -294,7 +294,7 @@ export default function AdminEmployeesPage() {
             <Dialog isOpen={!!editingUser} onClose={() => setEditingUser(null)} maxWidth="lg">
                 <DialogHeader title="編輯員工資料" onClose={() => setEditingUser(null)} />
                 <DialogContent>
-                    <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6">
+                    <div className="flex border-b border-slate-200 dark:border-neutral-700 mb-6">
                         {(['profile', 'salary', 'schedule', 'status'] as const).map(tab => (
                             <button
                                 key={tab}

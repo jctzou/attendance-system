@@ -68,7 +68,7 @@ export const Dialog: React.FC<DialogProps> = ({
                     rounded-[var(--radius-xl)] shadow-2xl
                     transform transition-all
                     overflow-hidden
-                    border border-slate-100 dark:border-slate-800
+                    border border-slate-100 dark:border-neutral-800
                 `}
                 role="dialog"
                 aria-modal="true"
@@ -83,14 +83,14 @@ export const Dialog: React.FC<DialogProps> = ({
 }
 
 export const DialogHeader: React.FC<{ title: string, onClose?: () => void, children?: React.ReactNode }> = ({ title, onClose, children }) => (
-    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+    <div className="px-6 py-4 border-b border-slate-100 dark:border-neutral-800 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-neutral-100">{title}</h3>
         {children}
         {onClose && (
             <button
                 onClick={onClose}
                 type="button"
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200 transition-colors"
             >
                 <span className="material-symbols-outlined">close</span>
             </button>
@@ -105,7 +105,7 @@ export const DialogContent: React.FC<{ children: React.ReactNode, className?: st
 )
 
 export const DialogFooter: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className = '' }) => (
-    <div className={`px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3 ${className}`}>
+    <div className={`px-6 py-4 bg-slate-50 dark:bg-neutral-900 border-t border-slate-100 dark:border-neutral-800 flex items-center justify-end gap-3 ${className}`}>
         {children}
     </div>
 )

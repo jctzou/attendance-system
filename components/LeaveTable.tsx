@@ -45,30 +45,30 @@ export default function LeaveTable({ data }: Props) {
             case 'rejected':
                 return <span className="px-2.5 py-1 text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full">已拒絕</span>
             case 'cancelled':
-                return <span className="px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 rounded-full">已取消</span>
+                return <span className="px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-neutral-800 dark:text-neutral-400 rounded-full">已取消</span>
             default:
                 return <span className="px-2.5 py-1 text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 rounded-full">待審核</span>
         }
     }
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden leave-table-root">
+        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-sm border border-slate-200 dark:border-neutral-700 overflow-hidden leave-table-root">
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                    <thead className="bg-slate-50 dark:bg-neutral-900/50">
                         <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">假別</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">日期</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">天數</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">原因</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">狀態</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">操作</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">假別</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">日期</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">天數</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">原因</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">狀態</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">操作</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                         {data.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-16 text-center text-slate-500 dark:text-slate-400">
+                                <td colSpan={6} className="px-6 py-16 text-center text-slate-500 dark:text-neutral-400">
                                     <div className="flex flex-col items-center gap-2">
                                         <span className="material-symbols-outlined text-4xl text-slate-300">event_available</span>
                                         <p>目前沒有請假記錄</p>
@@ -77,17 +77,17 @@ export default function LeaveTable({ data }: Props) {
                             </tr>
                         ) : (
                             data.map((leave) => (
-                                <tr key={leave.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                <tr key={leave.id} className="hover:bg-slate-50 dark:hover:bg-neutral-700/50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white">
                                         {LEAVE_TYPE_MAP[leave.leave_type] || leave.leave_type}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-neutral-300">
                                         {leave.start_date} ~ {leave.end_date}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-neutral-300">
                                         {leave.days} 天
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 max-w-xs truncate" title={leave.reason}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-neutral-300 max-w-xs truncate" title={leave.reason}>
                                         {leave.reason}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">

@@ -121,11 +121,11 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
             <DialogContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">假別</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300 mb-2">假別</label>
                         <select
                             value={leaveType}
                             onChange={(e) => setLeaveType(e.target.value)}
-                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow"
+                            className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow"
                         >
                             {LEAVE_TYPES.map(t => (
                                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -160,10 +160,10 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                     {Object.keys(dailyStatus).sort().length > 0 && (
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
                                     請假天數 (每日明細)
                                 </label>
-                                <div className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400">
+                                <div className="px-3 py-1 bg-slate-100 dark:bg-neutral-800 rounded-full text-xs font-medium text-slate-600 dark:text-neutral-400">
                                     共 {totalDays} 天
                                 </div>
                             </div>
@@ -184,14 +184,14 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                                             className={`
                                                 flex justify-between items-center p-3 rounded-xl border transition-all duration-200
                                                 ${isNone
-                                                    ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-60'
+                                                    ? 'bg-slate-50 dark:bg-neutral-900 border-slate-200 dark:border-neutral-800 opacity-60'
                                                     : isWeekend
                                                         ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/30 shadow-sm'
-                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm hover:border-primary/50 dark:hover:border-primary/50'
+                                                        : 'bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 shadow-sm hover:border-primary/50 dark:hover:border-primary/50'
                                                 }
                                             `}
                                         >
-                                            <div className={`text-sm font-medium ${isNone ? 'text-slate-400 line-through decoration-slate-400' : isWeekend ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                                            <div className={`text-sm font-medium ${isNone ? 'text-slate-400 line-through decoration-slate-400' : isWeekend ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-neutral-200'}`}>
                                                 {formatDateDisplay(date)}
                                                 {!isNone && (
                                                     <div className={`text-xs mt-0.5 font-bold ${status === 1 ? 'text-orange-500' : 'text-orange-400'}`}>
@@ -201,7 +201,7 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                                                 {isNone && <div className="text-xs mt-0.5 text-slate-400">不請假</div>}
                                             </div>
 
-                                            <div className={`flex rounded-lg p-1 ${isWeekend ? 'bg-white/50 dark:bg-slate-900/50' : 'bg-slate-100 dark:bg-slate-900'}`}>
+                                            <div className={`flex rounded-lg p-1 ${isWeekend ? 'bg-white/50 dark:bg-neutral-900/50' : 'bg-slate-100 dark:bg-neutral-900'}`}>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleStatusChange(date, 1)}
@@ -209,7 +209,7 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                                                         px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200
                                                         ${status === 1
                                                             ? 'bg-orange-500 text-white shadow-sm'
-                                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-neutral-300'
                                                         }
                                                     `}
                                                 >
@@ -222,7 +222,7 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                                                         px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200
                                                         ${status === 0.5
                                                             ? 'bg-orange-500 text-white shadow-sm'
-                                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-neutral-300'
                                                         }
                                                     `}
                                                 >
@@ -235,7 +235,7 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                                                         px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200
                                                         ${status === 0
                                                             ? 'bg-slate-500 text-white shadow-sm'
-                                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-neutral-300'
                                                         }
                                                     `}
                                                 >
@@ -250,12 +250,12 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">請假原因</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300 mb-2">請假原因</label>
                         <textarea
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             required
-                            className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent h-24 resize-none transition-shadow"
+                            className="w-full p-3 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent h-24 resize-none transition-shadow"
                             placeholder="請說明請假原因..."
                         />
                     </div>

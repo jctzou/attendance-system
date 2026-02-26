@@ -42,18 +42,18 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
     // Settled: White with Emerald Border (Updated Spec)
     const theme = isSettled
         ? {
-            card: 'bg-white dark:bg-slate-900 border-emerald-500 dark:border-emerald-600 shadow-md', // stronger border
-            text: 'text-emerald-700 dark:text-emerald-400', // darker text for contrast on white
-            subText: 'text-emerald-600/70 dark:text-emerald-400/70',
+            card: 'bg-slate-50 dark:bg-neutral-800 border-slate-300 dark:border-neutral-700 shadow-sm',
+            text: 'text-slate-900 dark:text-neutral-100',
+            subText: 'text-slate-500 dark:text-neutral-400',
             badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-            iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-300'
+            iconBg: 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
         }
         : {
-            card: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-            text: 'text-slate-900 dark:text-slate-100',
-            subText: 'text-slate-500 dark:text-slate-400',
-            badge: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-            iconBg: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+            card: 'bg-white dark:bg-neutral-900 border-slate-200 dark:border-neutral-800',
+            text: 'text-slate-900 dark:text-neutral-100',
+            subText: 'text-slate-500 dark:text-neutral-400',
+            badge: 'bg-slate-100 text-slate-600 dark:bg-neutral-800 dark:text-neutral-400',
+            iconBg: 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
         }
 
     return (
@@ -61,7 +61,7 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
             {/* Header */}
             <div className="p-6 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className={`h-12 w-12 rounded-full overflow-hidden flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 ${theme.iconBg} relative`}>
+                    <div className={`h-12 w-12 rounded-full overflow-hidden flex items-center justify-center shadow-sm border border-slate-100 dark:border-neutral-700 ${theme.iconBg} relative`}>
                         {data.avatarUrl ? (
                             <img
                                 src={data.avatarUrl}
@@ -142,7 +142,7 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                             </div>
                         </div>
                     </div>
-                    <div className="text-right w-full md:w-auto flex justify-between md:block items-center pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                    <div className="text-right w-full md:w-auto flex justify-between md:block items-center pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-neutral-800">
                         <span className="md:hidden text-sm text-slate-500 font-medium">實發金額</span>
                         <div className="text-right">
                             <div className={`hidden md:block text-xs font-medium uppercase tracking-wider ${theme.subText}`}>實發金額</div>
@@ -191,9 +191,9 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
 
             {/* Expanded Live Data Section */}
             {isSettled && isExpanded && (
-                <div className="bg-slate-50 dark:bg-slate-900/50 border-t border-emerald-100 dark:border-emerald-900/30 p-6 animate-in slide-in-from-top-2 duration-200">
+                <div className="bg-slate-50 dark:bg-neutral-900/50 border-t border-emerald-100 dark:border-emerald-900/30 p-6 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <h4 className="font-bold text-slate-700 dark:text-neutral-300 flex items-center gap-2">
                             <span className="material-symbols-outlined text-amber-500">sync</span>
                             目前實時計算數據 (Live Calculation)
                         </h4>
@@ -206,11 +206,11 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                         </div>
                     ) : liveData ? (
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
                                 <span className="text-xs text-slate-500 block mb-1">
                                     {isHourly ? '工時/時薪' : '月薪基數'}
                                 </span>
-                                <div className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                                <div className="font-mono font-bold text-slate-900 dark:text-neutral-100">
                                     {isHourly ? (
                                         <>
                                             <div>
@@ -228,11 +228,11 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                     )}
                                 </div>
                             </div>
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
                                 <span className="text-xs text-slate-500 block mb-1">
                                     {isHourly && !features.showHourlyStatus ? '獎金 (未結算)' : '異常狀況'}
                                 </span>
-                                <div className={`font-mono font-bold ${isHourly && !features.showHourlyStatus ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                <div className={`font-mono font-bold ${isHourly && !features.showHourlyStatus ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-neutral-300'}`}>
                                     {isHourly && !features.showHourlyStatus ? (
                                         <div className="flex flex-col">
                                             <span>{formatMoney(liveData.bonus)}</span>
@@ -256,7 +256,7 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                     )}
                                 </div>
                             </div>
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
                                 <span className="text-xs text-slate-500 block mb-1">
                                     {isHourly && !features.showHourlyStatus ? '扣項' : '獎金 (未結算)'}
                                 </span>
@@ -275,7 +275,7 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                     )}
                                 </div>
                             </div>
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
                                 <span className="text-xs text-slate-500 block mb-1">
                                     {isHourly ? '扣項' : '獎金 (未結算)'}
                                 </span>
@@ -294,7 +294,7 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                     )}
                                 </div>
                             </div>
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 ring-1 ring-emerald-500/20">
+                            <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700 ring-1 ring-emerald-500/20">
                                 <span className="text-xs text-emerald-600 dark:text-emerald-400 block mb-1">預估總額</span>
                                 <div className="font-mono font-bold text-xl text-emerald-600 dark:text-emerald-400">
                                     {formatMoney(liveData.totalSalary)}

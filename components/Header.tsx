@@ -14,12 +14,12 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, userProfile }) => {
     return (
-        <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 md:pl-[280px] transition-all duration-300">
+        <header className="sticky top-0 z-50 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-md border-b border-slate-200 dark:border-neutral-800 md:pl-[280px] transition-all duration-300">
             <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                     <button
                         onClick={onMenuClick}
-                        className="p-2 -ml-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors md:hidden"
+                        className="p-2 -ml-2 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 rounded-lg transition-colors md:hidden"
                     >
                         <span className="material-symbols-outlined">menu</span>
                     </button>
@@ -38,9 +38,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, userProfile }) => {
                     <NotificationBell />
 
                     {userProfile && (
-                        <div className="flex items-center border-l border-slate-200 dark:border-slate-700 ml-2 pl-2">
-                            <a href="/account" className="block p-0.5 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-800 hover:border-primary transition-colors">
-                                <div className="w-8 h-8 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden">
+                        <div className="flex items-center border-l border-slate-200 dark:border-neutral-700 ml-2 pl-2">
+                            <a href="/account" className="block p-0.5 rounded-full overflow-hidden border-2 border-slate-100 dark:border-neutral-800 hover:border-primary transition-colors">
+                                <div className="w-8 h-8 bg-slate-200 dark:bg-neutral-700 flex items-center justify-center text-xs font-bold overflow-hidden">
                                     {userProfile?.avatar_url ? (
                                         <img src={userProfile.avatar_url} alt="Av" className="w-full h-full object-cover" />
                                     ) : (

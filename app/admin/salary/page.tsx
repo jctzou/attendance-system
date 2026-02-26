@@ -142,7 +142,7 @@ export default function AdminSalaryPage() {
             />
 
             {loading ? (
-                <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 card-root">
+                <div className="text-center py-20 bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-slate-200 dark:border-neutral-800 card-root">
                     <div className="animate-spin w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full mx-auto mb-4"></div>
                     <div className="text-slate-500 font-bold">正在計算薪資數據...</div>
                 </div>
@@ -163,7 +163,7 @@ export default function AdminSalaryPage() {
                             />
                         ))
                     ) : (
-                        <div className="text-center py-20 text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 card-root">
+                        <div className="text-center py-20 text-slate-400 bg-white dark:bg-neutral-900 rounded-2xl border border-slate-200 dark:border-neutral-800 card-root">
                             無資料
                         </div>
                     )}
@@ -196,9 +196,9 @@ export default function AdminSalaryPage() {
             <Dialog isOpen={!!resettleTarget} onClose={() => setResettleTarget(null)} maxWidth="sm">
                 <DialogHeader title="確認取消結算" onClose={() => setResettleTarget(null)} />
                 <DialogContent>
-                    <div className="text-slate-600 dark:text-slate-300">
+                    <div className="text-slate-600 dark:text-neutral-300">
                         <p className="mb-2">您確定要取消 <strong>{resettleTarget?.displayName}</strong> 的結算嗎？</p>
-                        <p className="text-sm text-slate-500 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                        <p className="text-sm text-slate-500 bg-slate-50 dark:bg-neutral-800 p-3 rounded-lg border border-slate-100 dark:border-neutral-700">
                             這將會解除鎖定，並取消員工的薪資記錄，稍後你可以再重新結算
                         </p>
                         {resettleError && (

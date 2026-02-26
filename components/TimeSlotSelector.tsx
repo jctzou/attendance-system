@@ -99,7 +99,7 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
 
     return (
         <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">
                 {label}
                 {required && <span className="text-red-500 ml-1">*</span>}
             </label>
@@ -108,7 +108,7 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
                 <select
                     value={period}
                     onChange={(e) => handlePeriodChange(e.target.value as 'AM' | 'PM')}
-                    className="w-full border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-slate-500"
+                    className="w-full border border-slate-300 dark:border-neutral-600 rounded-md p-2 text-sm bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-neutral-500"
                     required={required}
                 >
                     <option value="AM">上午 (AM)</option>
@@ -119,7 +119,7 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
                 <select
                     value={time12}
                     onChange={(e) => handleTimeChange(e.target.value)}
-                    className="w-full border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-slate-500"
+                    className="w-full border border-slate-300 dark:border-neutral-600 rounded-md p-2 text-sm bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-neutral-500"
                     required={required}
                 >
                     {timeSlots.map(slot => (

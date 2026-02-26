@@ -208,11 +208,11 @@ export default function AttendancePage() {
                     <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                         {isManager && (
                             <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <label className="font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">員工：</label>
+                                <label className="font-bold text-slate-700 dark:text-neutral-300 whitespace-nowrap">員工：</label>
                                 <select
                                     value={selectedEmployee}
                                     onChange={(e) => setSelectedEmployee(e.target.value)}
-                                    className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 w-full sm:w-auto focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+                                    className="px-4 py-2 border border-slate-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 w-full sm:w-auto focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
                                 >
                                     {employees.map(emp => (
                                         <option key={emp.id} value={emp.id}>
@@ -223,20 +223,20 @@ export default function AttendancePage() {
                             </div>
                         )}
                         <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <label className="font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">月份：</label>
+                            <label className="font-bold text-slate-700 dark:text-neutral-300 whitespace-nowrap">月份：</label>
                             <input
                                 type="month"
                                 value={yearMonth}
                                 onChange={(e) => setYearMonth(e.target.value)}
-                                className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 w-full sm:w-auto focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+                                className="px-4 py-2 border border-slate-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 w-full sm:w-auto focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
                             />
                         </div>
                     </div>
                 </div>
 
                 {selectedEmployeeData && isManager && selectedEmployee !== currentUser?.id && (
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 mx-2 mb-4 border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <div className="bg-slate-50 dark:bg-neutral-800/50 rounded-lg p-3 mx-2 mb-4 border border-slate-200 dark:border-neutral-700">
+                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-neutral-400">
                             <span className="font-bold">{selectedEmployeeData.display_name}</span>
                             <span>({selectedEmployeeData.employee_id})</span>
                             {selectedEmployeeData.salary_type === 'hourly' && (

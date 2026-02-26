@@ -25,7 +25,7 @@ const STATUS_CONFIG = {
     normal: { label: '正常', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' },
     late: { label: '遲到', color: 'bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' },
     early_leave: { label: '早退', color: 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400' },
-    absent: { label: '缺席', color: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
+    absent: { label: '缺席', color: 'bg-slate-100 text-slate-600 dark:bg-neutral-700 dark:text-neutral-400' },
 }
 
 export default function ModernClockPanel({
@@ -185,17 +185,17 @@ export default function ModernClockPanel({
 
     return (
         <>
-            <div className="w-full max-w-lg bg-[var(--color-card-light)] bg-white dark:bg-slate-900 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-200 dark:border-slate-700 p-8 md:p-10 text-center transition-all duration-300">
+            <div className="w-full max-w-lg bg-[var(--color-card-light)] bg-white dark:bg-neutral-900 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-200 dark:border-neutral-700 p-8 md:p-10 text-center transition-all duration-300">
                 {/* Header Info */}
                 <div className="space-y-4 mb-10">
-                    <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+                    <p className="text-slate-500 dark:text-neutral-400 font-medium tracking-wide">
                         {mounted && time ? time.toLocaleDateString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric' }) : 'Loading...'}
                     </p>
                     <div className="font-mono text-6xl md:text-7xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
                         {mounted && time ? formatTime(time) : '00:00:00'}
                     </div>
                     {salaryType === 'monthly' && (
-                        <div className="flex items-center justify-center space-x-2 text-sm text-slate-400 dark:text-slate-500">
+                        <div className="flex items-center justify-center space-x-2 text-sm text-slate-400 dark:text-neutral-500">
                             <span>規定工時: {userSettings.work_start_time?.slice(0, 5)} - {userSettings.work_end_time?.slice(0, 5)}</span>
                         </div>
                     )}
@@ -220,7 +220,7 @@ export default function ModernClockPanel({
                                         onClick={() => setSelectedTimeSlot(slot)}
                                         className={`py-4 px-2 rounded-xl border-2 transition-all ${isSelected(slot)
                                             ? 'border-primary bg-orange-50/50 text-primary'
-                                            : 'border-slate-100 dark:border-slate-800 hover:border-primary/30 text-slate-600'
+                                            : 'border-slate-100 dark:border-neutral-800 hover:border-primary/30 text-slate-600'
                                             }`}
                                     >
                                         <div className="text-2xl font-bold">{slot.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
@@ -262,7 +262,7 @@ export default function ModernClockPanel({
                     ) : isClockedIn ? (
                         <div className="animate-in fade-in zoom-in duration-300">
                             <div className="text-sm text-slate-400 mb-1">上班時間</div>
-                            <div className="text-3xl font-bold text-slate-800 dark:text-slate-100 font-mono mb-2">
+                            <div className="text-3xl font-bold text-slate-800 dark:text-neutral-100 font-mono mb-2">
                                 {attendanceRecord?.clock_in_time
                                     ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit' })
                                     : '--:--'}
@@ -303,14 +303,14 @@ export default function ModernClockPanel({
                                 <div className="flex justify-center gap-8 mb-4">
                                     <div>
                                         <div className="text-xs text-slate-400 uppercase">Start</div>
-                                        <div className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                        <div className="font-mono font-bold text-slate-700 dark:text-neutral-300">
                                             {attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                         </div>
                                     </div>
-                                    <div className="w-px bg-slate-200 dark:bg-slate-700"></div>
+                                    <div className="w-px bg-slate-200 dark:bg-neutral-700"></div>
                                     <div>
                                         <div className="text-xs text-slate-400 uppercase">End</div>
-                                        <div className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                        <div className="font-mono font-bold text-slate-700 dark:text-neutral-300">
                                             {attendanceRecord?.clock_out_time ? new Date(attendanceRecord.clock_out_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                         </div>
                                     </div>
@@ -347,7 +347,7 @@ export default function ModernClockPanel({
             <Dialog isOpen={showCancelConfirm} onClose={() => setShowCancelConfirm(false)} maxWidth="sm">
                 <DialogHeader title="確認取消下班？" onClose={() => setShowCancelConfirm(false)} />
                 <DialogContent>
-                    <p className="text-slate-600 dark:text-slate-300">
+                    <p className="text-slate-600 dark:text-neutral-300">
                         這將清除您的下班時間並重新計算工時，您確定要繼續嗎？
                     </p>
                 </DialogContent>

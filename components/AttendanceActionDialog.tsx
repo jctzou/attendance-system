@@ -188,7 +188,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         <Dialog isOpen={true} onClose={onClose} maxWidth="lg">
             <DialogHeader title={getTitle()} onClose={onClose} />
 
-            <div className="border-b border-slate-200 dark:border-slate-700 px-6">
+            <div className="border-b border-slate-200 dark:border-neutral-700 px-6">
                 <div className="flex space-x-6">
                     <button
                         onClick={() => setActiveTab('attendance')}
@@ -233,13 +233,13 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                                         onChange={setClockOut}
                                     />
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
                                             午休時間 (小時)
                                         </label>
                                         <select
                                             value={breakDuration}
                                             onChange={(e) => setBreakDuration(Number(e.target.value))}
-                                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                                            className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                                         >
                                             {[0, 0.5, 1, 1.5, 2, 2.5, 3].map((val) => (
                                                 <option key={val} value={val}>{val} hr</option>
@@ -346,13 +346,13 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                             // New Leave Form
                             <form onSubmit={handleLeaveSubmit} className="space-y-6">
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
                                         假別
                                     </label>
                                     <select
                                         value={leaveType}
                                         onChange={(e) => setLeaveType(e.target.value)}
-                                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                                        className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                                     >
                                         {Object.entries(LEAVE_TYPE_MAP).map(([key, label]) => (
                                             <option key={key} value={key}>{label}</option>

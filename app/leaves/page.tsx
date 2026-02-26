@@ -51,7 +51,7 @@ export default function LeavesPage() {
                         <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                             {balance?.total_days || 0}
                         </span>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">天</span>
+                        <span className="text-sm text-slate-500 dark:text-neutral-400">天</span>
                     </div>
                     <p className="text-sm text-slate-500 mt-2">包含所有已核發的特休假</p>
                 </Card>
@@ -61,7 +61,7 @@ export default function LeavesPage() {
                         <span className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                             {balance?.used_days || 0}
                         </span>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">天</span>
+                        <span className="text-sm text-slate-500 dark:text-neutral-400">天</span>
                     </div>
                     <p className="text-sm text-slate-500 mt-2">已批准與待審核的申請</p>
                 </Card>
@@ -71,7 +71,7 @@ export default function LeavesPage() {
                         <span className="text-3xl font-bold text-green-600 dark:text-green-400">
                             {balance ? (balance.total_days - balance.used_days) : 0}
                         </span>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">天</span>
+                        <span className="text-sm text-slate-500 dark:text-neutral-400">天</span>
                     </div>
                     <p className="text-sm text-slate-500 mt-2">目前可申請的特休餘額</p>
                 </Card>

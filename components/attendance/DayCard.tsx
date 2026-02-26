@@ -32,20 +32,20 @@ export function DayCard({
             return 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800'
         }
         if (isWeekend) {
-            return 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/20'
+            return 'bg-neutral-50 dark:bg-neutral-900/40 border-slate-200 dark:border-neutral-800/60 hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
         }
-        return 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
+        return 'bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 border-slate-200 dark:border-neutral-700'
     }
 
     const getHeaderTextStyle = () => {
         if (isToday) return 'text-blue-700 dark:text-blue-400'
-        return 'text-slate-700 dark:text-slate-200'
+        return 'text-slate-700 dark:text-neutral-200'
     }
 
     const getBadgeStyle = () => {
         if (isToday) return 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
-        if (isWeekend) return 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 font-medium'
-        return 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
+        if (isWeekend) return 'bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-400 font-medium'
+        return 'bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-gray-400'
     }
 
     return (
@@ -82,10 +82,10 @@ export function DayCard({
                             <span className="text-slate-400 text-[10px]">(休{att.break_duration}h)</span>
                         )}
                     </div>
-                    <div className="text-slate-600 dark:text-slate-400">
+                    <div className="text-slate-600 dark:text-neutral-400">
                         上班: {att.clock_in_time ? new Date(att.clock_in_time).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
                     </div>
-                    <div className="text-slate-600 dark:text-slate-400">
+                    <div className="text-slate-600 dark:text-neutral-400">
                         下班: {att.clock_out_time ? new Date(att.clock_out_time).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
                     </div>
 
@@ -113,7 +113,7 @@ export function DayCard({
                 isWeekend ? (
                     <div className="text-xs text-red-400 dark:text-red-300/70 font-medium">🏖️ 例假日</div>
                 ) : (
-                    <div className="text-xs text-gray-400 dark:text-slate-500">無記錄</div>
+                    <div className="text-xs text-gray-400 dark:text-neutral-500">無記錄</div>
                 )
             ) : null}
         </Card>

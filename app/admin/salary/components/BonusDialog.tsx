@@ -62,9 +62,9 @@ export const BonusDialog: React.FC<Props> = ({
             <DialogHeader title="設定獎金" onClose={onClose} />
 
             <DialogContent className="space-y-4">
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <div className="bg-slate-50 dark:bg-neutral-800 p-3 rounded-xl border border-slate-100 dark:border-neutral-700">
                     <Label className="mb-1">員工</Label>
-                    <div className="text-lg font-bold text-slate-700 dark:text-slate-200">{displayName}</div>
+                    <div className="text-lg font-bold text-slate-700 dark:text-neutral-200">{displayName}</div>
                 </div>
 
                 <Input
@@ -84,7 +84,7 @@ export const BonusDialog: React.FC<Props> = ({
                     <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-[var(--color-primary)] focus:ring-2 focus:ring-orange-500/20 outline-none bg-white dark:bg-slate-800 resize-none h-24 text-slate-800 dark:text-slate-100"
+                        className="w-full px-4 py-3 border border-slate-200 dark:border-neutral-700 rounded-xl focus:border-[var(--color-primary)] focus:ring-2 focus:ring-orange-500/20 outline-none bg-white dark:bg-neutral-800 resize-none h-24 text-slate-800 dark:text-neutral-100"
                         placeholder="選填..."
                     />
                 </div>

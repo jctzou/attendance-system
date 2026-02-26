@@ -13,11 +13,11 @@ export const ControlBar: React.FC<ControlBarProps> = ({ selectedMonth, onMonthCh
     return (
         <Card className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                <label className="text-sm font-semibold text-slate-600 dark:text-neutral-400 whitespace-nowrap">
                     選擇月份：
                 </label>
                 <input
-                    className="block w-full sm:w-auto pl-4 pr-10 py-2.5 text-sm font-bold border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] bg-slate-50 shadow-sm transition-colors outline-none"
+                    className="block w-full sm:w-auto pl-4 pr-10 py-2.5 text-sm font-bold border border-slate-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] bg-slate-50 shadow-sm transition-colors outline-none"
                     type="month"
                     value={selectedMonth}
                     onChange={(e) => onMonthChange(e.target.value)}
