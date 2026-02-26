@@ -212,19 +212,19 @@ export default function AdminEmployeesPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Account */}
-                            <div className="space-y-4 border p-4 rounded-lg bg-slate-50/50">
-                                <h3 className="font-bold text-slate-700">帳號設定</h3>
+                            <div className="space-y-4 border border-slate-200 dark:border-neutral-700 p-4 rounded-lg bg-slate-50 dark:bg-neutral-800/50">
+                                <h3 className="font-bold text-slate-700 dark:text-neutral-200">帳號設定</h3>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Email <span className="text-red-500">*</span></label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">Email <span className="text-red-500">*</span></label>
                                     <Input value={createFormData.email} onChange={e => setCreateFormData({ ...createFormData, email: e.target.value })} placeholder="user@example.com" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">預設密碼 <span className="text-red-500">*</span></label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">預設密碼 <span className="text-red-500">*</span></label>
                                     <Input type="password" value={createFormData.password} onChange={e => setCreateFormData({ ...createFormData, password: e.target.value })} placeholder="至少 6 碼" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">權限角色</label>
-                                    <select className="w-full p-2 border rounded text-sm" value={createFormData.role} onChange={e => setCreateFormData({ ...createFormData, role: e.target.value })}>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">權限角色</label>
+                                    <select className="w-full p-2 border border-slate-200 dark:border-neutral-700 rounded text-sm bg-white dark:bg-neutral-900 text-slate-900 dark:text-white" value={createFormData.role} onChange={e => setCreateFormData({ ...createFormData, role: e.target.value })}>
                                         <option value="employee">{ROLE_MAP['employee']}</option>
                                         <option value="manager">{ROLE_MAP['manager']}</option>
                                         <option value="super_admin">{ROLE_MAP['super_admin']}</option>
@@ -233,49 +233,49 @@ export default function AdminEmployeesPage() {
                             </div>
 
                             {/* Profile */}
-                            <div className="space-y-4 border p-4 rounded-lg bg-white">
-                                <h3 className="font-bold text-slate-700">基本資料</h3>
+                            <div className="space-y-4 border border-slate-200 dark:border-neutral-700 p-4 rounded-lg bg-slate-50 dark:bg-neutral-800/50">
+                                <h3 className="font-bold text-slate-700 dark:text-neutral-200">基本資料</h3>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">姓名 <span className="text-red-500">*</span></label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">姓名 <span className="text-red-500">*</span></label>
                                     <Input value={createFormData.displayName} onChange={e => setCreateFormData({ ...createFormData, displayName: e.target.value })} />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">員工編號</label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">員工編號</label>
                                     <Input value={createFormData.employeeId} onChange={e => setCreateFormData({ ...createFormData, employeeId: e.target.value })} placeholder="EMP-001" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">到職日</label>
+                                    <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">到職日</label>
                                     <Input type="date" value={createFormData.onboardDate} onChange={e => setCreateFormData({ ...createFormData, onboardDate: e.target.value })} />
                                 </div>
                             </div>
 
                             {/* Salary & Schedule */}
-                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 border p-4 rounded-lg bg-white">
+                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 border border-slate-200 dark:border-neutral-700 p-4 rounded-lg bg-slate-50 dark:bg-neutral-800/50">
                                 <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-700">薪資設定</h3>
+                                    <h3 className="font-bold text-slate-700 dark:text-neutral-200">薪資設定</h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">薪制</label>
-                                            <select className="w-full p-2 border rounded text-sm" value={createFormData.salaryType} onChange={e => setCreateFormData({ ...createFormData, salaryType: e.target.value })}>
+                                            <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">薪制</label>
+                                            <select className="w-full p-2 border border-slate-200 dark:border-neutral-700 rounded text-sm bg-white dark:bg-neutral-900 text-slate-900 dark:text-white" value={createFormData.salaryType} onChange={e => setCreateFormData({ ...createFormData, salaryType: e.target.value })}>
                                                 <option value="monthly">月薪</option>
                                                 <option value="hourly">時薪</option>
                                             </select>
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">金額</label>
+                                            <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">金額</label>
                                             <Input type="number" value={createFormData.salaryAmount} onChange={e => setCreateFormData({ ...createFormData, salaryAmount: parseFloat(e.target.value) })} />
                                         </div>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-700">排班設定</h3>
+                                    <h3 className="font-bold text-slate-700 dark:text-neutral-200">排班設定</h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">上班時間</label>
+                                            <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">上班時間</label>
                                             <Input type="time" value={createFormData.workStartTime} onChange={e => setCreateFormData({ ...createFormData, workStartTime: e.target.value })} />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">下班時間</label>
+                                            <label className="text-sm font-medium text-slate-700 dark:text-neutral-300">下班時間</label>
                                             <Input type="time" value={createFormData.workEndTime} onChange={e => setCreateFormData({ ...createFormData, workEndTime: e.target.value })} />
                                         </div>
                                     </div>
@@ -325,7 +325,7 @@ export default function AdminEmployeesPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">權限角色</label>
-                                    <select className="w-full p-2 border rounded text-sm bg-transparent" value={editFormData.role} onChange={e => setEditFormData({ ...editFormData, role: e.target.value })}>
+                                    <select className="w-full p-2 border border-slate-200 dark:border-neutral-700 rounded text-sm bg-white dark:bg-neutral-900 text-slate-900 dark:text-white" value={editFormData.role} onChange={e => setEditFormData({ ...editFormData, role: e.target.value })}>
                                         <option value="employee">{ROLE_MAP['employee']}</option>
                                         <option value="manager">{ROLE_MAP['manager']}</option>
                                         <option value="super_admin">{ROLE_MAP['super_admin']}</option>
@@ -347,7 +347,7 @@ export default function AdminEmployeesPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-left-4 duration-300">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">薪制</label>
-                                    <select className="w-full p-2 border rounded text-sm bg-transparent" value={editFormData.salaryType} onChange={e => setEditFormData({ ...editFormData, salaryType: e.target.value })}>
+                                    <select className="w-full p-2 border border-slate-200 dark:border-neutral-700 rounded text-sm bg-white dark:bg-neutral-900 text-slate-900 dark:text-white" value={editFormData.salaryType} onChange={e => setEditFormData({ ...editFormData, salaryType: e.target.value })}>
                                         <option value="monthly">月薪</option>
                                         <option value="hourly">時薪</option>
                                     </select>
@@ -378,7 +378,7 @@ export default function AdminEmployeesPage() {
                                     <label className="text-sm font-medium">下班時間 (Work End)</label>
                                     <Input type="time" value={editFormData.workEndTime} onChange={e => setEditFormData({ ...editFormData, workEndTime: e.target.value })} />
                                 </div>
-                                <div className="col-span-2 text-sm text-slate-500 bg-slate-50 p-3 rounded">
+                                <div className="col-span-2 text-sm text-slate-500 dark:text-neutral-400 bg-slate-50 dark:bg-neutral-800/50 p-3 rounded">
                                     <p>說明：系統使用此時間判定遲到與早退。請確保格式為 24 小時制 (HH:mm)。</p>
                                 </div>
                             </div>
@@ -393,10 +393,10 @@ export default function AdminEmployeesPage() {
                                     <p className="text-[10px] text-slate-500">設定離職日後，員工將視為離職狀態。</p>
                                 </div>
 
-                                <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50">
+                                <div className="flex items-center justify-between p-4 border border-slate-200 dark:border-neutral-700 rounded-lg bg-slate-50 dark:bg-neutral-800/50">
                                     <div>
-                                        <h4 className="font-bold text-slate-700">帳號啟用狀態</h4>
-                                        <p className="text-xs text-slate-500">關閉後，該使用者將立即無法登入系統。</p>
+                                        <h4 className="font-bold text-slate-700 dark:text-neutral-200">帳號啟用狀態</h4>
+                                        <p className="text-xs text-slate-500 dark:text-neutral-400">關閉後，該使用者將立即無法登入系統。</p>
                                     </div>
                                     <label className="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" className="sr-only peer" checked={editFormData.isActive} onChange={e => setEditFormData({ ...editFormData, isActive: e.target.checked })} />
