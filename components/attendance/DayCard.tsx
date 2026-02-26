@@ -57,7 +57,7 @@ export function DayCard({
             padding="p-3"
             className={`
                 cursor-pointer transition-all duration-200
-                hover:shadow-lg hover:scale-105 border
+                hover:shadow-lg border
                 ${getCardStyle()}
             `}
         >
