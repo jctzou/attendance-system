@@ -350,10 +350,12 @@
 -   **控制列佈局 (Control Bars)**:
     -   **統一模式**: 使用 `flex items-center gap-2` (標籤與輸入框並排)。
     -   **避免堆疊**: 除非空間極度受限，否則避免在手機版強制 `flex-col`，以維持操作一致性。
--   **輸入框寬度 (Input Sizing)**:
+-   **輸入框寬度與樣式 (Input Sizing & Reset)**:
     -   **彈性縮放**: 設定 `w-full sm:w-auto`。
     -   **防止破版**: 利用 `flex-shrink` 讓輸入框自動適應剩餘空間。
-    -   **iOS Safari 修正**: 若遇容器溢出問題，可於 Flex 父容器加入 `min-w-0` 或於輸入框加入 `max-w-full`。
+    -   **iOS Safari 修正 (全域標準)**: 基於 iOS 原生瀏覽器對於 `<input>` (特別是 `type="date"`) 未指定 box model 時會將 padding 外溢導致 `w-full` 超出容器寬度的問題，所有自訂義輸入框元件 (如 `components/ui/Input.tsx`) **必須** 強制加入以下 Tailwind 類別：
+        1.  `box-border`: 確保 Padding 計算向內收縮。
+        2.  `appearance-none`: 移除 iOS 原生偷加的預設圓角與陰影樣式，統一視覺表現。
 
 -   **表格響應式策略 (Responsive Tables)**:
     -   **手機版卡片化 (Card View)**: 在小螢幕 (`< md`) 上，**禁止** 使用橫向捲動表格 (Horizontal Scroll Table) 顯示關鍵操作資料。必須將每一列 (Row) 轉換為獨立的 **卡片 (Card)** 堆疊顯示，確保所有資訊與操作按鈕完整可見。
