@@ -169,6 +169,16 @@ export default function AttendancePage() {
 
 
 
+    const handleMonthChange = (offset: number) => {
+        const [yearStr, monthStr] = yearMonth.split('-')
+        const currentDate = new Date(parseInt(yearStr), parseInt(monthStr) - 1, 1)
+        currentDate.setMonth(currentDate.getMonth() + offset)
+
+        const newYear = currentDate.getFullYear()
+        const newMonth = String(currentDate.getMonth() + 1).padStart(2, '0')
+        setYearMonth(`${newYear}-${newMonth}`)
+    }
+
     const renderDayView = () => {
         const daysInMonth = getDaysInMonth()
         const [year, month] = yearMonth.split('-')
@@ -176,6 +186,12 @@ export default function AttendancePage() {
 
         const selectedEmployeeData = employees.find(e => e.id === selectedEmployee) || currentUser
         const isHourly = selectedEmployeeData?.salary_type === 'hourly'
+
+        // 建立日曆前方的留白區塊 (僅在 md 或更大螢幕顯示，手機版自動隱藏不阻礙動線)
+        const firstDayOfMonth = new Date(parseInt(year), parseInt(month) - 1, 1).getDay() // 0 = Sun, 1 = Mon...
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            days.push(<div key={`padding-start-${i}`} className="hidden md:block rounded-xl border border-transparent"></div>)
+        }
 
         for (let day = 1; day <= daysInMonth; day++) {
             const date = `${year}-${month}-${String(day).padStart(2, '0')}`
@@ -224,12 +240,28 @@ export default function AttendancePage() {
                         )}
                         <div className="flex items-center gap-2 w-full sm:w-auto">
                             <label className="font-bold text-slate-700 dark:text-neutral-300 whitespace-nowrap">月份：</label>
-                            <input
-                                type="month"
-                                value={yearMonth}
-                                onChange={(e) => setYearMonth(e.target.value)}
-                                className="px-4 py-2 border border-slate-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 w-full sm:w-auto focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
-                            />
+                            <div className="flex items-center gap-1 w-full sm:w-auto">
+                                <button
+                                    onClick={() => handleMonthChange(-1)}
+                                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-500 transition-colors flex items-center justify-center shrink-0"
+                                    title="上個月"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                                </button>
+                                <input
+                                    type="month"
+                                    value={yearMonth}
+                                    onChange={(e) => setYearMonth(e.target.value)}
+                                    className="px-4 py-2 border border-slate-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 w-full sm:w-auto focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+                                />
+                                <button
+                                    onClick={() => handleMonthChange(1)}
+                                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-500 transition-colors flex items-center justify-center shrink-0"
+                                    title="下個月"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
