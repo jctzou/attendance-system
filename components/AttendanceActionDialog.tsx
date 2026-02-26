@@ -52,7 +52,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
             setMode('edit')
             // Convert DB UTC -> Local ISO for State
             setClockIn(existingRecord.clock_in_time ? formatToTaipeiTime(existingRecord.clock_in_time, "yyyy-MM-dd'T'HH:mm") : `${date}T09:00`)
-            setClockOut(existingRecord.clock_out_time ? formatToTaipeiTime(existingRecord.clock_out_time, "yyyy-MM-dd'T'HH:mm") : `${date}T18:00`)
+            setClockOut(existingRecord.clock_out_time ? formatToTaipeiTime(existingRecord.clock_out_time, "yyyy-MM-dd'T'HH:mm") : '')
             setBreakDuration(existingRecord.break_duration ?? 1.0)
             setActiveTab('attendance')
         } else {
@@ -90,8 +90,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         setLoading(true)
         try {
             // Convert Local ISO -> UTC ISO for DB
-            const utcClockIn = fromTaipeiLocalToUTC(clockIn)
-            const utcClockOut = fromTaipeiLocalToUTC(clockOut)
+            const utcClockIn = clockIn ? fromTaipeiLocalToUTC(clockIn) : null
+            const utcClockOut = clockOut ? fromTaipeiLocalToUTC(clockOut) : null
 
             let res
             if (mode === 'edit') {
@@ -227,11 +227,22 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                                         value={clockIn}
                                         onChange={setClockIn}
                                     />
-                                    <TimeSlotSelector
-                                        label="下班時間"
-                                        value={clockOut}
-                                        onChange={setClockOut}
-                                    />
+                                    <div className="relative">
+                                        <TimeSlotSelector
+                                            label="下班時間"
+                                            value={clockOut}
+                                            onChange={setClockOut}
+                                        />
+                                        {clockOut && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setClockOut('')}
+                                                className="absolute right-0 top-0 text-xs text-red-500 hover:text-red-700"
+                                            >
+                                                清除下班時間
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
                                             午休時間 (小時)
@@ -261,7 +272,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                                         label="下班時間"
                                         value={clockOut}
                                         onChange={(e) => setClockOut(e.target.value)}
-                                        required
+                                    // 移除 required，允許尚未下班的狀態下修改上班時間
                                     />
                                 </>
                             )}
