@@ -34,7 +34,7 @@ export function DayCard({
             return 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800'
         }
         if (isWeekend) {
-            return 'bg-neutral-50 dark:bg-neutral-900/40 border-slate-200 dark:border-neutral-800/60 hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+            return 'bg-slate-50 dark:bg-neutral-900/40 border-slate-200 dark:border-neutral-800/60 hover:bg-slate-100 dark:hover:bg-neutral-800/60'
         }
         return 'bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 border-slate-200 dark:border-neutral-700'
     }
