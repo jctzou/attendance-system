@@ -61,6 +61,16 @@
 ### 3.4 假別顯示轉換 (Localization)
 資料庫的 `leave_type` 欄位為英文字元 (如 `sick` / `annual`)，前端讀取後**嚴禁**直接顯示原始值，必須透過內建的 `LEAVE_TYPE_MAP` 轉換為中文（如 `病假` / `特休`），並以顯眼的黃底標籤呈現。
 
+### 3.5 單邊打卡修改支援 (Single-sided Modification)
+- **情境**: 員工當日已經上班打卡，但**尚未下班**，卻需要由管理員先行修改其上班時間（例如補登忘記打卡的紀錄）。
+- **表單規範**:
+  - `AttendanceActionDialog` 中的「下班時間 (clock_out_time)」欄位為**非必填 (Optional)**。
+  - 對於鐘點制人員，需提供「清除下班時間」的按鈕機制，允許將誤填的下班時間恢復為空值。
+- **計算引擎防呆 (Server-side)**:
+  - 當後端 (`updateAttendance`) 接收到修改請求且 `clockOutTime` 為 `null` 時。
+  - 系統**僅重算遲到狀態 (Late)**。
+  - 系統**必須跳過且不計算**「早退狀態 (Early Leave)」與「當日淨工時 (Work Hours)」。工時欄位將被寫入為 `null`，以便日後員工實際執行下班打卡時，系統能以最新的狀態再次結算。
+
 ---
 
 ## 4. 參考文件 (References to Global Rules)
