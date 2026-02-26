@@ -210,36 +210,7 @@ export interface Database {
                 }
                 Relationships: []
             }
-            leave_balances: {
-                Row: {
-                    id: string
-                    user_id: string
-                    year: number
-                    total_days: number
-                    used_days: number
-                    created_at: string
-                    updated_at: string
-                }
-                Insert: {
-                    id?: string
-                    user_id: string
-                    year: number
-                    total_days?: number
-                    used_days?: number
-                    created_at?: string
-                    updated_at?: string
-                }
-                Update: {
-                    id?: string
-                    user_id?: string
-                    year?: number
-                    total_days?: number
-                    used_days?: number
-                    created_at?: string
-                    updated_at?: string
-                }
-                Relationships: []
-            }
+
             attendance_edit_logs: {
                 Row: {
                     id: number
@@ -306,42 +277,7 @@ export interface Database {
                 }
                 Relationships: []
             }
-            leave_cancellations: {
-                Row: {
-                    id: number
-                    leave_id: number
-                    user_id: string
-                    cancel_reason: string
-                    status: 'pending' | 'approved' | 'rejected'
-                    reviewed_by: string | null
-                    reviewed_at: string | null
-                    created_at: string
-                    updated_at: string
-                }
-                Insert: {
-                    id?: number
-                    leave_id: number
-                    user_id: string
-                    cancel_reason: string
-                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
-                    reviewed_by?: string | null
-                    reviewed_at?: string | null
-                    created_at?: string
-                    updated_at?: string
-                }
-                Update: {
-                    id?: number
-                    leave_id?: number
-                    user_id?: string
-                    cancel_reason?: string
-                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
-                    reviewed_by?: string | null
-                    reviewed_at?: string | null
-                    created_at?: string
-                    updated_at?: string
-                }
-                Relationships: []
-            }
+
         }
         Views: {
             [_ in never]: never

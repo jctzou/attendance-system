@@ -68,16 +68,7 @@
 | `days` | Numeric | 天數 (最小單位 0.5) |
 | `status` | Text | `'pending'`, `'approved'`, `'rejected'`, `'cancelled'` |
 
-### `leave_cancellations` (取消請假申請)
-| 欄位 | 類型 | 說明 |
-| :--- | :--- | :--- |
-| `id` | BigInt / Serial | PK |
-| `leave_id` | BigInt / Integer | FK -> leaves.id |
-| `user_id` | UUID | FK -> users.id |
-| `cancel_reason` | Text | 取消原因 |
-| `status` | Text | `'pending'`, `'approved'`, `'rejected'` |
-| `reviewed_by` | UUID | FK -> users.id (審核者) |
-| `reviewed_at` | Timestamptz | 審核時間 |
+
 
 ### `notifications` (系統通知)
 | 欄位 | 類型 | 說明 |
