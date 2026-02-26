@@ -515,7 +515,7 @@ interface AppError {
 
 ### 13.1 前端上傳前處理 (Pre-processing)
 -   **不依賴後端壓縮**：所有圖片的裁切與壓縮動作，**強制**在前端客戶端（Browser）完成，減省 Server Action / Supabase Storage 的頻寬與運算負擔。
--   **裁切限制 (Cropping)**：針對頭像 (`avatar_url`) 等特定用途圖片，選擇檔案後應即刻喚起客戶端裁切模態框 (`ImageCropper`)，鎖定對應比例（如頭像強制 1:1 正方形）。
+-   **裁切與顯示 (Cropping & UI)**：針對頭像 (`avatar_url`) 等特定用途圖片，選擇檔案後應即刻喚起客戶端裁切模態框 (`ImageCropper`)，鎖定對應比例（頭像強制 1:1，且於全系統如 Header、Sidebar、Profile Card 等處均須套用 `rounded-full` 以正圓形顯示）。
 -   **壓縮閥值 (Compression)**：客戶端自動執行 Iterative Compression 降階壓縮。目標空間佔用為 **`< 200KB`**，只有小於等於此條件的 Blob 才能進入 `upload` 程序。
 
 ### 13.2 Storage Bucket 管理與清理

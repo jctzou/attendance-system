@@ -105,12 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
                             <span className="material-symbols-outlined text-slate-400 group-hover:text-primary text-sm">settings</span>
                         </Link>
 
-                        <form action="/auth/signout" method="post">
-                            <button className="w-full text-xs text-slate-500 hover:text-red-500 flex items-center justify-center gap-1 py-2 border-t border-slate-100 dark:border-neutral-800 pt-3">
-                                <span className="material-symbols-outlined text-sm">logout</span>
-                                登出系統
-                            </button>
-                        </form>
+
                     </div>
                 )}
             </aside>

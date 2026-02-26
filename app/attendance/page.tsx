@@ -216,7 +216,7 @@ export default function AttendancePage() {
                                 >
                                     {employees.map(emp => (
                                         <option key={emp.id} value={emp.id}>
-                                            {emp.display_name} {emp.employee_id}
+                                            {emp.display_name} {emp.employee_id ? `(${emp.employee_id})` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -238,7 +238,9 @@ export default function AttendancePage() {
                     <div className="bg-slate-50 dark:bg-neutral-800/50 rounded-lg p-3 mx-2 mb-4 border border-slate-200 dark:border-neutral-700">
                         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-neutral-400">
                             <span className="font-bold">{selectedEmployeeData.display_name}</span>
-                            <span>({selectedEmployeeData.employee_id})</span>
+                            {selectedEmployeeData.employee_id && (
+                                <span>({selectedEmployeeData.employee_id})</span>
+                            )}
                             {selectedEmployeeData.salary_type === 'hourly' && (
                                 <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">時薪制</span>
                             )}

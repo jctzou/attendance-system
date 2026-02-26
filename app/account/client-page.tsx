@@ -288,6 +288,26 @@ export default function AccountSettingsPage({ userProfile }: { userProfile: any 
                             </div>
                         </form>
                     </Card>
+
+                    {/* Danger Zone: Logout */}
+                    <Card className="border-red-100 dark:border-red-900/30">
+                        <CardHeader>
+                            <CardTitle className="text-red-600 dark:text-red-400 flex items-center">
+                                <span className="material-symbols-outlined mr-2">logout</span>
+                                登出系統
+                            </CardTitle>
+                        </CardHeader>
+                        <div className="p-6 pt-0 flex justify-between items-center">
+                            <span className="text-sm text-slate-500 dark:text-neutral-400">
+                                登出後需要重新輸入帳號密碼才能登入系統。
+                            </span>
+                            <form action="/auth/signout" method="post">
+                                <Button variant="danger" type="submit">
+                                    登出
+                                </Button>
+                            </form>
+                        </div>
+                    </Card>
                 </div>
             </div>
         </PageContainer>

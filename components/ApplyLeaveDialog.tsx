@@ -140,7 +140,7 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <Input
                             type="date"
                             label="開始日期"

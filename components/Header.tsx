@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, userProfile }) => {
                     {userProfile && (
                         <div className="flex items-center border-l border-slate-200 dark:border-neutral-700 ml-2 pl-2">
                             <a href="/account" className="block p-0.5 rounded-full overflow-hidden border-2 border-slate-100 dark:border-neutral-800 hover:border-primary transition-colors">
-                                <div className="w-8 h-8 bg-slate-200 dark:bg-neutral-700 flex items-center justify-center text-xs font-bold overflow-hidden">
+                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-neutral-700 flex items-center justify-center text-xs font-bold overflow-hidden">
                                     {userProfile?.avatar_url ? (
                                         <img src={userProfile.avatar_url} alt="Av" className="w-full h-full object-cover" />
                                     ) : (
