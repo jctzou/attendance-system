@@ -62,6 +62,20 @@ export default function AttendancePage() {
         }
     }, [yearMonth, selectedEmployee, currentUser])
 
+    // 自動捲動至「今日卡片」機制
+    useEffect(() => {
+        if (!loading) {
+            // 在資料更新與 DOM 渲染結束後稍微延遲，確保能取得正確元素
+            const timer = setTimeout(() => {
+                const todayCard = document.getElementById('today-card')
+                if (todayCard) {
+                    todayCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+            }, 150)
+            return () => clearTimeout(timer)
+        }
+    }, [loading, yearMonth])
+
     const initPage = async () => {
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -193,6 +207,8 @@ export default function AttendancePage() {
             days.push(<div key={`padding-start-${i}`} className="hidden md:block rounded-xl border border-transparent"></div>)
         }
 
+        const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+
         for (let day = 1; day <= daysInMonth; day++) {
             const date = `${year}-${month}-${String(day).padStart(2, '0')}`
             const att = getAttendanceForDate(date)
@@ -200,6 +216,7 @@ export default function AttendancePage() {
 
             days.push(
                 <DayCard
+                    id={date === todayStr ? 'today-card' : undefined}
                     key={date}
                     date={date}
                     attendance={att}

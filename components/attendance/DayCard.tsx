@@ -9,6 +9,7 @@ interface DayCardProps {
     isHourly: boolean
     onClick: (date: string) => void
     onEditClick: (attendanceId: number) => void
+    id?: string
 }
 
 export function DayCard({
@@ -17,7 +18,8 @@ export function DayCard({
     leave,
     isHourly,
     onClick,
-    onEditClick
+    onEditClick,
+    id
 }: DayCardProps) {
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
     const dateObj = new Date(date)
@@ -50,6 +52,7 @@ export function DayCard({
 
     return (
         <Card
+            id={id}
             onClick={() => onClick(date)}
             padding="p-3"
             className={`
