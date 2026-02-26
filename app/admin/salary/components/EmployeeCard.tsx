@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { type SalaryRecordData, calculateMonthlySalary } from '../actions'
+import { features } from '@/utils/features'
 
 interface Props {
     data: SalaryRecordData
@@ -229,10 +230,10 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                             </div>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <span className="text-xs text-slate-500 block mb-1">
-                                    {isHourly ? '獎金 (未結算)' : '異常狀況'}
+                                    {isHourly && !features.showHourlyStatus ? '獎金 (未結算)' : '異常狀況'}
                                 </span>
-                                <div className={`font-mono font-bold ${isHourly ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                                    {isHourly ? (
+                                <div className={`font-mono font-bold ${isHourly && !features.showHourlyStatus ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                    {isHourly && !features.showHourlyStatus ? (
                                         <div className="flex flex-col">
                                             <span>{formatMoney(liveData.bonus)}</span>
                                             {liveData.bonus > 0 && liveData.notes && (
@@ -242,9 +243,35 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                             )}
                                         </div>
                                     ) : (
-                                        <span className="text-sm">
-                                            遲{liveData.lateCount}/早{liveData.earlyLeaveCount}/假{liveData.leaveDays}
-                                        </span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-sm">
+                                                遲{liveData.lateCount}/早{liveData.earlyLeaveCount}/假{liveData.leaveDays}
+                                            </span>
+                                            {isHourly && features.showHourlyStatus && (
+                                                <div className="text-[10px] text-amber-500 font-normal">
+                                                    獎金已移至右方
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <span className="text-xs text-slate-500 block mb-1">
+                                    {isHourly && !features.showHourlyStatus ? '扣項' : '獎金 (未結算)'}
+                                </span>
+                                <div className={`font-mono font-bold ${(!isHourly || features.showHourlyStatus) ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    {isHourly && !features.showHourlyStatus ? (
+                                        '-$0' // Placeholder for hourly deduction
+                                    ) : (
+                                        <div className="flex flex-col">
+                                            <span>{formatMoney(liveData.bonus)}</span>
+                                            {liveData.bonus > 0 && liveData.notes && (
+                                                <span className="text-[10px] font-normal opacity-70 truncate max-w-[120px]" title={liveData.notes}>
+                                                    {liveData.notes.length > 4 ? `${liveData.notes.slice(0, 4)}...` : liveData.notes}
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>

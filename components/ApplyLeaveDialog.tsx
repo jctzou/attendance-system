@@ -92,8 +92,8 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
 
         try {
             const res = await applyLeave(leaveType, startDate, endDate, totalDays, reason)
-            if (res.error) {
-                setError(res.error)
+            if (!res.success) {
+                setError(res.error.message)
             } else {
                 onSuccess()
                 onClose()

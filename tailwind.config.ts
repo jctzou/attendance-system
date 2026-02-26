@@ -27,7 +27,9 @@ const config: Config = {
         },
     },
     plugins: [
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('@tailwindcss/typography'),
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('@tailwindcss/forms'),
     ],
 };

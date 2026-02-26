@@ -26,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userProfile }) => {
     // 管理員額外選單
     if (userProfile && ['manager', 'super_admin'].includes(userProfile.role)) {
         menuItems.push(
+            { href: '/admin/employees', label: '員工管理', icon: 'group' },
             { href: '/admin/leaves', label: '審核中心', icon: 'verified' },
             { href: '/admin/salary', label: '薪資管理', icon: 'account_balance_wallet' }
         )

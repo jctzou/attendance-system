@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogFooter } from '@/components/
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LEAVE_TYPE_MAP } from '@/app/attendance/constants'
+import { formatToTaipeiTime, fromTaipeiLocalToUTC, getTaipeiDateString } from '@/utils/timezone'
 
 interface Props {
     date: string
@@ -17,21 +18,18 @@ interface Props {
     onClose: () => void
     onSuccess: () => void
     isAdmin?: boolean
+    salaryType?: 'monthly' | 'hourly'
 }
 
 type Tab = 'attendance' | 'leave'
 
-import { toLocalISOString, toLocalDateString, toUTCISOString } from '@/utils/date-helpers'
-
-// ... imports
-
 // Remove manual toLocalISOString helper
 
-export default function AttendanceActionDialog({ date, existingRecord, existingLeave, onClose, onSuccess, isAdmin = false }: Props) {
+export default function AttendanceActionDialog({ date, existingRecord, existingLeave, onClose, onSuccess, isAdmin = false, salaryType = 'monthly' }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('attendance')
     const [loading, setLoading] = useState(false)
     const [mode, setMode] = useState<'add' | 'edit'>('add')
-    const [userSalaryType, setUserSalaryType] = useState<'monthly' | 'hourly'>('monthly')
+    const userSalaryType = salaryType
 
     // Attendance Form State (Always Local ISO String: YYYY-MM-DDTHH:mm)
     const [clockIn, setClockIn] = useState<string>('')
@@ -53,8 +51,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         if (existingRecord) {
             setMode('edit')
             // Convert DB UTC -> Local ISO for State
-            setClockIn(toLocalISOString(existingRecord.clock_in_time))
-            setClockOut(toLocalISOString(existingRecord.clock_out_time))
+            setClockIn(existingRecord.clock_in_time ? formatToTaipeiTime(existingRecord.clock_in_time, "yyyy-MM-dd'T'HH:mm") : `${date}T09:00`)
+            setClockOut(existingRecord.clock_out_time ? formatToTaipeiTime(existingRecord.clock_out_time, "yyyy-MM-dd'T'HH:mm") : `${date}T18:00`)
             setBreakDuration(existingRecord.break_duration ?? 1.0)
             setActiveTab('attendance')
         } else {
@@ -73,8 +71,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
 
         if (existingLeave) {
             setLeaveType(existingLeave.leave_type)
-            setLeaveStart(toLocalDateString(existingLeave.start_date))
-            setLeaveEnd(toLocalDateString(existingLeave.end_date))
+            setLeaveStart(getTaipeiDateString(existingLeave.start_date))
+            setLeaveEnd(getTaipeiDateString(existingLeave.end_date))
             setLeaveReason(existingLeave.reason || '')
         } else {
             setLeaveStart(date)
@@ -92,8 +90,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         setLoading(true)
         try {
             // Convert Local ISO -> UTC ISO for DB
-            const utcClockIn = toUTCISOString(clockIn)
-            const utcClockOut = toUTCISOString(clockOut)
+            const utcClockIn = fromTaipeiLocalToUTC(clockIn)
+            const utcClockOut = fromTaipeiLocalToUTC(clockOut)
 
             let res
             if (mode === 'edit') {
@@ -114,8 +112,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                 )
             }
 
-            if (res?.error) {
-                alert(res.error)
+            if (res && !res.success) {
+                alert(res.error.message)
             } else {
                 onSuccess()
                 onClose()
@@ -166,8 +164,8 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         setLoading(true)
         try {
             const res = await cancelLeave(existingLeave.id)
-            if (res.error) {
-                alert(res.error)
+            if (!res.success) {
+                alert(res.error.message)
             } else {
                 alert('已取消申請')
                 onSuccess()

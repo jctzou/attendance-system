@@ -144,7 +144,7 @@ const SalaryPDF = ({ record, user }: SalaryPDFProps) => (
                     </View>
                 )}
                 <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>發放日期:</Text>
+                    <Text style={styles.infoLabel}>結算日期:</Text>
                     <Text style={styles.infoValue}>{new Date().toLocaleDateString()}</Text>
                 </View>
             </View>

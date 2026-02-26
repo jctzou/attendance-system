@@ -37,13 +37,17 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
+    console.log(`Middleware: Path=${request.nextUrl.pathname}, User=${!!user}`)
+
     // 如果沒有登入且不在 login 頁面，導向 login
     if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+        console.log('Redirecting to /login')
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
     // 如果已登入且在 login 頁面，導向首頁
     if (user && request.nextUrl.pathname.startsWith('/login')) {
+        console.log('Redirecting to /')
         return NextResponse.redirect(new URL('/', request.url))
     }
 

@@ -70,7 +70,7 @@ export default function AttendancePage() {
 
         // 獲取當前使用者資料
         const profileRes = await getUserProfile()
-        if (profileRes.data) {
+        if (profileRes.success) {
             setCurrentUser(profileRes.data)
             const isManagerRole = ['manager', 'super_admin'].includes(profileRes.data.role)
             setIsManager(isManagerRole)
@@ -78,7 +78,7 @@ export default function AttendancePage() {
             // 如果是管理員,獲取員工列表
             if (isManagerRole) {
                 const empRes = await getAllEmployees()
-                if (empRes.data) {
+                if (empRes.success) {
                     // 排序:管理員角色在前,其他員工在後
                     const sortedEmployees = empRes.data.sort((a: any, b: any) => {
                         const aIsManager = ['manager', 'super_admin'].includes(a.role)
@@ -124,8 +124,8 @@ export default function AttendancePage() {
                 leaveRes = await getMyMonthlyLeaves(yearMonth)
             }
 
-            if (attRes.data) setAttendance(attRes.data)
-            if (leaveRes.data) setLeaves(leaveRes.data)
+            if (attRes?.success) setAttendance(attRes.data)
+            if (leaveRes?.success) setLeaves(leaveRes.data)
         } finally {
             if (showLoading) setLoading(false)
         }
@@ -262,6 +262,7 @@ export default function AttendancePage() {
                     onClose={() => setDialogState({ isOpen: false, date: '' })}
                     onSuccess={handleDialogSuccess}
                     isAdmin={isManager}
+                    salaryType={selectedEmployeeData?.salary_type}
                 />
             )}
 

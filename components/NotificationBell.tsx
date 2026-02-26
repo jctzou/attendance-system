@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getUnreadCount, getMyNotifications, markAsRead, markAllAsRead } from '@/app/notifications/actions'
+import { useEffect, useState, useRef } from 'react'
+import { getUnreadCount, getMyNotifications, markAsRead, markAllAsRead, deleteAllNotifications } from '@/app/notifications/actions'
 import { useRouter } from 'next/navigation'
+import { AlertDialog } from './ui/ActionDialogs'
 
 export default function NotificationBell() {
     const router = useRouter()
@@ -10,6 +11,11 @@ export default function NotificationBell() {
     const [notifications, setNotifications] = useState<any[]>([])
     const [isOpen, setIsOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
+    const [alertMessage, setAlertMessage] = useState<string>('')
+
+    // Add reference for outside click detection
+    const dropdownRef = useRef<HTMLDivElement>(null)
 
     const fetchUnreadCount = async () => {
         const res = await getUnreadCount()
@@ -26,11 +32,28 @@ export default function NotificationBell() {
     }
 
     useEffect(() => {
+        setIsMounted(true)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchUnreadCount()
         // Poll every 30 seconds
         const interval = setInterval(fetchUnreadCount, 30000)
         return () => clearInterval(interval)
     }, [])
+
+    // Outside click listener
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside)
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [isOpen])
 
     const handleToggle = () => {
         if (!isOpen) {
@@ -52,7 +75,7 @@ export default function NotificationBell() {
         // 使用 window.location 強制完整頁面重新載入
         // 避免 Client Component 快取問題
         if (notification.link) {
-            window.location.href = notification.link
+            window.location.assign(notification.link)
         }
     }
 
@@ -66,82 +89,120 @@ export default function NotificationBell() {
     }
 
     return (
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
             <button
                 onClick={handleToggle}
-                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                className="relative p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none"
             >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
+                <span className="material-symbols-outlined text-[24px]">notifications</span>
                 {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                    <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 border-2 border-white dark:border-background-dark rounded-full shadow-sm">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
 
             {isOpen && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border z-20 max-h-96 overflow-hidden flex flex-col">
-                        <div className="px-4 py-3 border-b bg-gray-50">
-                            <h3 className="font-bold text-gray-900">通知</h3>
-                        </div>
+                <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 z-50 max-h-[85vh] flex flex-col transform origin-top-right transition-all animate-in fade-in zoom-in-95 duration-200">
+                    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center rounded-t-2xl">
+                        <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            系統通知
+                            {unreadCount > 0 && (
+                                <span className="bg-primary/10 text-primary dark:bg-primary/20 text-xs px-2 py-0.5 rounded-full font-semibold">
+                                    {unreadCount} 未讀
+                                </span>
+                            )}
+                        </h3>
+                    </div>
 
-                        <div className="overflow-y-auto flex-1">
-                            {loading ? (
-                                <div className="p-4 text-center text-gray-500">載入中...</div>
-                            ) : notifications.length === 0 ? (
-                                <div className="p-4 text-center text-gray-500">沒有通知</div>
-                            ) : (
-                                notifications.map((notif) => (
+                    <div className="overflow-y-auto flex-1 overscroll-contain">
+                        {loading ? (
+                            <div className="p-10 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-3">
+                                <span className="material-symbols-outlined animate-spin text-3xl opacity-50">progress_activity</span>
+                                <span className="text-sm">稍候片刻...</span>
+                            </div>
+                        ) : notifications.length === 0 ? (
+                            <div className="p-10 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center gap-3">
+                                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-1">
+                                    <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">notifications_off</span>
+                                </div>
+                                <span className="font-medium">目前沒有任何通知</span>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                {notifications.map((notif) => (
                                     <div
                                         key={notif.id}
                                         onClick={() => handleNotificationClick(notif)}
-                                        className={`px-4 py-3 border-b hover:bg-gray-50 cursor-pointer transition-colors ${!notif.is_read ? 'bg-blue-50' : ''
+                                        className={`group px-5 py-4 cursor-pointer transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 ${!notif.is_read
+                                            ? 'bg-blue-50/30 dark:bg-blue-900/10'
+                                            : ''
                                             }`}
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <span className="text-2xl">{getNotificationIcon(notif.type)}</span>
+                                        <div className="flex items-start gap-4">
+                                            <div className="text-2xl mt-0.5 drop-shadow-sm group-hover:scale-110 transition-transform">{getNotificationIcon(notif.type)}</div>
                                             <div className="flex-1 min-w-0">
-                                                <p className={`text-sm font-medium text-gray-900 ${!notif.is_read ? 'font-bold' : ''}`}>
-                                                    {notif.title}
-                                                </p>
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <p className={`text-sm pr-2 ${!notif.is_read ? 'font-bold text-slate-900 dark:text-slate-50' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
+                                                        {notif.title}
+                                                    </p>
+                                                    {!notif.is_read && (
+                                                        <span className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-primary/30"></span>
+                                                    )}
+                                                </div>
                                                 {notif.message && (
-                                                    <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                                                    <p className={`text-sm mt-0.5 line-clamp-2 ${!notif.is_read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                        {notif.message}
+                                                    </p>
                                                 )}
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    {new Date(notif.created_at).toLocaleString('zh-TW')}
+                                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 font-mono flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                                    {isMounted ? new Date(notif.created_at).toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                                                 </p>
                                             </div>
-                                            {!notif.is_read && (
-                                                <span className="w-2 h-2 bg-blue-600 rounded-full mt-1"></span>
-                                            )}
                                         </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
-
-                        {/* 清除所有通知按鈕 */}
-                        {notifications.length > 0 && (
-                            <div className="border-t bg-gray-50 p-3">
-                                <button
-                                    onClick={async () => {
-                                        await markAllAsRead()
-                                        await fetchNotifications()
-                                        await fetchUnreadCount()
-                                    }}
-                                    className="w-full px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium"
-                                >
-                                    清除所有通知
-                                </button>
+                                ))}
                             </div>
                         )}
                     </div>
-                </>
+
+                    {/* 清除所有通知按鈕 */}
+                    {notifications.length > 0 && (
+                        <div className="border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 rounded-b-2xl">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const res = await deleteAllNotifications();
+                                        if (res.error) {
+                                            setAlertMessage("清除通知失敗: " + res.error);
+                                            return;
+                                        }
+                                        // Optimistic UI (直接前端清空畫面)
+                                        setNotifications([]);
+                                        setUnreadCount(0);
+                                        setIsOpen(false);
+                                    } catch (err: any) {
+                                        console.error('Exception during clear:', err);
+                                        setAlertMessage("系統發生錯誤: " + (err.message || ''));
+                                    }
+                                }}
+                                className="w-full px-4 py-2.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all font-medium flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">clear_all</span>
+                                全部清除
+                            </button>
+                        </div>
+                    )}
+                </div>
             )}
+
+            <AlertDialog
+                isOpen={alertMessage !== ''}
+                title="通知清理發生錯誤"
+                message={alertMessage}
+                onConfirm={() => setAlertMessage('')}
+            />
         </div>
     )
 }

@@ -16,6 +16,7 @@ export async function getMyNotifications() {
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
+        .eq('is_cleared', false)
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -36,6 +37,7 @@ export async function getUnreadCount() {
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
+        .eq('is_cleared', false)
         .eq('is_read', false)
 
     if (error) return { count: 0 }
@@ -85,6 +87,29 @@ export async function markAllAsRead() {
 }
 
 /**
+ * 清除所有通知 (刪除)
+ */
+export async function deleteAllNotifications() {
+    const supabase = await createClient() as any
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Unauthorized' }
+
+    // 使用單次高效更新，並過濾掉已經是 true 的資料避免無效寫入
+    // .neq('is_cleared', true) 同時涵蓋了 false 以及舊資料可能的 null
+    const { error } = await supabase
+        .from('notifications')
+        .update({ is_cleared: true })
+        .eq('user_id', user.id)
+        .neq('is_cleared', true)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/', 'layout')
+    return { success: true }
+}
+
+/**
  * 建立通知（內部使用）
  */
 export async function createNotification(
@@ -94,22 +119,29 @@ export async function createNotification(
     message: string,
     link?: string
 ) {
-    const supabase = await createClient() as any
+    console.log(`[createNotification] Attempting to create for user ${userId}, type: ${type}`);
+    try {
+        const supabase = await createClient() as any
 
-    // @ts-ignore
-    const { error } = await (supabase.from('notifications') as any).insert({
-        user_id: userId,
-        type,
-        title,
-        message,
-        link,
-        is_read: false
-    })
+        // @ts-ignore
+        const { error, data } = await (supabase.from('notifications') as any).insert({
+            user_id: userId,
+            type,
+            title,
+            message,
+            link,
+            is_read: false
+        }).select('*')
 
-    if (error) {
-        console.error('Failed to create notification:', error)
-        return { error: error.message }
+        if (error) {
+            console.error('[createNotification] Failed:', error)
+            return { error: error.message }
+        }
+
+        console.log(`[createNotification] Success, generated:`, data);
+        return { success: true }
+    } catch (err: any) {
+        console.error('[createNotification] Unexpected Exception:', err);
+        return { error: err.message }
     }
-
-    return { success: true }
 }

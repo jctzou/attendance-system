@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { reviewLeave } from '@/app/leaves/actions'
+import { ConfirmDialog, AlertDialog } from './ui/ActionDialogs'
 
 interface Props {
     data: any[]
@@ -17,25 +18,33 @@ const LEAVE_TYPE_MAP: Record<string, string> = {
 
 export default function AdminLeaveTable({ data, onSuccess }: Props) {
     const [processingId, setProcessingId] = useState<number | null>(null)
+    const [confirmAction, setConfirmAction] = useState<{ id: number, status: 'approved' | 'rejected' } | null>(null)
+    const [alertMessage, setAlertMessage] = useState<string>('')
 
-    const handleReview = async (id: number, status: 'approved' | 'rejected') => {
+    const handleReviewClick = (id: number, status: 'approved' | 'rejected') => {
+        setConfirmAction({ id, status })
+    }
+
+    const executeReview = async () => {
+        if (!confirmAction) return
+        const { id, status } = confirmAction
         const actionText = status === 'approved' ? '批准' : '拒絕'
-        if (!confirm(`確定要${actionText}這筆申請嗎？`)) return
 
         setProcessingId(id)
         try {
             const res = await reviewLeave(id, status)
-            if (res.error) {
-                alert(res.error)
+            if (!res.success) {
+                setAlertMessage(res.error.message)
+                setConfirmAction(null)
             } else {
-                alert(`${actionText}成功！`)
-                if (onSuccess) {
-                    onSuccess()
-                }
+                setAlertMessage(`${actionText}成功！`)
+                setConfirmAction(null)
+                if (onSuccess) onSuccess()
             }
         } catch (e) {
-            console.error('Error in handleReview:', e)
-            alert('操作失敗')
+            console.error('Error in executeReview:', e)
+            setAlertMessage('操作失敗')
+            setConfirmAction(null)
         } finally {
             setProcessingId(null)
         }
@@ -100,14 +109,14 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                         {/* Footer: Actions */}
                         <div className="grid grid-cols-2 gap-3">
                             <button
-                                onClick={() => handleReview(leave.id, 'rejected')}
+                                onClick={() => handleReviewClick(leave.id, 'rejected')}
                                 disabled={processingId === leave.id}
                                 className="w-full py-2.5 px-4 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
                             >
                                 拒絕
                             </button>
                             <button
-                                onClick={() => handleReview(leave.id, 'approved')}
+                                onClick={() => handleReviewClick(leave.id, 'approved')}
                                 disabled={processingId === leave.id}
                                 className="w-full py-2.5 px-4 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-50"
                             >
@@ -159,14 +168,14 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     <button
-                                        onClick={() => handleReview(leave.id, 'approved')}
+                                        onClick={() => handleReviewClick(leave.id, 'approved')}
                                         disabled={processingId === leave.id}
                                         className="text-emerald-600 hover:text-emerald-900 dark:hover:text-emerald-400 disabled:opacity-50 transition-colors"
                                     >
                                         批准
                                     </button>
                                     <button
-                                        onClick={() => handleReview(leave.id, 'rejected')}
+                                        onClick={() => handleReviewClick(leave.id, 'rejected')}
                                         disabled={processingId === leave.id}
                                         className="text-red-600 hover:text-red-900 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
                                     >
@@ -178,6 +187,24 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                     </tbody>
                 </table>
             </div>
+
+            <ConfirmDialog
+                isOpen={confirmAction !== null}
+                title={`確認${confirmAction?.status === 'approved' ? '批准' : '拒絕'}請假`}
+                message={`確定要${confirmAction?.status === 'approved' ? '批准' : '拒絕'}這筆申請嗎？`}
+                onConfirm={executeReview}
+                onCancel={() => !processingId && setConfirmAction(null)}
+                confirmText={`確定${confirmAction?.status === 'approved' ? '批准' : '拒絕'}`}
+                isDestructive={confirmAction?.status === 'rejected'}
+                isLoading={processingId !== null}
+            />
+
+            <AlertDialog
+                isOpen={alertMessage !== ''}
+                title="系統提示"
+                message={alertMessage}
+                onConfirm={() => setAlertMessage('')}
+            />
         </div>
     )
 }

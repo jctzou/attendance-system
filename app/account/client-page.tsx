@@ -82,15 +82,15 @@ export default function AccountSettingsPage({ userProfile }: { userProfile: any 
         formData.append('avatar', croppedBlob, 'avatar.jpg')
 
         setLoading(true)
-        const res = await updateAvatar(null, formData)
+        const res = await updateAvatar(formData)
         setLoading(false)
 
-        if (res.error) {
-            setError(res.error)
+        if (!res.success) {
+            setError(res.error.message)
             // Revert preview on error
             setPreviewUrl(userProfile?.avatar_url || null)
         } else {
-            setMessage(res.message || '')
+            setMessage('頭像更新成功')
         }
 
         // Cleanup object url is tricky with Blob preview that persists, 
@@ -106,13 +106,13 @@ export default function AccountSettingsPage({ userProfile }: { userProfile: any 
         const formData = new FormData()
         formData.append('displayName', displayName)
 
-        const res = await updateProfile(null, formData)
+        const res = await updateProfile(formData)
         setLoading(false)
 
-        if (res.error) {
-            setError(res.error)
+        if (!res.success) {
+            setError(res.error.message)
         } else {
-            setMessage(res.message || '')
+            setMessage(res.data)
         }
     }
 
@@ -126,13 +126,13 @@ export default function AccountSettingsPage({ userProfile }: { userProfile: any 
         formData.append('password', password)
         formData.append('confirmPassword', confirmPassword)
 
-        const res = await updatePassword(null, formData)
+        const res = await updatePassword(formData)
         setLoading(false)
 
-        if (res.error) {
-            setError(res.error)
+        if (!res.success) {
+            setError(res.error.message)
         } else {
-            setMessage(res.message || '')
+            setMessage(res.data)
             setPassword('')
             setConfirmPassword('')
         }

@@ -27,12 +27,12 @@ export default function AdminLeavesPage() {
         setError('')
         try {
             const res = await getPendingLeaves()
-            if (res.error) {
-                if (res.error.includes('Permission denied')) {
+            if (!res.success) {
+                if (res.error.message.includes('Permission denied')) {
                     router.push('/')
                     return
                 }
-                setError(res.error)
+                setError(res.error.message)
             } else {
                 setLeaves(res.data || [])
             }
@@ -48,8 +48,8 @@ export default function AdminLeavesPage() {
         setError('')
         try {
             const res = await getPendingCancellations()
-            if (res.error) {
-                setError(res.error)
+            if (!res.success) {
+                setError(res.error.message)
             } else {
                 setCancellations(res.data || [])
             }
@@ -79,8 +79,8 @@ export default function AdminLeavesPage() {
     const handleReviewCancellation = async (cancellationId: number, approved: boolean) => {
         try {
             const res = await reviewLeaveCancellation(cancellationId, approved)
-            if (res.error) {
-                alert(`錯誤: ${res.error}`)
+            if (!res.success) {
+                alert(`錯誤: ${res.error.message}`)
             } else {
                 alert(approved ? '已批准取消請假' : '已拒絕取消請假')
                 fetchCancellations()

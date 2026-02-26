@@ -14,7 +14,8 @@ export const Label: React.FC<{ children: React.ReactNode, className?: string, ht
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ({ label, error, className = '', fullWidth = true, id, ...props }, ref) => {
-        const inputId = id || React.useId()
+        const generatedId = React.useId()
+        const inputId = id || generatedId
 
         return (
             <div className={`${fullWidth ? 'w-full' : ''} mb-4`}>

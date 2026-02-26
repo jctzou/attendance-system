@@ -24,7 +24,7 @@ export default function MySalaryPage() {
     const fetchRecords = async () => {
         setLoading(true)
         const res = await getMySalaryRecords()
-        if (res.data) {
+        if (res.success) {
             setRecords(res.data)
         }
         setLoading(false)
@@ -126,7 +126,7 @@ export default function MySalaryPage() {
 
                                     <div className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between items-center">
                                         <div className="text-slate-500 dark:text-slate-400 text-sm">
-                                            發放日期: {record.paid_at ? new Date(record.paid_at).toLocaleDateString() : '-'}
+                                            結算日期: {record.paid_at ? new Date(record.paid_at).toLocaleDateString() : '-'}
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">實領薪資</div>

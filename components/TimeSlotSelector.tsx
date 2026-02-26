@@ -16,9 +16,12 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
 
         try {
             // 直接從 ISO 字串 (YYYY-MM-DDTHH:mm) 解析，避免 new Date() 時區偏移
-            const [datePart, timePart] = value.split('T')
+            const [datePart, timePartRaw] = value.split('T')
             const dateStr = datePart
-            const [hStr, mStr] = timePart.split(':')
+            // 處理可能有秒數或 'Z' 的狀況 (e.g. 09:30:00.000Z)
+            const timePart = timePartRaw.split('.')[0].replace('Z', '')
+            const hStr = timePart.split(':')[0]
+            const mStr = timePart.split(':')[1]
             const hours = parseInt(hStr, 10)
             const minutes = parseInt(mStr, 10)
 

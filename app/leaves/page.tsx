@@ -21,10 +21,10 @@ export default function LeavesPage() {
             getAnnualLeaveBalance()
         ])
 
-        if (leavesRes.data) {
+        if (leavesRes.success) {
             setLeaves(leavesRes.data)
         }
-        if (balanceRes.data) {
+        if (balanceRes.success) {
             setBalance(balanceRes.data)
         }
         setLoading(false)

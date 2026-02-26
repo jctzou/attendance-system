@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cancelLeave } from '@/app/leaves/actions'
+import { ConfirmDialog, AlertDialog } from './ui/ActionDialogs'
 
 interface Props {
     data: any[]
@@ -16,15 +17,22 @@ const LEAVE_TYPE_MAP: Record<string, string> = {
 
 export default function LeaveTable({ data }: Props) {
     const [loadingId, setLoadingId] = useState<number | null>(null)
+    const [confirmId, setConfirmId] = useState<number | null>(null)
+    const [alertMessage, setAlertMessage] = useState<string>('')
 
-    const handleCancel = async (id: number) => {
-        if (!confirm('確定要取消此請假申請嗎？')) return
-        setLoadingId(id)
+    const handleCancelClick = (id: number) => {
+        setConfirmId(id)
+    }
+
+    const executeCancel = async () => {
+        if (!confirmId) return
+        setLoadingId(confirmId)
         try {
-            await cancelLeave(id)
-            // revalidatePath will refresh data
+            await cancelLeave(confirmId)
+            setConfirmId(null)
         } catch (e) {
-            alert('取消失敗')
+            setAlertMessage('取消失敗')
+            setConfirmId(null)
         } finally {
             setLoadingId(null)
         }
@@ -88,7 +96,7 @@ export default function LeaveTable({ data }: Props) {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         {leave.status === 'pending' && (
                                             <button
-                                                onClick={() => handleCancel(leave.id)}
+                                                onClick={() => handleCancelClick(leave.id)}
                                                 disabled={loadingId === leave.id}
                                                 className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium disabled:opacity-50 transition-colors"
                                             >
@@ -102,6 +110,24 @@ export default function LeaveTable({ data }: Props) {
                     </tbody>
                 </table>
             </div>
+
+            <ConfirmDialog
+                isOpen={confirmId !== null}
+                title="確認取消請假"
+                message="確定要撤銷此請假申請嗎？此操作無法還原。"
+                onConfirm={executeCancel}
+                onCancel={() => !loadingId && setConfirmId(null)}
+                confirmText="確定取消"
+                isDestructive={true}
+                isLoading={loadingId !== null}
+            />
+
+            <AlertDialog
+                isOpen={alertMessage !== ''}
+                title="系統提示"
+                message={alertMessage}
+                onConfirm={() => setAlertMessage('')}
+            />
         </div>
     )
 }

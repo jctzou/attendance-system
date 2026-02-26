@@ -18,8 +18,10 @@ export default function LoginPage() {
 
         startTransition(async () => {
             const res = await login(email, password)
-            if (res?.error) {
-                setError(res.error)
+            if (res && !res.success) {
+                setError(res.error.message)
+            } else {
+                window.location.href = '/'
             }
         })
     }
