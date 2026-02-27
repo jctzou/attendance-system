@@ -18,6 +18,7 @@ export interface SalaryDetails {
     leaveDays: number
     leaveDetails: Record<string, number>
     totalBreakHours?: number
+    deduction?: number
 }
 
 export interface SalaryRecordData {
@@ -32,6 +33,7 @@ export interface SalaryRecordData {
     // Financials
     baseSalary: number
     bonus: number
+    deduction: number
     totalSalary: number
 
     // Stats
@@ -168,6 +170,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
 
                 baseSalary: settledData.base_salary,
                 bonus: settledData.bonus,
+                deduction: settledData.details?.deduction || 0,
                 totalSalary: settledData.total_salary,
                 rate: settledData.rate,
 
@@ -225,11 +228,10 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     // Process Leaves
     if (leaves) {
         leaves.forEach((leave: any) => {
-            const start = new Date(leave.start_date)
-            const end = new Date(leave.end_date)
-            const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-            leaveDays += days
-            leaveDetails[leave.leave_type] = (leaveDetails[leave.leave_type] || 0) + days
+            // 新版架構：直接讀取 record 裡的 days，因為單筆 row 就是精確的一天(0.5 / 1.0)
+            const days = Number(leave.days) || 0;
+            leaveDays += days;
+            leaveDetails[leave.leave_type] = (leaveDetails[leave.leave_type] || 0) + days;
         })
     }
 
@@ -245,8 +247,17 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     const bonus = existingRecord?.bonus || 0
     const notes = existingRecord?.notes || ''
 
-    // TODO: Add Deduction Logic if specified
-    const totalSalary = baseSalary + bonus
+    // Deduction Logic:
+    let deduction = 0
+    let unpaidLeaveDays = leaveDays - (leaveDetails['annual_leave'] || 0)
+
+    if (salaryType === 'monthly' && unpaidLeaveDays > 0) {
+        // 月薪制扣薪：預設每月 30 天做分母
+        const dailyRate = Math.round(salaryAmount / 30)
+        deduction = Math.round(dailyRate * unpaidLeaveDays)
+    }
+
+    const totalSalary = baseSalary + bonus - deduction
 
     const result: SalaryRecordData = {
         id: existingRecord?.id,
@@ -259,6 +270,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
 
         baseSalary,
         bonus,
+        deduction,
         totalSalary,
 
         workHours: parseFloat(workHours.toFixed(2)),
@@ -293,7 +305,8 @@ export async function saveSalaryRecord(data: SalaryRecordData): Promise<ActionRe
         earlyLeaveCount: data.earlyLeaveCount,
         leaveDays: data.leaveDays,
         leaveDetails: {}, // can populate if passed
-        totalBreakHours: data.totalBreakHours
+        totalBreakHours: data.totalBreakHours,
+        deduction: data.deduction
     }
 
     const { error } = await supabase

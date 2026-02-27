@@ -51,8 +51,14 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
 
         while (current <= end) {
             const dateStr = current.toISOString().split('T')[0]
-            // Default to 1.0 (Full Day)
-            newStatus[dateStr] = 1.0
+
+            // 判斷是否為六日 (0 = Sun, 6 = Sat)
+            const dayOfWeek = current.getDay()
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+
+            // 六日預設為 0 (不請假)，平日預設為 1.0 (全天)
+            newStatus[dateStr] = isWeekend ? 0 : 1.0
+
             current.setDate(current.getDate() + 1)
         }
         setDailyStatus(newStatus)
@@ -90,11 +96,24 @@ export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalanc
 
         setLoading(true)
         setError('')
+        // 整理每日明細，過濾掉「不請假 (0)」的日子
+        const dailyRequestList = Object.keys(dailyStatus)
+            .filter(date => dailyStatus[date] > 0)
+            .map(date => ({
+                date,
+                days: dailyStatus[date]
+            }))
+
+        if (dailyRequestList.length === 0) {
+            setError('至少需要選擇一天請假')
+            setLoading(false)
+            return
+        }
 
         try {
-            const res = await applyLeave(leaveType, startDate, endDate, totalDays, reason)
+            const res = await applyLeave(leaveType, startDate, endDate, totalDays, reason, dailyRequestList)
             if (!res.success) {
-                setError(res.error.message)
+                setError(res.error.message || '申請失敗')
             } else {
                 onSuccess()
                 onClose()

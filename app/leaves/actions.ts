@@ -7,13 +7,19 @@ import { createNotification } from '@/app/notifications/actions'
 import { z } from 'zod'
 import { ActionResult, ErrorCodes } from '@/types/actions'
 import { requireUserProfile, requireUserRole, withErrorHandling } from '@/utils/actions_common'
+import { checkLeaveConflicts, LeaveRequestDay } from '@/utils/leaves_helper'
+import { v4 as uuidv4 } from 'uuid'
 
 const ApplyLeaveSchema = z.object({
     leaveType: z.string().min(1, '請選擇假別'),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, '開始時間格式不正確'), // 假設前端傳 ISO 或 local string (這裡暫定 YYYY-MM-DDTHH:mm)
-    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, '結束時間格式不正確'),
+    startDate: z.string().min(10, '必須提供開始時間'),
+    endDate: z.string().min(10, '必須提供結束時間'),
     days: z.number().positive('請假天數必須大於 0').multipleOf(0.5, '請假天數必須為 0.5 的倍數'),
     reason: z.string().min(1, '請填寫請假事由'),
+    dailyStatus: z.array(z.object({
+        date: z.string(),
+        days: z.number()
+    })).min(1, '至少需要一天請假明細')
 })
 
 const CancelLeaveReqSchema = z.object({
@@ -39,19 +45,11 @@ export async function applyLeave(
     startDate: string,
     endDate: string,
     days: number,
-    reason: string
+    reason: string,
+    dailyStatus: LeaveRequestDay[]
 ): Promise<ActionResult<void>> {
     return withErrorHandling(async () => {
-        // 先不做嚴格時間正則校驗，因為可能帶秒，先將時間簡化為字串或用 Zod preprocess，此處放寬時間校驗以免前端傳送格式差異
-        const InputSchema = z.object({
-            leaveType: z.string().min(1, '請選擇假別'),
-            startDate: z.string().min(10, '必須提供開始時間'),
-            endDate: z.string().min(10, '必須提供結束時間'),
-            days: z.number().positive('請假天數必須大於 0').multipleOf(0.5, '請假必須為 0.5 的倍數'),
-            reason: z.string().min(1, '請填寫事由'),
-        })
-
-        const input = InputSchema.parse({ leaveType, startDate, endDate, days, reason })
+        const input = ApplyLeaveSchema.parse({ leaveType, startDate, endDate, days, reason, dailyStatus })
         const profile = await requireUserProfile()
         const supabase = await createClient()
 
@@ -89,16 +87,29 @@ export async function applyLeave(
             }
         }
 
-        const { error: insertError } = await supabase.from('leaves').insert({
+        // 進行防重複請假檢查 (單日上限 1.0)
+        const checkResult = await checkLeaveConflicts(supabase, profile.id, input.dailyStatus)
+        if (!checkResult.success) {
+            throw { code: ErrorCodes.BUSINESS_CONFLICT, message: checkResult.error }
+        }
+
+        // 生成群組 ID
+        const groupId = uuidv4()
+
+        // 轉換為單日寫入格式
+        const insertData = input.dailyStatus.map(d => ({
             user_id: profile.id,
             leave_type: input.leaveType,
-            start_date: new Date(input.startDate).toISOString(),
-            end_date: new Date(input.endDate).toISOString(),
-            days: input.days,
-            hours: input.days * 8, // legacy
+            start_date: d.date,       // 都是單日
+            end_date: d.date,         // 都是單日
+            days: d.days,
+            hours: d.days * 8,        // legacy
             reason: input.reason,
-            status: 'pending'
-        })
+            status: 'pending' as const,
+            group_id: groupId
+        }))
+
+        const { error: insertError } = await supabase.from('leaves').insert(insertData)
 
         if (insertError) throw new Error(insertError.message)
 
@@ -133,7 +144,7 @@ export async function getMyLeaves() {
 
         const { data, error } = await supabase
             .from('leaves')
-            .select('*')
+            .select('*, approver:users!approver_id(display_name, email)')
             .eq('user_id', profile.id)
             .order('created_at', { ascending: false })
 
@@ -164,6 +175,106 @@ export async function cancelLeave(leaveId: number): Promise<ActionResult<void>> 
     })
 }
 
+export async function cancelLeaveGroup(groupId: string): Promise<ActionResult<void>> {
+    return withErrorHandling(async () => {
+        const profile = await requireUserProfile()
+        const supabase = await createClient()
+
+        const { data: leaves } = await supabase
+            .from('leaves')
+            .select('status, user_id')
+            .eq('group_id', groupId)
+
+        if (!leaves || leaves.length === 0) throw { code: ErrorCodes.NOT_FOUND, message: '找不到請假紀錄' }
+
+        for (const leave of leaves) {
+            if (leave.user_id !== profile.id) throw { code: ErrorCodes.FORBIDDEN, message: '權限不足' }
+            if (leave.status !== 'pending') throw { code: ErrorCodes.BUSINESS_CONFLICT, message: '只能取消待審核的請假' }
+        }
+
+        const { error } = await supabase.from('leaves').delete().eq('group_id', groupId)
+        if (error) throw new Error(error.message)
+
+        revalidatePath('/leaves')
+    })
+}
+
+/**
+ * 員工提出取消已批准假单的申請
+ * 假单狀態改為 cancel_pending，等待主管同意
+ */
+export async function requestCancelLeave(leaveId: number, cancelReason: string): Promise<ActionResult<void>> {
+    return withErrorHandling(async () => {
+        const parsed = CancelLeaveReqSchema.safeParse({ leaveId, cancelReason })
+        if (!parsed.success) throw { code: ErrorCodes.VALIDATION_FAILED, message: parsed.error.flatten().fieldErrors.cancelReason?.[0] || '請填寫取消原因' }
+
+        const profile = await requireUserProfile()
+        const supabase = await createClient()
+
+        const { data: leave } = await supabase
+            .from('leaves')
+            .select('status, user_id')
+            .eq('id', leaveId)
+            .single()
+
+        if (!leave) throw { code: ErrorCodes.NOT_FOUND, message: '找不到請假紀錄' }
+        if (leave.user_id !== profile.id) throw { code: ErrorCodes.FORBIDDEN, message: '權限不足' }
+        if (leave.status !== 'approved') throw { code: ErrorCodes.BUSINESS_CONFLICT, message: '只能對已批准的假單提出取消申請' }
+
+        const { error } = await supabase
+            .from('leaves')
+            .update({ status: 'cancel_pending', cancel_reason: cancelReason })
+            .eq('id', leaveId)
+
+        if (error) {
+            console.error('[requestCancelLeave] DB error:', error)
+            throw new Error(`資料庫更新失敗: ${error.message}`)
+        }
+
+        revalidatePath('/leaves')
+        revalidatePath('/admin/leaves')
+    })
+}
+
+/**
+ * 主管同意或拒絕員工的取消假單申請
+ * approve=true ：同意取消 → 假单從 DB 刪除
+ * approve=false ：拒絕取消 → 假单狀態恢復為 approved
+ */
+export async function approveCancelLeave(leaveId: number, approve: boolean): Promise<ActionResult<void>> {
+    return withErrorHandling(async () => {
+        await requireUserRole(['manager', 'super_admin'])
+        const supabase = await createAdminClient()
+
+        const { data: leave } = await supabase
+            .from('leaves')
+            .select('status, user_id')
+            .eq('id', leaveId)
+            .single()
+
+        if (!leave) throw { code: ErrorCodes.NOT_FOUND, message: '找不到請假紀錄' }
+        if (leave.status !== 'cancel_pending') throw { code: ErrorCodes.BUSINESS_CONFLICT, message: '該筆請假並非待審取消狀態' }
+
+        if (approve) {
+            const { error } = await supabase.from('leaves').delete().eq('id', leaveId)
+            if (error) throw new Error(error.message)
+        } else {
+            const { error } = await supabase.from('leaves').update({ status: 'approved', cancel_reason: null }).eq('id', leaveId)
+            if (error) throw new Error(error.message)
+        }
+
+        await createNotification(
+            leave.user_id,
+            'leave_cancel_result',
+            approve ? '請假取消已核准' : '請假取消已拒絕',
+            approve ? '主管已核准您的請假取消申請' : '主管拒絕了您的請假取消申請，假單方額不變'
+        ).catch(() => { })
+
+        revalidatePath('/admin/leaves')
+        revalidatePath('/leaves')
+    })
+}
+
 // ==========================================
 // Manager Actions
 // ==========================================
@@ -176,7 +287,7 @@ export async function getPendingLeaves() {
         const { data, error } = await supabase
             .from('leaves')
             .select(`*, user:users!user_id ( display_name, email )`)
-            .eq('status', 'pending')
+            .in('status', ['pending', 'cancel_pending'])
             .order('created_at', { ascending: true })
 
         if (error) throw new Error(error.message)
@@ -186,11 +297,15 @@ export async function getPendingLeaves() {
 
 export async function reviewLeave(leaveId: number, status: 'approved' | 'rejected'): Promise<ActionResult<void>> {
     return withErrorHandling(async () => {
-        await requireUserRole(['manager', 'super_admin'])
+        const manager = await requireUserRole(['manager', 'super_admin'])
         const supabase = await createClient()
 
         const { error } = await supabase.from('leaves')
-            .update({ status })
+            .update({
+                status,
+                approver_id: manager.id,
+                approved_at: new Date().toISOString(),
+            })
             .eq('id', leaveId)
 
         if (error) throw new Error(error.message)
@@ -232,4 +347,62 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
     })
 }
 
+export async function reviewLeaveGroup(groupId: string, status: 'approved' | 'rejected'): Promise<ActionResult<void>> {
+    return withErrorHandling(async () => {
+        const manager = await requireUserRole(['manager', 'super_admin'])
+        const supabase = await createClient()
 
+        // 取出該群組所有 pending 狀態的資料
+        const { data: leavesGroup } = await supabase
+            .from('leaves')
+            .select('*')
+            .eq('group_id', groupId)
+            .eq('status', 'pending')
+
+        if (!leavesGroup || leavesGroup.length === 0) {
+            throw { code: ErrorCodes.NOT_FOUND, message: '找不到待審核的群組假單，或已審核完畢' }
+        }
+
+        // 批次更新為 approved 或 rejected
+        const { error: updateError } = await supabase
+            .from('leaves')
+            .update({
+                status,
+                approver_id: manager.id,
+                approved_at: new Date().toISOString(),
+            })
+            .eq('group_id', groupId)
+            .eq('status', 'pending')
+
+        if (updateError) throw new Error(updateError.message)
+
+        // 統計 user_id, type 與總天數 (針對同一個 group_id，user 與 type 是相同的)
+        const userId = leavesGroup[0].user_id
+        const leaveType = leavesGroup[0].leave_type
+        const totalDays = leavesGroup.reduce((sum, l) => sum + Number(l.days || 0), 0)
+
+        // 若核准的為特休，批次扣除額度
+        if (status === 'approved' && (leaveType === 'annual_leave' || leaveType === 'annual')) {
+            const { data: u } = await supabase.from('users').select('annual_leave_used').eq('id', userId).single()
+            const newUsed = (Number(u?.annual_leave_used) || 0) + totalDays
+            await supabase.from('users').update({ annual_leave_used: newUsed }).eq('id', userId)
+        }
+
+        revalidatePath('/leaves')
+        revalidatePath('/admin/leaves')
+
+        // 發送通知 (合併發一則群組的)
+        const statusText = status === 'approved' ? '已核准' : '遭退回'
+        try {
+            await createNotification(
+                userId,
+                status === 'approved' ? 'leave_approved' : 'leave_rejected',
+                `請假申請${statusText}`,
+                `您的 ${leaveType} (共 ${totalDays} 天) 申請${statusText}`,
+                '/leaves'
+            )
+        } catch (err) {
+            console.error('Failed to notify user about group leave review:', err)
+        }
+    })
+}

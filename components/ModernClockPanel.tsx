@@ -185,13 +185,13 @@ export default function ModernClockPanel({
 
     return (
         <>
-            <div className="w-full max-w-lg bg-[var(--color-card-light)] bg-white dark:bg-neutral-900 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-200 dark:border-neutral-700 p-8 md:p-10 text-center transition-all duration-300">
+            <div className="w-full max-w-lg bg-[var(--color-card-light)] bg-white dark:bg-neutral-900 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-200 dark:border-neutral-700 p-6 md:p-7 text-center transition-all duration-300">
                 {/* Header Info */}
-                <div className="space-y-4 mb-10">
+                <div className="space-y-2 mb-6">
                     <p className="text-slate-500 dark:text-neutral-400 font-medium tracking-wide">
                         {mounted && time ? time.toLocaleDateString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric' }) : 'Loading...'}
                     </p>
-                    <div className="font-mono text-6xl md:text-7xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
+                    <div className="font-mono text-5xl md:text-6xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
                         {mounted && time ? formatTime(time) : '00:00:00'}
                     </div>
                     {salaryType === 'monthly' && (
@@ -202,13 +202,13 @@ export default function ModernClockPanel({
                 </div>
 
                 {/* Divider */}
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent mb-10"></div>
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent mb-6"></div>
 
                 {/* Main Action Area */}
 
                 {/* Hourly: Slot Selection */}
                 {salaryType === 'hourly' && !isClockedOut && time && (
-                    <div className="mb-8">
+                    <div className="mb-5">
                         <div className="text-sm text-slate-500 mb-4">{isClockedIn ? '選擇下班時間' : '選擇上班時間'}</div>
                         <div className="grid grid-cols-2 gap-4">
                             {(() => {
@@ -234,7 +234,7 @@ export default function ModernClockPanel({
 
                 {/* Hourly: Break Selection (Only when clocked in and about to clock out) */}
                 {salaryType === 'hourly' && isClockedIn && !isClockedOut && (
-                    <div className="mb-8">
+                    <div className="mb-5">
                         <div className="text-sm text-slate-500 mb-2">午休時數</div>
                         <div className="flex justify-center gap-2">
                             {[1.0, 1.5, 2.0].map(d => (
@@ -254,7 +254,7 @@ export default function ModernClockPanel({
                 )}
 
                 {/* Result / Status Display */}
-                <div className="mb-8 min-h-[80px] flex flex-col items-center justify-center">
+                <div className="mb-5 min-h-[60px] flex flex-col items-center justify-center">
                     {isPending ? (
                         <div className="text-primary animate-pulse font-bold text-xl">處理中...</div>
                     ) : message ? (
@@ -262,7 +262,7 @@ export default function ModernClockPanel({
                     ) : isClockedIn ? (
                         <div className="animate-in fade-in zoom-in duration-300">
                             <div className="text-sm text-slate-400 mb-1">上班時間</div>
-                            <div className="text-3xl font-bold text-slate-800 dark:text-neutral-100 font-mono mb-2">
+                            <div className="text-2xl font-bold text-slate-800 dark:text-neutral-100 font-mono mb-1">
                                 {attendanceRecord?.clock_in_time
                                     ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit' })
                                     : '--:--'}
@@ -285,7 +285,7 @@ export default function ModernClockPanel({
                         <button
                             onClick={handleClockIn}
                             disabled={isPending}
-                            className="w-full group relative overflow-hidden bg-slate-800 text-white text-lg font-bold py-5 px-8 rounded-2xl shadow-xl shadow-slate-800/20 hover:shadow-slate-800/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full group relative overflow-hidden bg-slate-800 text-white text-lg font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-slate-800/20 hover:shadow-slate-800/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             上班打卡
                         </button>
@@ -293,7 +293,7 @@ export default function ModernClockPanel({
                         <button
                             onClick={handleClockOut}
                             disabled={isPending}
-                            className="w-full group relative overflow-hidden bg-[var(--color-primary)] text-white text-lg font-bold py-5 px-8 rounded-2xl shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full group relative overflow-hidden bg-[var(--color-primary)] text-white text-lg font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             下班打卡
                         </button>

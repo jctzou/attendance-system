@@ -156,10 +156,20 @@ export default function AttendancePage() {
 
     const getLeaveForDate = (date: string) => {
         return leaves.find(l => {
-            const leaveStart = new Date(l.start_date)
-            const leaveEnd = new Date(l.end_date)
-            const checkDate = new Date(date)
-            return checkDate >= leaveStart && checkDate <= leaveEnd
+            // 在新的拆分架構下，start_date 就是請今日期 (YYYY-MM-DD)。
+            // 為了相容舊資料 (帶 T00:00:00.000Z)，先轉回 YYYY-MM-DD 比對
+            const leaveDate = new Date(l.start_date).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+
+            // 如果是舊的「未拆分」長時段資料 (start < end)，則維持舊邏輯作為退路
+            const leaveEndDate = new Date(l.end_date).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+            if (leaveDate !== leaveEndDate) {
+                const start = new Date(leaveDate)
+                const end = new Date(leaveEndDate)
+                const check = new Date(date)
+                return check >= start && check <= end
+            }
+
+            return leaveDate === date
         })
     }
 

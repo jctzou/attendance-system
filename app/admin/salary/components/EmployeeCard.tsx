@@ -127,17 +127,22 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                         </div>
                     </div>
                     <div className="text-right w-full md:w-auto flex justify-between md:block items-center">
-                        <span className="md:hidden text-sm text-slate-500 font-medium">獎金</span>
+                        <span className="md:hidden text-sm text-slate-500 font-medium">獎金 / 扣項</span>
                         <div className="text-right flex flex-col items-end">
-                            <div className={`hidden md:block text-xs font-medium uppercase tracking-wider ${theme.subText}`}>獎金</div>
+                            <div className={`hidden md:block text-xs font-medium uppercase tracking-wider ${theme.subText}`}>獎金 / 扣項</div>
                             <div className="flex flex-col items-end">
                                 <div className={`font-mono font-bold ${data.bonus > 0 ? 'text-amber-500' : theme.text}`}>
-                                    {formatMoney(data.bonus)}
+                                    {data.bonus > 0 ? `+${formatMoney(data.bonus)}` : '$0'}
                                 </div>
                                 {data.bonus > 0 && data.notes && (
                                     <span className="text-[10px] text-slate-400 max-w-[80px] truncate" title={data.notes}>
-                                        {data.notes.length > 4 ? `${data.notes.slice(0, 4)}...` : data.notes}
+                                        {data.notes}
                                     </span>
+                                )}
+                                {data.deduction > 0 && (
+                                    <div className="font-mono font-bold text-red-500 text-sm mt-0.5">
+                                        -{formatMoney(data.deduction)}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -206,6 +211,7 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                         </div>
                     ) : liveData ? (
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {/* Col 1: Base */}
                             <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
                                 <span className="text-xs text-slate-500 block mb-1">
                                     {isHourly ? '工時/時薪' : '月薪基數'}
@@ -228,74 +234,38 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                     )}
                                 </div>
                             </div>
+
+                            {/* Col 2: Bonus */}
                             <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
-                                <span className="text-xs text-slate-500 block mb-1">
-                                    {isHourly && !features.showHourlyStatus ? '獎金 (未結算)' : '異常狀況'}
-                                </span>
-                                <div className={`font-mono font-bold ${isHourly && !features.showHourlyStatus ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-neutral-300'}`}>
-                                    {isHourly && !features.showHourlyStatus ? (
-                                        <div className="flex flex-col">
-                                            <span>{formatMoney(liveData.bonus)}</span>
-                                            {liveData.bonus > 0 && liveData.notes && (
-                                                <span className="text-[10px] font-normal opacity-70 truncate max-w-[120px]" title={liveData.notes}>
-                                                    {liveData.notes.length > 4 ? `${liveData.notes.slice(0, 4)}...` : liveData.notes}
-                                                </span>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-sm">
-                                                遲{liveData.lateCount}/早{liveData.earlyLeaveCount}/假{liveData.leaveDays}
+                                <span className="text-xs text-slate-500 block mb-1">獎金 (未結算)</span>
+                                <div className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                                    <div className="flex flex-col">
+                                        <span>+{formatMoney(liveData.bonus)}</span>
+                                        {liveData.bonus > 0 && liveData.notes && (
+                                            <span className="text-[10px] font-normal opacity-70 truncate max-w-[120px]" title={liveData.notes}>
+                                                {liveData.notes}
                                             </span>
-                                            {isHourly && features.showHourlyStatus && (
-                                                <div className="text-[10px] text-amber-500 font-normal">
-                                                    獎金已移至右方
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* Col 3: Deduction */}
                             <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
-                                <span className="text-xs text-slate-500 block mb-1">
-                                    {isHourly && !features.showHourlyStatus ? '扣項' : '獎金 (未結算)'}
-                                </span>
-                                <div className={`font-mono font-bold ${(!isHourly || features.showHourlyStatus) ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {isHourly && !features.showHourlyStatus ? (
-                                        '-$0' // Placeholder for hourly deduction
-                                    ) : (
-                                        <div className="flex flex-col">
-                                            <span>{formatMoney(liveData.bonus)}</span>
-                                            {liveData.bonus > 0 && liveData.notes && (
-                                                <span className="text-[10px] font-normal opacity-70 truncate max-w-[120px]" title={liveData.notes}>
-                                                    {liveData.notes.length > 4 ? `${liveData.notes.slice(0, 4)}...` : liveData.notes}
-                                                </span>
-                                            )}
+                                <span className="text-xs text-slate-500 block mb-1">請假扣款</span>
+                                <div className="font-mono font-bold text-red-600 dark:text-red-400">
+                                    <div className="flex flex-col">
+                                        <span>-{formatMoney(liveData.deduction)}</span>
+                                        <div className="flex flex-col gap-1 mt-1 text-slate-500 dark:text-neutral-400 text-[10px] font-sans font-normal">
+                                            <span>遲{liveData.lateCount}/早{liveData.earlyLeaveCount}/假{liveData.leaveDays}</span>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700">
-                                <span className="text-xs text-slate-500 block mb-1">
-                                    {isHourly ? '扣項' : '獎金 (未結算)'}
-                                </span>
-                                <div className={`font-mono font-bold ${!isHourly ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {isHourly ? (
-                                        '-$0' // Placeholder for hourly deduction
-                                    ) : (
-                                        <div className="flex flex-col">
-                                            <span>{formatMoney(liveData.bonus)}</span>
-                                            {liveData.bonus > 0 && liveData.notes && (
-                                                <span className="text-[10px] font-normal opacity-70 truncate max-w-[120px]" title={liveData.notes}>
-                                                    {liveData.notes.length > 4 ? `${liveData.notes.slice(0, 4)}...` : liveData.notes}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+
+                            {/* Col 4: Total */}
                             <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg border border-slate-200 dark:border-neutral-700 ring-1 ring-emerald-500/20">
-                                <span className="text-xs text-emerald-600 dark:text-emerald-400 block mb-1">預估總額</span>
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 block mb-1">預估實發金額</span>
                                 <div className="font-mono font-bold text-xl text-emerald-600 dark:text-emerald-400">
                                     {formatMoney(liveData.totalSalary)}
                                 </div>

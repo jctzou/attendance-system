@@ -58,15 +58,27 @@
 | `is_edited` | Boolean | 是否經過手動修改 |
 
 ### `leaves` (請假)
+
+> 詳細規格請參閱 [leave_system_spec.md](leave_system_spec.md)。
+
 | 欄位 | 類型 | 說明 |
 | :--- | :--- | :--- |
 | `id` | BigInt | PK |
-| `user_id` | UUID | FK -> users.id |
-| `leave_type` | Text | `annual`, `sick`, `personal`, `compensatory`, `marriage`, `funeral`, `maternity`, `paternity` |
-| `start_date` | Timestamptz | 開始時間 |
-| `end_date` | Timestamptz | 結束時間 |
-| `days` | Numeric | 天數 (最小單位 0.5) |
-| `status` | Text | `'pending'`, `'approved'`, `'rejected'`, `'cancelled'` |
+| `user_id` | UUID | FK → users.id |
+| `leave_type` | Text | `sick_leave`, `personal_leave`, `annual_leave`, `other` |
+| `start_date` | Date | 單日日期（新架構：等同 end_date）|
+| `end_date` | Date | 單日日期（新架構：等同 start_date）|
+| `days` | Numeric | 天數，只允許 `0.5` 或 `1.0` |
+| `hours` | Numeric | Legacy 欄位（days * 8）|
+| `reason` | Text | 請假事由 |
+| `status` | Text | `pending`, `approved`, `rejected`, `cancelled`, `cancel_pending` |
+| `group_id` | UUID | 多日請假的群組識別碼（同次申請共用）|
+| `approver_id` | UUID | FK → users.id，審核主管 ID |
+| `approval_note` | Text | 主管備註（保留，未來擴充）|
+| `approved_at` | Timestamptz | 審核時間戳 |
+| `cancel_reason` | Text | 員工申請取消時填寫的取消原因 |
+| `created_at` | Timestamptz | 建立時間 |
+| `updated_at` | Timestamptz | 更新時間 |
 
 
 
@@ -103,6 +115,12 @@
 | `action` | Text | `'grant'`(發放), `'reset'`(結算) |
 | `days_change` | Numeric | 異動天數 |
 | `description` | Text | 說明 |
+
+### 已棄用 / 整合之資料表 (Deprecated / Merged Tables)
+
+| 資料表 | 狀態 | 說明 |
+| :--- | :--- | :--- |
+| `leave_cancellations` | **已刪除** | 原設計用於儲存取消申請。現已將其功能（原因、審核狀態）整合進 `leaves` 表，並將實體資料表刪除。 |
 
 ---
 

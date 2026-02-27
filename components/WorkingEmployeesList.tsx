@@ -60,21 +60,24 @@ export default function WorkingEmployeesList({ initialEmployees }: Props) {
                         <motion.div
                             key={record.user.id}
                             layout
-                            initial={{ opacity: 0, scale: 0.5, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            initial={{ scale: 0 }}
+                            animate={{
+                                scale: [0, 1.3, 0.7, 1.1, 1],
+                                transition: {
+                                    duration: 0.5,
+                                    ease: 'easeOut',
+                                    times: [0, 0.3, 0.55, 0.8, 1],
+                                }
+                            }}
                             exit={{
-                                opacity: 0,
-                                scale: 0.5,
-                                y: -40,
-                                transition: { duration: 0.8, ease: "easeInOut" }
+                                scale: [1, 1.3, 0],
+                                transition: {
+                                    duration: 0.3,
+                                    ease: 'easeIn',
+                                    times: [0, 0.4, 1],
+                                }
                             }}
-                            transition={{
-                                type: "spring",
-                                stiffness: 300,
-                                damping: 25,
-                                mass: 0.8
-                            }}
-                            className={`relative group ${idx > 0 ? '-ml-3' : ''} transition-transform hover:-translate-y-1 hover:z-10 z-0`}
+                            className={`relative group ${idx > 0 ? '-ml-2' : ''} transition-transform hover:-translate-y-1 hover:z-10 z-0`}
                         >
                             {/* Tooltip 姓名提示 (懸停或按壓時浮現) */}
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-lg z-20">
@@ -86,10 +89,10 @@ export default function WorkingEmployeesList({ initialEmployees }: Props) {
                                 <img
                                     src={record.user.avatar_url}
                                     alt={record.user.display_name}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-[var(--color-bg)] dark:border-[var(--color-bg)] shadow-sm bg-slate-100 dark:bg-neutral-800 cursor-pointer"
+                                    className="w-14 h-14 rounded-full object-cover border-2 border-[var(--color-bg)] dark:border-[var(--color-bg)] shadow-sm bg-slate-100 dark:bg-neutral-800 cursor-pointer"
                                 />
                             ) : (
-                                <div className="w-12 h-12 rounded-full border-2 border-[var(--color-bg)] dark:border-[var(--color-bg)] shadow-sm bg-gradient-to-br from-[var(--color-primary)] to-orange-400 flex items-center justify-center text-white text-base font-bold cursor-pointer">
+                                <div className="w-14 h-14 rounded-full border-2 border-[var(--color-bg)] dark:border-[var(--color-bg)] shadow-sm bg-gradient-to-br from-[var(--color-primary)] to-orange-400 flex items-center justify-center text-white text-lg font-bold cursor-pointer">
                                     {record.user.display_name.charAt(0)}
                                 </div>
                             )}

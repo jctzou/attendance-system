@@ -126,11 +126,17 @@ export interface Database {
                     leave_type: string
                     start_date: string
                     end_date: string
+                    days: number
+                    hours: number
                     reason: string | null
-                    status: 'pending' | 'approved' | 'rejected'
+                    status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'cancel_pending'
+                    approver_id: string | null
+                    approval_note: string | null
+                    approved_at: string | null
+                    cancel_reason: string | null
                     created_at: string
                     updated_at: string
-                    days: number | null
+                    group_id: string | null
                 }
                 Insert: {
                     id?: number
@@ -138,12 +144,17 @@ export interface Database {
                     leave_type: string
                     start_date: string
                     end_date: string
+                    days?: number
+                    hours?: number
                     reason?: string | null
-                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+                    status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'cancel_pending'
+                    approver_id?: string | null
+                    approval_note?: string | null
+                    approved_at?: string | null
+                    cancel_reason?: string | null
                     created_at?: string
                     updated_at?: string
-                    hours?: number | null
-                    days?: number | null
+                    group_id?: string | null
                 }
                 Update: {
                     id?: number
@@ -151,11 +162,17 @@ export interface Database {
                     leave_type?: string
                     start_date?: string
                     end_date?: string
+                    days?: number
+                    hours?: number
                     reason?: string | null
-                    status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+                    status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'cancel_pending'
+                    approver_id?: string | null
+                    approval_note?: string | null
+                    approved_at?: string | null
+                    cancel_reason?: string | null
                     created_at?: string
                     updated_at?: string
-                    days?: number | null
+                    group_id?: string | null
                 }
                 Relationships: []
             }

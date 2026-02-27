@@ -89,7 +89,7 @@ export default function LeavesPage() {
                 {loading ? (
                     <div className="p-8 text-center text-slate-500">載入中...</div>
                 ) : (
-                    <LeaveTable data={leaves} />
+                    <LeaveTable data={leaves} onRefresh={fetchData} />
                 )}
             </Card>
 

@@ -72,8 +72,16 @@ export function DayCard({
             </div>
 
             {leave ? (
-                <div className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded font-medium mb-1">
-                    🏖️ {LEAVE_TYPE_MAP[leave.leave_type] || '未定義假別'}
+                <div className={`text-xs px-2 py-1 rounded font-medium mb-1 ${leave.leave_type === 'sick_leave' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                        leave.leave_type === 'personal_leave' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+                            leave.leave_type === 'annual_leave' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                                'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
+                    }`}>
+                    {leave.leave_type === 'sick_leave' ? '💊 ' :
+                        leave.leave_type === 'personal_leave' ? '📝 ' :
+                            leave.leave_type === 'annual_leave' ? '✈️ ' : '📌 '}
+                    {LEAVE_TYPE_MAP[leave.leave_type] || '未定義假別'}
+                    {Number(leave.days) === 0.5 && " (半天)"}
                 </div>
             ) : null}
 
