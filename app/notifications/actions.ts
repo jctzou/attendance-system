@@ -1,12 +1,15 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { createAdminClient } from '@/utils/supabase/admin'
+import { sendServerBroadcast } from '@/utils/supabase/broadcast'
+import { revalidatePath, unstable_noStore as noStore } from 'next/cache'
 
 /**
  * 獲取我的通知列表
  */
 export async function getMyNotifications() {
+    noStore(); // 禁用快取，確保每次都去 DB 抓最新資料
     const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -28,6 +31,7 @@ export async function getMyNotifications() {
  * 獲取未讀通知數量
  */
 export async function getUnreadCount() {
+    noStore(); // 禁用快取
     const supabase = await createClient() as any
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -119,12 +123,11 @@ export async function createNotification(
     message: string,
     link?: string
 ) {
-    console.log(`[createNotification] Attempting to create for user ${userId}, type: ${type}`);
     try {
-        const supabase = await createClient() as any
+        const supabaseAdmin = createAdminClient()
 
         // @ts-ignore
-        const { error, data } = await (supabase.from('notifications') as any).insert({
+        const { error, data } = await (supabaseAdmin.from('notifications') as any).insert({
             user_id: userId,
             type,
             title,
@@ -138,7 +141,9 @@ export async function createNotification(
             return { error: error.message }
         }
 
-        console.log(`[createNotification] Success, generated:`, data);
+        // 穩定的伺服器端廣播
+        await sendServerBroadcast('public:notification_sync', 'new_notification', { targetUserId: userId })
+
         return { success: true }
     } catch (err: any) {
         console.error('[createNotification] Unexpected Exception:', err);

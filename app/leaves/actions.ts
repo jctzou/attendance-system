@@ -1,7 +1,9 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { createNotification } from '@/app/notifications/actions'
 import { z } from 'zod'
 import { ActionResult, ErrorCodes } from '@/types/actions'
 import { requireUserProfile, requireUserRole, withErrorHandling } from '@/utils/actions_common'
@@ -100,6 +102,26 @@ export async function applyLeave(
 
         if (insertError) throw new Error(insertError.message)
 
+        // 【新增】發送通知給管理員
+        try {
+            // 使用 Admin Client 繞過 RLS，因為一般員工無權撈取所有使用者的角色
+            const supabaseAdmin = createAdminClient()
+            const { data: managers } = await supabaseAdmin.from('users').select('id').in('role', ['manager', 'super_admin'])
+            if (managers) {
+                for (const m of (managers as any[])) {
+                    await createNotification(
+                        m.id,
+                        'new_leave_request',
+                        '新的請假申請',
+                        `${profile.display_name} 申請了 ${input.days} 天的 ${input.leaveType}`,
+                        '/admin/leaves'
+                    )
+                }
+            }
+        } catch (err) {
+            console.error('Failed to notify managers about new leave:', err)
+        }
+
         revalidatePath('/leaves')
     })
 }
@@ -191,6 +213,22 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
 
         revalidatePath('/leaves')
         revalidatePath('/admin/leaves')
+
+        // 【新增】發送審核結果通知給申請人
+        if (leaveData) {
+            const statusText = status === 'approved' ? '已核准' : '遭退回'
+            try {
+                await createNotification(
+                    leaveData.user_id,
+                    status === 'approved' ? 'leave_approved' : 'leave_rejected',
+                    `請假申請${statusText}`,
+                    `您的 ${leaveData.leave_type} (${leaveData.days} 天) 申請${statusText}`,
+                    '/leaves'
+                )
+            } catch (err) {
+                console.error('Failed to notify user about leave review:', err)
+            }
+        }
     })
 }
 

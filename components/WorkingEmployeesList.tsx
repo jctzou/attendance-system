@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
 import { getCurrentWorkingEmployees } from '@/app/attendance/actions'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRealtimeBroadcast } from '@/hooks/useRealtimeBroadcast'
 
 export type WorkingEmployee = {
     user: {
@@ -20,7 +20,6 @@ interface Props {
 
 export default function WorkingEmployeesList({ initialEmployees }: Props) {
     const [workingEmployees, setWorkingEmployees] = useState<WorkingEmployee[]>(initialEmployees)
-    const supabase = createClient()
     const router = useRouter()
 
     const fetchLatestEmployees = async () => {
@@ -39,31 +38,12 @@ export default function WorkingEmployeesList({ initialEmployees }: Props) {
         setWorkingEmployees(initialEmployees)
     }, [initialEmployees])
 
-    useEffect(() => {
-        // 設定 Supabase 即時訂閱 (Realtime)
-        // 改為監聽由 Server Action (`createAdminClient` 或一般 `supabase`) 主動發送的不受 RLS 限制的 Broadcast
-        const channel = supabase
-            .channel('public:attendance_sync')
-            .on(
-                'broadcast',
-                { event: 'sync' },
-                (payload) => {
-                    console.log('Realtime broadcast received! Action:', payload.payload?.action)
-                    // 收到任何變更，重新向伺服器拉取最新的上班中名單
-                    // 同時呼叫 router.refresh() 強制清除 Next.js Server Component 快取
-                    fetchLatestEmployees()
-                    router.refresh()
-                }
-            )
-            .subscribe((status) => {
-                console.log('Supabase Realtime Status:', status)
-            })
-
-        // Cleanup: 元件卸載時解除訂閱
-        return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [supabase, router])
+    useRealtimeBroadcast('public:attendance_sync', 'sync', (payload) => {
+        // 收到任何變更，重新向伺服器拉取最新的上班中名單
+        // 同時呼叫 router.refresh() 強制清除 Next.js Server Component 快取
+        fetchLatestEmployees()
+        router.refresh()
+    })
 
     if (workingEmployees.length === 0) {
         return null

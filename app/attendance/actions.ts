@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { sendServerBroadcast } from '@/utils/supabase/broadcast'
 import { revalidatePath } from 'next/cache'
 import { Database } from '@/types/supabase'
 import { z } from 'zod'
@@ -144,13 +145,8 @@ export async function clockIn(userId: string, customTime?: Date): Promise<Action
             newRecord.is_edited = true;
         }
 
-        // 這裡不再使用 adminClient 以避免 SUPABASE_SERVICE_ROLE_KEY 缺失問題
-        // 直接使用當下的 supabase (已帶有該打卡員工的 JWT) 向公用頻道發送廣播
-        supabase.channel('public:attendance_sync').send({
-            type: 'broadcast',
-            event: 'sync',
-            payload: { action: 'clockIn' }
-        })
+        // 穩定的伺服器端廣播
+        await sendServerBroadcast('public:attendance_sync', 'sync', { action: 'clockIn' })
 
         revalidatePath('/')
         return newRecord
@@ -221,12 +217,8 @@ export async function clockOut(userId: string, customTime?: Date, breakDuration?
             });
         }
 
-        // 這裡不再使用 adminClient 以避免 SUPABASE_SERVICE_ROLE_KEY 缺失問題
-        supabase.channel('public:attendance_sync').send({
-            type: 'broadcast',
-            event: 'sync',
-            payload: { action: 'clockOut' }
-        })
+        // 穩定的伺服器端廣播
+        await sendServerBroadcast('public:attendance_sync', 'sync', { action: 'clockOut' })
 
         revalidatePath('/')
         return updatedRecord
@@ -272,12 +264,8 @@ export async function cancelClockOut(userId: string): Promise<ActionResult<Atten
 
         if (error) throw new Error(error.message)
 
-        // 這裡不再使用 adminClient 以避免 SUPABASE_SERVICE_ROLE_KEY 缺失問題
-        supabase.channel('public:attendance_sync').send({
-            type: 'broadcast',
-            event: 'sync',
-            payload: { action: 'cancelClockOut' }
-        })
+        // 穩定的伺服器端廣播
+        await sendServerBroadcast('public:attendance_sync', 'sync', { action: 'cancelClockOut' })
 
         revalidatePath('/')
         return updatedRecord

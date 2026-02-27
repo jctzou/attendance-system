@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from 'react'
 import { getUnreadCount, getMyNotifications, markAsRead, markAllAsRead, deleteAllNotifications } from '@/app/notifications/actions'
 import { useRouter } from 'next/navigation'
 import { AlertDialog } from './ui/ActionDialogs'
+import { useRealtimeBroadcast } from '@/hooks/useRealtimeBroadcast'
+import { createClient } from '@/utils/supabase/client'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function NotificationBell() {
     const router = useRouter()
@@ -13,6 +16,7 @@ export default function NotificationBell() {
     const [loading, setLoading] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
     const [alertMessage, setAlertMessage] = useState<string>('')
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
     // Add reference for outside click detection
     const dropdownRef = useRef<HTMLDivElement>(null)
@@ -33,12 +37,40 @@ export default function NotificationBell() {
 
     useEffect(() => {
         setIsMounted(true)
+        // 獲取當前使用者ID
+        const fetchUser = async () => {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                setCurrentUserId(user.id)
+            }
+        }
+        fetchUser()
+
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchUnreadCount()
-        // Poll every 30 seconds
-        const interval = setInterval(fetchUnreadCount, 30000)
-        return () => clearInterval(interval)
     }, [])
+
+    // 使用共用即時廣播模組！
+    useRealtimeBroadcast('public:notification_sync', 'new_notification', (payload) => {
+        // 只有廣播目標是當前使用者，才去抓取新通知
+        if (payload?.targetUserId === currentUserId) {
+            // Optimistic UI: 收到通知廣播時，直接讓未讀數字 +1，給予即時回饋
+            // 避免 Server Action (getUnreadCount) 被 Next.js 快取而延遲更新
+            setUnreadCount(prev => prev + 1)
+
+            // 如果下拉選單已經打開，則順便更新裡面的通知列表
+            // 使用稍微長一點的延遲 (500ms) 確保 DB 確實已經把原本的寫入做完
+            if (isOpen) {
+                setTimeout(() => {
+                    fetchNotifications()
+                }, 500)
+            }
+
+            // 強制 Next.js 在背景重新驗證
+            router.refresh()
+        }
+    }, !!currentUserId) // 確保 currentUserId 取得後才開始監聽
 
     // Outside click listener
     useEffect(() => {
@@ -57,7 +89,9 @@ export default function NotificationBell() {
 
     const handleToggle = () => {
         if (!isOpen) {
+            // 打開時，確保我們拿到的永遠是最新的列表與未讀數
             fetchNotifications()
+            fetchUnreadCount()
         }
         setIsOpen(!isOpen)
     }
@@ -95,11 +129,20 @@ export default function NotificationBell() {
                 className="relative p-2 text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 rounded-full transition-colors focus:outline-none"
             >
                 <span className="material-symbols-outlined text-[24px]">notifications</span>
-                {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 border-2 border-white dark:border-background-dark rounded-full shadow-sm">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                )}
+                <AnimatePresence mode="wait">
+                    {unreadCount > 0 && (
+                        <motion.span
+                            key={unreadCount}
+                            initial={{ scale: 0, x: "25%", y: "-25%" }}
+                            animate={{ scale: [0, 1.3, 0.8, 1.1, 1], x: "25%", y: "-25%" }}
+                            exit={{ scale: 0, x: "25%", y: "-25%" }}
+                            transition={{ duration: 0.4, ease: "easeOut", times: [0, 0.4, 0.7, 0.9, 1] }}
+                            className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white bg-red-600 border-2 border-white dark:border-background-dark rounded-full shadow-sm"
+                        >
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </motion.span>
+                    )}
+                </AnimatePresence>
             </button>
 
             {isOpen && (
