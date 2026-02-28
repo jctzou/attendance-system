@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { reviewLeave, reviewLeaveGroup, approveCancelLeave } from '@/app/leaves/actions'
+import { reviewLeave, reviewLeaveGroup, approveCancelLeave, approveCancelLeaveGroup } from '@/app/leaves/actions'
 import { ConfirmDialog, AlertDialog } from './ui/ActionDialogs'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
 
@@ -35,6 +35,7 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
     const [alertMessage, setAlertMessage] = useState<string>('')
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
     const [cancelApproveTarget, setCancelApproveTarget] = useState<{ id: number, action: 'approve' | 'reject' } | null>(null)
+    const [cancelApproveGroupTarget, setCancelApproveGroupTarget] = useState<{ groupId: string, action: 'approve' | 'reject' } | null>(null)
 
     // 依據 group_id 群組化
     const groupedData = useMemo(() => {
@@ -127,6 +128,26 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
             } else {
                 setAlertMessage(action === 'approve' ? '已核准取消申請' : '已拒絕取消申請，假单已恢復為已批准')
                 setCancelApproveTarget(null)
+                if (onSuccess) onSuccess()
+            }
+        } catch (e) {
+            setAlertMessage('操作失敗')
+        } finally {
+            setProcessingId(null)
+        }
+    }
+
+    const executeCancelApproveGroup = async () => {
+        if (!cancelApproveGroupTarget) return
+        const { groupId, action } = cancelApproveGroupTarget
+        setProcessingId(groupId)
+        try {
+            const res = await approveCancelLeaveGroup(groupId, action === 'approve')
+            if (!res.success) {
+                setAlertMessage(res.error?.message || '操作失敗')
+            } else {
+                setAlertMessage(action === 'approve' ? '已核准整批取消申請' : '已拒絕整批取消，假單已全部恢復為已批准')
+                setCancelApproveGroupTarget(null)
                 if (onSuccess) onSuccess()
             }
         } catch (e) {
@@ -250,10 +271,21 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                                     </button>
                                 </div>
                             )}
-                            {/* -- Cancel Pending: single item cancel review  -- */}
+                            {/* -- Cancel Pending: cancel review -- */}
                             {group.items.some((i: any) => i.status === 'cancel_pending') && (
                                 <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                                    <div className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-2">📤 妄假取消申請</div>
+                                    <div className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-2">📤 假單取消申請</div>
+                                    {/* Batch buttons if ALL items are cancel_pending */}
+                                    {group.items.every((i: any) => i.status === 'cancel_pending') && group.items.length > 1 && (
+                                        <div className="flex gap-2 mb-2">
+                                            <button onClick={() => setCancelApproveGroupTarget({ groupId: group.groupId, action: 'reject' })}
+                                                disabled={!!processingId}
+                                                className="flex-1 text-xs text-slate-600 border border-slate-300 px-2 py-1.5 rounded hover:bg-slate-100 disabled:opacity-50">全部拒絕取消</button>
+                                            <button onClick={() => setCancelApproveGroupTarget({ groupId: group.groupId, action: 'approve' })}
+                                                disabled={!!processingId}
+                                                className="flex-1 text-xs text-amber-700 bg-amber-100 border border-amber-300 px-2 py-1.5 rounded hover:bg-amber-200 disabled:opacity-50">全部同意取消</button>
+                                        </div>
+                                    )}
                                     {group.items.filter((i: any) => i.status === 'cancel_pending').map((item: any) => (
                                         <div key={item.id} className="flex justify-between items-center mb-2">
                                             <span className="text-xs font-mono text-slate-600 dark:text-neutral-300">{item.start_date} - 取消原因：{item.cancel_reason || '(未填寫)'}</span>
@@ -342,8 +374,25 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                                                         全退
                                                     </button>
                                                 </>
+                                            ) : group.items.every((i: any) => i.status === 'cancel_pending') ? (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setCancelApproveGroupTarget({ groupId: group.groupId, action: 'reject' }) }}
+                                                        disabled={!!processingId}
+                                                        className="inline-flex px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-600 rounded-lg transition-colors disabled:opacity-50"
+                                                    >
+                                                        全拒絕取消
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setCancelApproveGroupTarget({ groupId: group.groupId, action: 'approve' }) }}
+                                                        disabled={!!processingId}
+                                                        className="inline-flex px-3 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 rounded-lg transition-colors disabled:opacity-50"
+                                                    >
+                                                        全同意取消
+                                                    </button>
+                                                </>
                                             ) : (
-                                                <span className="inline-flex px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">假單取消申請中</span>
+                                                <span className="inline-flex px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">部分取消申請中</span>
                                             )}
                                         </td>
                                     </tr>
@@ -402,7 +451,33 @@ export default function AdminLeaveTable({ data, onSuccess }: Props) {
                 </table>
             </div>
 
-            {/* Cancel Approve Confirm Dialog */}
+            {/* Group Cancel Approve Confirm Dialog */}
+            {cancelApproveGroupTarget !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+                        <h3 className="text-lg font-bold mb-2 text-slate-900 dark:text-white">
+                            {cancelApproveGroupTarget.action === 'approve' ? '全部同意取消（整批）' : '全部拒絕取消（整批）'}
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-4">
+                            {cancelApproveGroupTarget.action === 'approve'
+                                ? '同意後，此群組所有假單將從系統中刪除。'
+                                : '拒絕後，所有假單將恢復為已批准狀態。'}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setCancelApproveGroupTarget(null)}
+                                className="px-4 py-2 text-sm rounded-lg text-slate-600 hover:bg-slate-100 dark:hover:bg-neutral-700">不了</button>
+                            <button
+                                onClick={executeCancelApproveGroup}
+                                disabled={!!processingId}
+                                className={`px-4 py-2 text-sm rounded-lg text-white disabled:opacity-50 ${cancelApproveGroupTarget.action === 'approve' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-600 hover:bg-slate-700'}`}>
+                                {processingId ? '處理中...' : cancelApproveGroupTarget.action === 'approve' ? '確認全部同意取消' : '確認全部拒絕'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Single-item Cancel Approve Confirm Dialog */}
             {cancelApproveTarget !== null && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">

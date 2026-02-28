@@ -4,11 +4,42 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { createNotification } from '@/app/notifications/actions'
+import { sendServerBroadcast } from '@/utils/supabase/broadcast'
 import { z } from 'zod'
 import { ActionResult, ErrorCodes } from '@/types/actions'
 import { requireUserProfile, requireUserRole, withErrorHandling } from '@/utils/actions_common'
 import { checkLeaveConflicts, LeaveRequestDay } from '@/utils/leaves_helper'
 import { v4 as uuidv4 } from 'uuid'
+
+// ---- 廣播 Helper（只發 Broadcast 訊號，不插入通知記錄）----
+// 通知記錄由 DB Trigger (handle_leave_notifications) 統一負責插入（含去重邏輯）
+
+/** 廣播給所有主管，讓其鈴噹即時更新 */
+async function broadcastToManagers() {
+    try {
+        const supabaseAdmin = createAdminClient()
+        const { data: managers } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .in('role', ['manager', 'super_admin'])
+        if (managers) {
+            for (const m of managers as { id: string }[]) {
+                await sendServerBroadcast('public:notification_sync', 'new_notification', { targetUserId: m.id })
+            }
+        }
+    } catch (err) {
+        console.error('[broadcastToManagers] Failed:', err)
+    }
+}
+
+/** 廣播給指定員工，讓其鈴噹即時更新 */
+async function broadcastToUser(userId: string) {
+    try {
+        await sendServerBroadcast('public:notification_sync', 'new_notification', { targetUserId: userId })
+    } catch (err) {
+        console.error('[broadcastToUser] Failed:', err)
+    }
+}
 
 const ApplyLeaveSchema = z.object({
     leaveType: z.string().min(1, '請選擇假別'),
@@ -110,34 +141,32 @@ export async function applyLeave(
         }))
 
         const { error: insertError } = await supabase.from('leaves').insert(insertData)
-
         if (insertError) throw new Error(insertError.message)
 
-        // 【新增】發送通知給管理員
-        try {
-            // 使用 Admin Client 繞過 RLS，因為一般員工無權撈取所有使用者的角色
-            const supabaseAdmin = createAdminClient()
-            const { data: managers } = await supabaseAdmin.from('users').select('id').in('role', ['manager', 'super_admin'])
-            if (managers) {
-                for (const m of (managers as any[])) {
-                    await createNotification(
-                        m.id,
-                        'new_leave_request',
-                        '新的請假申請',
-                        `${profile.display_name} 申請了 ${input.days} 天的 ${input.leaveType}`,
-                        '/admin/leaves'
-                    )
-                }
-            }
-        } catch (err) {
-            console.error('Failed to notify managers about new leave:', err)
-        }
-
+        // 通知記錄由 DB Trigger 插入（去重），此處只發 Broadcast 讓主管鈴噹即時跳動
+        await broadcastToManagers()
         revalidatePath('/leaves')
     })
 }
 
-export async function getMyLeaves() {
+// 假單列表資料結構（含關聯查詢欄位），供前端 Client Component import 使用
+export interface LeaveRow {
+    id: number
+    group_id: string | null
+    leave_type: string
+    start_date: string
+    end_date: string
+    days: number
+    reason: string | null
+    status: string
+    created_at: string
+    approver_id: string | null
+    approved_at: string | null
+    cancel_reason: string | null
+    approver: { display_name: string; email: string } | null
+}
+
+export async function getMyLeaves(): Promise<ActionResult<LeaveRow[]>> {
     return withErrorHandling(async () => {
         const profile = await requireUserProfile()
         const supabase = await createClient()
@@ -147,6 +176,7 @@ export async function getMyLeaves() {
             .select('*, approver:users!approver_id(display_name, email)')
             .eq('user_id', profile.id)
             .order('created_at', { ascending: false })
+            .returns<LeaveRow[]>()   // §11.2 策略 A：明確宣告回傳型別，避免 any
 
         if (error) throw new Error(error.message)
         return data || []
@@ -233,6 +263,8 @@ export async function requestCancelLeave(leaveId: number, cancelReason: string):
 
         revalidatePath('/leaves')
         revalidatePath('/admin/leaves')
+        // 廣播給主管，讓其鈴噹即時更新（通知記錄由 DB Trigger 插入，已去重）
+        await broadcastToManagers()
     })
 }
 
@@ -328,22 +360,8 @@ export async function reviewLeave(leaveId: number, status: 'approved' | 'rejecte
 
         revalidatePath('/leaves')
         revalidatePath('/admin/leaves')
-
-        // 【新增】發送審核結果通知給申請人
-        if (leaveData) {
-            const statusText = status === 'approved' ? '已核准' : '遭退回'
-            try {
-                await createNotification(
-                    leaveData.user_id,
-                    status === 'approved' ? 'leave_approved' : 'leave_rejected',
-                    `請假申請${statusText}`,
-                    `您的 ${leaveData.leave_type} (${leaveData.days} 天) 申請${statusText}`,
-                    '/leaves'
-                )
-            } catch (err) {
-                console.error('Failed to notify user about leave review:', err)
-            }
-        }
+        // 廣播給員工，讓其鈴噹即時更新（通知記錄由 DB Trigger 插入，已去重）
+        if (leaveData) await broadcastToUser(leaveData.user_id)
     })
 }
 
@@ -390,19 +408,88 @@ export async function reviewLeaveGroup(groupId: string, status: 'approved' | 're
 
         revalidatePath('/leaves')
         revalidatePath('/admin/leaves')
+        // 廣播給員工，讓其鈴噹即時更新（通知記錄由 DB Trigger 插入，已去重）
+        await broadcastToUser(userId)
+    })
+}
 
-        // 發送通知 (合併發一則群組的)
-        const statusText = status === 'approved' ? '已核准' : '遭退回'
-        try {
-            await createNotification(
-                userId,
-                status === 'approved' ? 'leave_approved' : 'leave_rejected',
-                `請假申請${statusText}`,
-                `您的 ${leaveType} (共 ${totalDays} 天) 申請${statusText}`,
-                '/leaves'
-            )
-        } catch (err) {
-            console.error('Failed to notify user about group leave review:', err)
+/**
+ * 員工申請整批取消同一 group_id 的已批准假單
+ * 該 group 中所有 approved 記錄狀態改為 cancel_pending
+ */
+export async function requestCancelLeaveGroup(groupId: string, cancelReason: string): Promise<ActionResult<void>> {
+    return withErrorHandling(async () => {
+        if (!cancelReason.trim()) throw { code: ErrorCodes.VALIDATION_FAILED, message: '請填寫取消原因' }
+
+        const profile = await requireUserProfile()
+        const supabase = await createClient()
+
+        const { data: leaves } = await supabase
+            .from('leaves')
+            .select('id, status, user_id')
+            .eq('group_id', groupId)
+
+        if (!leaves || leaves.length === 0) throw { code: ErrorCodes.NOT_FOUND, message: '找不到請假紀錄' }
+
+        for (const leave of leaves) {
+            if (leave.user_id !== profile.id) throw { code: ErrorCodes.FORBIDDEN, message: '權限不足' }
+            if (leave.status !== 'approved') throw { code: ErrorCodes.BUSINESS_CONFLICT, message: '只能對已全數批准的假單群組提出取消申請' }
         }
+
+        const { error } = await supabase
+            .from('leaves')
+            .update({ status: 'cancel_pending', cancel_reason: cancelReason })
+            .eq('group_id', groupId)
+
+        if (error) throw new Error(error.message)
+
+        revalidatePath('/leaves')
+        revalidatePath('/admin/leaves')
+        // 通知記錄由 DB Trigger 插入（去重），此處只廣播讓主管鈴噹即時跳動
+        await broadcastToManagers()
+    })
+}
+
+/**
+ * 主管批次審核整個 group_id 的取消申請
+ * approve=true：同意取消 → 整批刪除
+ * approve=false：拒絕取消 → 整批恢復 approved
+ */
+export async function approveCancelLeaveGroup(groupId: string, approve: boolean): Promise<ActionResult<void>> {
+    return withErrorHandling(async () => {
+        await requireUserRole(['manager', 'super_admin'])
+        const supabase = await createAdminClient()
+
+        const { data: leaves } = await supabase
+            .from('leaves')
+            .select('id, status, user_id')
+            .eq('group_id', groupId)
+            .eq('status', 'cancel_pending')
+
+        if (!leaves || leaves.length === 0) throw { code: ErrorCodes.NOT_FOUND, message: '找不到待審取消的群組假單' }
+
+        const userId = leaves[0].user_id
+
+        if (approve) {
+            const { error } = await supabase.from('leaves').delete()
+                .eq('group_id', groupId).eq('status', 'cancel_pending')
+            if (error) throw new Error(error.message)
+        } else {
+            const { error } = await supabase.from('leaves')
+                .update({ status: 'approved', cancel_reason: null })
+                .eq('group_id', groupId).eq('status', 'cancel_pending')
+            if (error) throw new Error(error.message)
+        }
+
+        await createNotification(
+            userId,
+            'leave_cancel_result',
+            approve ? '請假取消已核准' : '請假取消已拒絕',
+            approve ? '主管已核准您的請假取消申請（整批）' : '主管拒絕了您的請假取消申請，假單維持不變'
+        ).catch(() => { })
+
+        revalidatePath('/admin/leaves')
+        revalidatePath('/leaves')
+        await broadcastToUser(userId)
     })
 }

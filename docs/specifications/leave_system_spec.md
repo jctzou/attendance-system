@@ -1,8 +1,8 @@
 # 請假系統規格書 (Leave System Specification)
 
-> **版本**: v2.0
+> **版本**: v2.3
 > **狀態**: 現行系統描述（Active）
-> **最後更新**: 2026-02-27
+> **最後更新**: 2026-02-28
 > **目標**: 100% 描述現有請假系統的資料架構、業務規則、介面設計與 API 行為，作為重構或新實作的唯一技術參考。
 
 ---
@@ -178,22 +178,33 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 ### 3.4 取消申請規則（員工對 approved 假單申請取消）
 
-#### 發起取消申請（`requestCancelLeave`）
-- **條件**：
-  - 假單 `status = 'approved'`
-  - 員工填寫取消原因（`cancelReason`，非空字串）
-  - 呼叫者為假單擁有人
-- **行為**：
-  - `status` → `cancel_pending`
-  - `cancel_reason` → 填入取消原因
+#### 發起取消申請
+
+**單筆（`requestCancelLeave`）**
+- **條件**：假單 `status = 'approved'`、呼叫者為擁有人、需填取消原因
+- **行為**：`status` → `cancel_pending`，`cancel_reason` 填入原因
 - **Schema 驗證**：`CancelLeaveReqSchema`（`leaveId: number`, `cancelReason: string.min(1)`）
 
-#### 主管處理取消申請（`approveCancelLeave`）
+**整批群組（`requestCancelLeaveGroup`）**
+- **條件**：指定 `group_id` 下所有假單**全數** `status = 'approved'`、呼叫者為擁有人、需填取消原因
+- **行為**：該 `group_id` 所有 row → `status = 'cancel_pending'`，`cancel_reason` 填入相同原因
+- **若群組中有任何非 `approved` 狀態的 row**：拋出 `BUSINESS_CONFLICT` 錯誤
+
+#### 主管處理取消申請
+
+**單筆（`approveCancelLeave`）**
 
 | 動作 | 行為 |
 |------|------|
 | **同意取消** (`approve = true`) | 硬刪除假單；發送通知 `leave_cancel_result` |
 | **拒絕取消** (`approve = false`) | `status` 恢復 `approved`，`cancel_reason` 清空為 `null`；發送通知 |
+
+**整批群組（`approveCancelLeaveGroup`）**
+
+| 動作 | 行為 |
+|------|------|
+| **全部同意取消** (`approve = true`) | 整個 `group_id` 所有 `cancel_pending` row 全部硬刪除；發送通知 `leave_cancel_result` |
+| **全部拒絕取消** (`approve = false`) | 整個 `group_id` 所有 `cancel_pending` row 全部恢復 `approved`；發送通知 |
 
 > **注意**：同意取消後，該日假單記錄永久消失，無歷史可查（硬刪除的取捨決定）。
 
@@ -221,7 +232,8 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 | `applyLeave(...)` | leaveType, startDate, endDate, days, reason, dailyStatus | 申請請假 |
 | `cancelLeave(leaveId)` | `number` | 撤銷單筆 pending 假單（硬刪除）|
 | `cancelLeaveGroup(groupId)` | `string` | 撤銷整個 pending 群組（硬刪除）|
-| `requestCancelLeave(leaveId, cancelReason)` | `number, string` | 對已批准假單申請取消 |
+| `requestCancelLeave(leaveId, cancelReason)` | `number, string` | 對已批准**單筆**假單申請取消 |
+| `requestCancelLeaveGroup(groupId, cancelReason)` | `string, string` | 對已批准**整批群組**假單申請取消 |
 
 ### 主管端
 
@@ -230,7 +242,8 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 | `getPendingLeaves()` | — | 取得所有 `pending` 和 `cancel_pending` 假單（含 user 資訊）|
 | `reviewLeave(leaveId, status)` | `number, 'approved'\|'rejected'` | 審核單筆假單 |
 | `reviewLeaveGroup(groupId, status)` | `string, 'approved'\|'rejected'` | 批次審核群組 |
-| `approveCancelLeave(leaveId, approve)` | `number, boolean` | 處理員工的取消申請 |
+| `approveCancelLeave(leaveId, approve)` | `number, boolean` | 處理**單筆**取消申請 |
+| `approveCancelLeaveGroup(groupId, approve)` | `string, boolean` | 處理**整批群組**取消申請 |
 
 ---
 
@@ -238,7 +251,21 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 ### 5.1 員工端 - 請假管理頁 (`/leaves`)
 
-頁面為 Next.js Server Component，初始資料在伺服器端取得，`LeaveTable` 為 Client Component。
+#### 架構（RSC + Client Component 分離）
+
+本頁面採用 **Next.js Server Component + Client Component 分離架構**，以消除鐘點人員特休區塊的閃爍問題（CLS）：
+
+| 檔案 | 類型 | 職責 |
+|------|------|---------|
+| `app/leaves/page.tsx` | **Server Component** (`async`) | 伺服器端取得 `salaryType`、假單列表、特休餘額，以 props 傳入 Client |
+| `app/leaves/LeavesClient.tsx` | **Client Component** (`'use client'`) | 管理 dialog 狀態、刷新邏輯、使用者互動 |
+
+**設計原則**：`salaryType` 在 HTML 送達瀏覽器前即確定，特休區塊的顯示/隱藏由伺服器決定，完全消除 FOUC（Flash of Unstyled Content）。
+
+#### Hydration 注意事項
+任何在 `LeaveTable`、`LeavesClient` 等子元件中使用的日期格式化函式，**嚴禁**使用 `toLocaleString()` / `toLocaleDateString()` 等本地化方法，因為 Node.js 與瀏覽器的 ICU 資料不一致會導致 Hydration mismatch。
+
+**正確做法**：統一使用 `formatToTaipeiTime(date, formatStr)` 來格式化所有日期時間顯示。
 
 #### 頂部特休餘額區塊
 - 顯示：特休總天數、已使用、剩餘天數
@@ -284,16 +311,25 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 | 群組狀態 | items 數量 | 可用操作 |
 |---------|------------|---------|
-| `pending` | 多筆 | 全部撤銷 |
-| `pending` | 單筆 | 個別撤銷 |
-| `approved` | 多筆（展開後） | 每筆可「申請取消」|
-| `approved` | 單筆 | 申請取消 |
-| `cancel_pending` | — | 無操作（等待主管）|
+| `pending` | 多筆 | **全部撤銷**（整批硬刪除）|
+| `pending` | 單筆 | **個別撤銷** |
+| `approved` | 多筆 | **申請全部取消**（整批） |
+| `approved` | 單筆 | **申請取消** |
+| `cancel_pending` | — | 顯示「取消申請審核中」提示，無操作 |
+| `rejected` | — | 無操作 |
 
 **申請取消流程（員工端）**：
+
+*單日*：
 1. 員工點擊「申請取消」按鈕
-2. 彈出對話框，要求填寫取消原因（必填）
-3. 送出後，假單 `status` → `cancel_pending`，狀態徽章更新
+2. 彈出對話框，填寫取消原因（必填）
+3. 送出後，假單 `status` → `cancel_pending`
+4. 主管審核後，員工收到通知
+
+*多日整批*：
+1. 員工點擊「申請全部取消」按鈕
+2. 彈出對話框，填寫取消原因（整批共用同一原因，必填）
+3. 送出後，群組所有 row `status` → `cancel_pending`
 4. 主管審核後，員工收到通知
 
 **行動版（Mobile）**：Card 形式呈現群組。
@@ -320,14 +356,24 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 #### 取消申請審核操作
 
-針對 `cancel_pending` 的行，展示：
-- 黃色區塊（Mobile）或高亮行（Desktop），顯示取消原因
-- 操作按鈕：**同意取消** / **拒絕取消**
-- 確認 Dialog 說明操作後果
+針對包含 `cancel_pending` row 的群組，展示黃色提示區塊（Mobile）或特殊高亮（Desktop），顯示取消原因。
+
+| 情境 | 可用操作 | 層級 |
+|------|----------|---------|
+| **整批全部 `cancel_pending`**（多日群組） | **全同意取消** / **全拒絕取消** | 群組層（Desktop 欄位 + Mobile 批次按鈕）|
+| **整批全部 `cancel_pending`**（多日群組）展開後 | 逐日：同意取消 / 拒絕取消 | 明細行 |
+| **部分 `cancel_pending`**（混合狀態） | 顯示「部分取消申請中」徽章；展開後逐日操作 | 明細行 |
+| **單筆群組 `cancel_pending`** | 同意取消 / 拒絕取消 | 群組層 |
+
+所有操作均有確認 Dialog 說明後果（同意→硬刪除；拒絕→恢復 `approved`）。
 
 ---
 
 ## 6. 日曆顯示（出勤月曆）
+
+> **設計變更 (v2.1)**：为簡化操作動線，**請假申請功能已從「打卡記錄 (`/attendance`)」頁的日曆對話框中完整移除。員工必須前往 **`/leaves` 請假管理頁**申請請假。打卡記錄頁的日曆點擊對話框舊下列行為：
+> - 對話框僅提供**打卡補登與修改**功能。
+> - 若該日已有請假紀錄，對話框頂部展示一條**唯讀請假狀態橫幅**（假別中文名稱 + 審核狀態）。
 
 ### 不同假別的圖示
 
@@ -363,14 +409,54 @@ SUM(leaves.days) WHERE leave_type != 'annual_leave' AND status = 'approved'
 
 ## 8. 通知系統整合
 
+### 8.1 通知事件清單
+
 | 事件 | type | 發送對象 | 觸發時機 |
 |------|------|---------|---------|
-| 新請假申請 | `new_leave_request` | 所有主管 | 員工送出申請後 |
-| 批准請假 | `leave_approved` | 申請員工 | 主管批准後 |
-| 退回請假 | `leave_rejected` | 申請員工 | 主管退回後 |
-| 取消申請結果 | `leave_cancel_result` | 申請員工 | 主管同意/拒絕取消後 |
+| 新請假申請 | `new_leave_request` | 所有主管 | 員工送出申請後（每個 `group_id` 僅一則）|
+| 批准請假 | `leave_approved` | 申請員工 | 主管批准後（每個 `group_id` 僅一則）|
+| 退回請假 | `leave_rejected` | 申請員工 | 主管退回後（每個 `group_id` 僅一則）|
+| 取消申請（單筆/整批）| `leave_cancel_request` | 所有主管 | 員工申請取消後（每個 `group_id` 僅一則）|
+| 取消審核結果 | `leave_cancel_result` | 申請員工 | 主管同意/拒絕取消後（由 `approveCancelLeave` / `approveCancelLeaveGroup` 呼叫 `createNotification` 發送）|
 
-> 發送主管通知時使用 `createAdminClient()`（繞過 RLS），因為一般員工無法查詢其他用戶的角色。
+### 8.2 通知架構規範（重要）
+
+#### 問題背景
+
+採用 `group_id` 多日拆分架構後，每次請假操作會對 `leaves` 資料表產生多筆 row INSERT/UPDATE。若 `FOR EACH ROW` Trigger 加上 Server Action 也各自插入通知，則：
+
+```
+通知數 = 請假天數 × 2（Trigger 各一則 + Server Action 各一則）
+```
+
+#### 現行解決方案：職責分離
+
+| 職責 | 負責方 | 說明 |
+|------|--------|------|
+| **通知記錄入庫**（`new_leave_request`, `leave_approved`, `leave_rejected`, `leave_cancel_request`）| **DB Trigger** | `handle_leave_notifications()` FOR EACH ROW，但以 `group_id` 最小 `id` 去重，每個 group 只插入一則 |
+| **取消審核結果通知**（`leave_cancel_result`）| **Server Action** 直接呼叫 `createNotification()` | DB Trigger 不處理 DELETE 與「cancel_pending → approved」的回滾，故此事件例外由 Server Action 負責 |
+| **即時鈴噹 Broadcast 訊號** | **Server Action** 呼叫 `broadcastToManagers()` / `broadcastToUser()` | 通知記錄已存在於 DB，Broadcast 只是讓前端的 `NotificationBell` 即時刷新計數，不插入任何資料 |
+
+#### 各場景 Broadcast 與通知對照表
+
+| 操作場景 | Broadcast 目標 | 通知入庫方式 |
+|---------|---------------|------------|
+| 員工申請假單 | 所有主管 (`broadcastToManagers`) | DB Trigger（`new_leave_request`）|
+| 員工申請取消（單筆/整批）| 所有主管 (`broadcastToManagers`) | DB Trigger（`leave_cancel_request`）|
+| 主管批准/退回（單筆）| 員工 (`broadcastToUser`) | DB Trigger（`leave_approved` / `leave_rejected`）|
+| 主管批准/退回（整批群組）| 員工 (`broadcastToUser`) | DB Trigger（`leave_approved` / `leave_rejected`，group_id 去重）|
+| 主管同意/拒絕取消（單筆）| 員工（`createNotification` 內含 broadcast）| `createNotification()` 直接呼叫（含入庫 + broadcast）|
+| 主管同意/拒絕取消（整批）| 員工（`createNotification` 內含 broadcast）| `createNotification()` 直接呼叫（含入庫 + broadcast）|
+
+#### 規範
+
+1. **`handle_leave_notifications` Trigger 去重邏輯**：每個 `group_id` 的所有 row 中，只有 `id` 最小的那筆 row 才執行通知插入；`group_id` 為 NULL 的舊資料視為獨立一筆，永遠插入。
+2. **Server Action 中禁止對 `new_leave_request` / `leave_approved` / `leave_rejected` / `leave_cancel_request` 呼叫 `createNotification`**：這四類通知由 DB Trigger 統一負責，避免重複。
+3. **`leave_cancel_result` 例外**：`approveCancelLeave` 和 `approveCancelLeaveGroup` 可呼叫 `createNotification()`，因為 Trigger 不處理此情境（DELETE 不觸發 Trigger 通知）。
+4. **通知內容使用中文假別**：DB Trigger 以 `CASE` 語句將 `leave_type` 原始值（如 `personal_leave`）轉為中文（如 `事假`）。
+5. **Broadcast 物件格式**：`{ targetUserId: string }`，前端 `NotificationBell` 比對 `targetUserId === currentUserId` 後才刷新。
+
+> `SECURITY DEFINER` 加持的 DB Trigger 可跨 RLS 讀取所有使用者角色，等效於 Server Action 中使用 `createAdminClient()`。
 
 ---
 
@@ -401,14 +487,18 @@ SUM(leaves.days) WHERE leave_type != 'annual_leave' AND status = 'approved'
 
 | 檔案 | 說明 |
 |------|------|
-| `app/leaves/actions.ts` | 所有請假 Server Actions |
-| `app/leaves/page.tsx` | 員工請假管理頁（Server Component）|
-| `components/LeaveTable.tsx` | 員工假單列表（Client Component）|
+| `app/leaves/page.tsx` | 員工請假管理頁（**Server Component**，伺服器端取資料）|
+| `app/leaves/LeavesClient.tsx` | 員工請假管理頁互動層（**Client Component**，dialog/刷新）|
+| `app/leaves/actions.ts` | 所有請假 Server Actions（含 `LeaveRow` 型別定義、群組批次 cancel 函式）|
+| `components/LeaveTable.tsx` | 員工假單列表（Client Component，含群組取消申請 UI）|
 | `components/ApplyLeaveDialog.tsx` | 請假申請對話框 |
-| `components/AdminLeaveTable.tsx` | 主管審核列表（Client Component）|
+| `components/AdminLeaveTable.tsx` | 主管審核列表（Client Component，含批次取消審核 UI）|
 | `app/admin/leaves/page.tsx` | 主管假單審核頁 |
 | `utils/leaves_helper.ts` | `checkLeaveConflicts` 衝突防呆工具 |
+| `utils/timezone.ts` | 時區工具（含 `formatToTaipeiTime`，避免 Hydration mismatch）|
 | `app/admin/salary/actions.ts` | 薪資計算（含請假扣薪邏輯）|
 | `types/supabase.ts` | 資料庫型別定義（leaves 表含所有欄位）|
+| `supabase/migrations/20260226_notification_triggers.sql` | 請假通知 DB Trigger（原始版）|
+| `supabase/migrations/20260228_fix_notification_dedup.sql` | 通知去重修正 Migration（**唯一通知發送方，以 group_id 去重**）|
 | `supabase/migrations/20260227_add_cancel_pending_status.sql` | 假單狀態擴充 Migration |
 | `supabase/migrations/20260227_drop_legacy_cancellation_table.sql` | 廢棄資料表清理 Migration |

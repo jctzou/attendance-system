@@ -141,9 +141,14 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     if (userError || !userData) return { error: 'User not found' }
 
     // 2. Define Date Range
-    const [year, month] = yearMonth.split('-')
-    const startDate = `${year}-${month}-01`
-    const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0]
+    // 使用 getDate() 計算月底日期，避免 toISOString() 的 timezone 問題
+    // 與 attendance/actions.ts 的寫法完全一致
+    const [yearStr, monthStr] = yearMonth.split('-')
+    const yearNum = parseInt(yearStr)
+    const monthNum = parseInt(monthStr)
+    const lastDay = new Date(yearNum, monthNum, 0).getDate()
+    const startDate = `${yearMonth}-01`
+    const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
 
     // 3. Get Existing Salary Record (for bonus/notes/settled data)
     const { data: existingRecord } = await supabase
@@ -217,8 +222,16 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
 
     // Process Attendance
     if (attendance) {
+        // 【診斷】工時異常偵測：若該月出勤筆數或單筆工時異常大，輸出警告
+        if (attendance.length > 35) {
+            console.warn(`[Salary] 異常：${userId} 在 ${yearMonth} 有 ${attendance.length} 筆出勤記錄（超過一個月天數），請檢查 DB 日期篩選是否正確。startDate=${startDate}, endDate=${endDate}`)
+        }
         attendance.forEach((record: any) => {
-            workHours += Number(record.work_hours) || 0
+            const hours = Number(record.work_hours) || 0
+            if (hours > 24) {
+                console.warn(`[Salary] 異常工時：attendance id=${record.id}, work_date=${record.work_date}, work_hours=${record.work_hours}`)
+            }
+            workHours += hours
             totalBreakHours += Number(record.break_duration) || 0
             if (record.status?.includes('late')) lateCount++
             if (record.status?.includes('early_leave')) earlyLeaveCount++
@@ -451,4 +464,172 @@ export async function resettleSalary(userId: string, yearMonth: string): Promise
 
     revalidatePath('/admin/salary')
     return { success: true }
+}
+
+/**
+ * Batch calculate all employees' salary for a given month.
+ * DB round-trips: fixed 5 (regardless of employee count).
+ * Does NOT call saveSalaryRecord automatically (Plan B optimization merged).
+ */
+export async function calculateAllMonthlySalaries(yearMonth: string): Promise<ActionResponse<SalaryRecordData[]>> {
+    const supabase = await createClient() as any
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    const { data: adminUser } = await supabase
+        .from('users').select('role').eq('id', user.id).single()
+
+    if (!adminUser || !['manager', 'super_admin'].includes(adminUser.role)) {
+        return { error: 'Permission denied' }
+    }
+
+    const [yearStr, monthStr] = yearMonth.split('-')
+    const yearNum = parseInt(yearStr)
+    const monthNum = parseInt(monthStr)
+    const lastDay = new Date(yearNum, monthNum, 0).getDate()
+    const startDate = `${yearMonth}-01`
+    const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
+
+    // 1. All employees
+    const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, display_name, avatar_url, salary_type, salary_amount')
+        .in('role', ['employee', 'manager', 'super_admin'])
+        .order('id', { ascending: true })
+
+    if (usersError || !users) return { error: usersError?.message || 'Failed to fetch users' }
+    const userIds = users.map((u: any) => u.id)
+
+    // 2. Batch attendance (single query)
+    const { data: allAttendance } = await supabase
+        .from('attendance')
+        .select('user_id, work_hours, break_duration, status, work_date')
+        .in('user_id', userIds)
+        .gte('work_date', startDate)
+        .lte('work_date', endDate)
+
+    // 3. Batch leaves (single query)
+    const { data: allLeaves } = await supabase
+        .from('leaves')
+        .select('user_id, leave_type, days')
+        .in('user_id', userIds)
+        .eq('status', 'approved')
+        .gte('start_date', startDate)
+        .lte('end_date', endDate)
+
+    // 4. Batch salary records (single query)
+    const { data: allSalaryRecords } = await supabase
+        .from('salary_records')
+        .select('*')
+        .in('user_id', userIds)
+        .eq('year_month', yearMonth)
+
+    // 5. Group by user in JS
+    const attendanceByUser = new Map<string, any[]>()
+    const leavesByUser = new Map<string, any[]>()
+    const salaryRecordByUser = new Map<string, any>()
+
+    ;(allAttendance || []).forEach((rec: any) => {
+        if (!attendanceByUser.has(rec.user_id)) attendanceByUser.set(rec.user_id, [])
+        attendanceByUser.get(rec.user_id)!.push(rec)
+    })
+    ;(allLeaves || []).forEach((rec: any) => {
+        if (!leavesByUser.has(rec.user_id)) leavesByUser.set(rec.user_id, [])
+        leavesByUser.get(rec.user_id)!.push(rec)
+    })
+    ;(allSalaryRecords || []).forEach((rec: any) => {
+        salaryRecordByUser.set(rec.user_id, rec)
+    })
+
+    // 6. Calculate per user
+    const results: SalaryRecordData[] = users.map((userData: any) => {
+        const existingRecord = salaryRecordByUser.get(userData.id)
+
+        // Settled: return snapshot directly
+        if (existingRecord?.is_paid && existingRecord.settled_data) {
+            const s = existingRecord.settled_data as any
+            return {
+                id: existingRecord.id,
+                userId: userData.id,
+                displayName: userData.display_name || 'Unknown',
+                avatarUrl: userData.avatar_url,
+                yearMonth,
+                type: (s.salaryType as SalaryType) || 'monthly',
+                status: 'SETTLED' as const,
+                baseSalary: s.base_salary,
+                bonus: s.bonus,
+                deduction: s.details?.deduction || 0,
+                totalSalary: s.total_salary,
+                rate: s.rate,
+                workHours: s.work_hours,
+                lateCount: s.details?.lateCount || 0,
+                earlyLeaveCount: s.details?.earlyLeaveCount || 0,
+                leaveDays: s.details?.leaveDays || 0,
+                totalBreakHours: s.details?.totalBreakHours || 0,
+                notes: existingRecord.notes || '',
+                settledDate: existingRecord.paid_at,
+            } satisfies SalaryRecordData
+        }
+
+        // Unsettled: live calculation
+        const attendance = attendanceByUser.get(userData.id) || []
+        const leaves = leavesByUser.get(userData.id) || []
+        const salaryType = (userData.salary_type as SalaryType) || 'monthly'
+        const salaryAmount = userData.salary_amount || 0
+
+        let workHours = 0, totalBreakHours = 0, lateCount = 0, earlyLeaveCount = 0, leaveDays = 0
+        const leaveDetails: Record<string, number> = {}
+
+        attendance.forEach((rec: any) => {
+            const hours = Number(rec.work_hours) || 0
+            if (hours > 24) {
+                console.warn(`[Salary Batch] Abnormal work_hours: work_date=${rec.work_date}, work_hours=${rec.work_hours}, user=${userData.display_name}`)
+            }
+            workHours += hours
+            totalBreakHours += Number(rec.break_duration) || 0
+            if (rec.status?.includes('late')) lateCount++
+            if (rec.status?.includes('early_leave')) earlyLeaveCount++
+        })
+
+        leaves.forEach((leave: any) => {
+            const days = Number(leave.days) || 0
+            leaveDays += days
+            leaveDetails[leave.leave_type] = (leaveDetails[leave.leave_type] || 0) + days
+        })
+
+        const baseSalary = salaryType === 'monthly' ? salaryAmount : workHours * salaryAmount
+        const bonus = existingRecord?.bonus || 0
+        const notes = existingRecord?.notes || ''
+
+        let deduction = 0
+        const unpaidLeaveDays = leaveDays - (leaveDetails['annual_leave'] || 0)
+        if (salaryType === 'monthly' && unpaidLeaveDays > 0) {
+            const dailyRate = Math.round(salaryAmount / 30)
+            deduction = Math.round(dailyRate * unpaidLeaveDays)
+        }
+
+        return {
+            id: existingRecord?.id,
+            userId: userData.id,
+            displayName: userData.display_name || 'Unknown',
+            avatarUrl: userData.avatar_url,
+            yearMonth,
+            type: salaryType,
+            status: 'UNSETTLED' as const,
+            baseSalary,
+            bonus,
+            deduction,
+            totalSalary: baseSalary + bonus - deduction,
+            workHours: parseFloat(workHours.toFixed(2)),
+            totalBreakHours: parseFloat(totalBreakHours.toFixed(2)),
+            lateCount,
+            earlyLeaveCount,
+            leaveDays,
+            rate: salaryAmount,
+            notes,
+        } satisfies SalaryRecordData
+    })
+
+    return { success: true, data: results }
 }

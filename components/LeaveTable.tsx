@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { cancelLeave, cancelLeaveGroup, requestCancelLeave } from '@/app/leaves/actions'
+import { cancelLeave, cancelLeaveGroup, requestCancelLeave, requestCancelLeaveGroup } from '@/app/leaves/actions'
 import { ConfirmDialog, AlertDialog } from './ui/ActionDialogs'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
+import { formatToTaipeiTime } from '@/utils/timezone'
 
 interface LeaveApprover {
     display_name: string
@@ -59,6 +60,10 @@ export default function LeaveTable({ data, onRefresh }: Props) {
     const [requestCancelTarget, setRequestCancelTarget] = useState<number | null>(null)
     const [cancelReason, setCancelReason] = useState<string>('')
     const [cancelReasonError, setCancelReasonError] = useState<string>('')
+    // For group cancel request
+    const [requestCancelGroupTarget, setRequestCancelGroupTarget] = useState<string | null>(null)
+    const [groupCancelReason, setGroupCancelReason] = useState<string>('')
+    const [groupCancelReasonError, setGroupCancelReasonError] = useState<string>('')
 
     const groupedData = useMemo(() => {
         const groups = new Map<string, GroupedLeave>()
@@ -154,6 +159,28 @@ export default function LeaveTable({ data, onRefresh }: Props) {
         }
     }
 
+    const executeRequestGroupCancel = async () => {
+        if (!requestCancelGroupTarget) return
+        if (!groupCancelReason.trim()) {
+            setGroupCancelReasonError('請填寫取消原因')
+            return
+        }
+        setLoadingId(requestCancelGroupTarget)
+        try {
+            const res = await requestCancelLeaveGroup(requestCancelGroupTarget, groupCancelReason)
+            if (!res.success) throw new Error(res.error?.message || '申請失敗')
+            setRequestCancelGroupTarget(null)
+            setGroupCancelReason('')
+            onRefresh?.()
+        } catch (e: any) {
+            setAlertMessage(e.message || '申請失敗')
+            setRequestCancelGroupTarget(null)
+            setGroupCancelReason('')
+        } finally {
+            setLoadingId(null)
+        }
+    }
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'approved':
@@ -227,13 +254,13 @@ export default function LeaveTable({ data, onRefresh }: Props) {
                                     </div>
                                 </div>
                                 <div className="text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-neutral-700 space-y-0.5">
-                                    <div>申請時間: {new Date(group.createdAt).toLocaleString('zh-TW')}</div>
+                                    <div>申請時間: {formatToTaipeiTime(group.createdAt, 'yyyy/MM/dd HH:mm:ss')}</div>
                                     {(group.status === 'approved' || group.status === 'cancel_pending') && group.items[0]?.approver?.display_name && (
                                         <div className="text-green-600 dark:text-green-400">
                                             ✓ 批准人: {group.items[0].approver.display_name}
                                             {group.items[0].approved_at && (
                                                 <span className="ml-1">
-                                                    ({new Date(group.items[0].approved_at).toLocaleDateString('zh-TW')})
+                                                    ({formatToTaipeiTime(group.items[0].approved_at, 'yyyy/MM/dd')})
                                                 </span>
                                             )}
                                         </div>
@@ -289,6 +316,17 @@ export default function LeaveTable({ data, onRefresh }: Props) {
                                         申請取消
                                     </button>
                                 )}
+                                {/* Multi-day approved group: request group cancel */}
+                                {group.items.length > 1 && group.status === 'approved' && (
+                                    <button onClick={() => { setRequestCancelGroupTarget(group.groupId); setGroupCancelReason(''); setGroupCancelReasonError('') }}
+                                        disabled={!!loadingId}
+                                        className="w-full py-2.5 px-4 bg-white dark:bg-neutral-700 border border-amber-200 dark:border-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
+                                        申請全部取消
+                                    </button>
+                                )}
+                                {group.status === 'cancel_pending' && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-400 text-center py-1">取消申請審核中</div>
+                                )}
                             </div>
                         </div>
                     )
@@ -341,7 +379,7 @@ export default function LeaveTable({ data, onRefresh }: Props) {
                                                 {(group.status === 'approved' || group.status === 'cancel_pending') && group.items[0]?.approver?.display_name && (
                                                     <span className="text-xs text-green-600 dark:text-green-400">
                                                         ✓ {group.items[0].approver.display_name}
-                                                        {group.items[0].approved_at && ` · ${new Date(group.items[0].approved_at).toLocaleDateString('zh-TW')}`}
+                                                        {group.items[0].approved_at && ` · ${formatToTaipeiTime(group.items[0].approved_at, 'yyyy/MM/dd')}`}
                                                     </span>
                                                 )}
                                                 {group.status === 'rejected' && group.items[0]?.approver?.display_name && (
@@ -362,7 +400,7 @@ export default function LeaveTable({ data, onRefresh }: Props) {
                                                         {loadingId === group.groupId ? '處理中' : '全部撤銷'}
                                                     </button>
                                                 )}
-                                                {/* Single-day approved group can request cancel directly */}
+                                                {/* Single-day approved: request cancel */}
                                                 {group.items.length === 1 && group.status === 'approved' && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setRequestCancelTarget(group.items[0].id); setCancelReason(''); setCancelReasonError('') }}
@@ -371,6 +409,19 @@ export default function LeaveTable({ data, onRefresh }: Props) {
                                                     >
                                                         申請取消
                                                     </button>
+                                                )}
+                                                {/* Multi-day approved group: request group cancel */}
+                                                {group.items.length > 1 && group.status === 'approved' && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setRequestCancelGroupTarget(group.groupId); setGroupCancelReason(''); setGroupCancelReasonError('') }}
+                                                        disabled={!!loadingId}
+                                                        className="inline-flex px-3 py-1 bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 rounded-lg transition-colors disabled:opacity-50"
+                                                    >
+                                                        申請全部取消
+                                                    </button>
+                                                )}
+                                                {group.status === 'cancel_pending' && (
+                                                    <span className="text-xs text-amber-600 dark:text-amber-400">取消申請審核中</span>
                                                 )}
                                             </div>
                                         </td>
@@ -425,7 +476,38 @@ export default function LeaveTable({ data, onRefresh }: Props) {
                 </table>
             </div>
 
-            {/* Cancel Request Dialog (for approved leaves) */}
+            {/* Group Cancel Request Dialog */}
+            {requestCancelGroupTarget !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+                        <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white">申請取消已批准假單（整批）</h3>
+                        <p className="text-sm text-slate-500 mb-4">此批取消申請將送至主管審核，同意後整批假單才會被撤銷。</p>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300 mb-1">取消原因 <span className="text-red-500">*</span></label>
+                        <textarea
+                            value={groupCancelReason}
+                            onChange={e => { setGroupCancelReason(e.target.value); setGroupCancelReasonError('') }}
+                            rows={3}
+                            className={`w-full rounded-lg border px-3 py-2 text-sm text-slate-800 dark:text-neutral-100 bg-white dark:bg-neutral-700 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 ${groupCancelReasonError ? 'border-red-400' : 'border-slate-300 dark:border-neutral-600'}`}
+                            placeholder="請說明取消原因（必填）"
+                        />
+                        {groupCancelReasonError && <p className="text-xs text-red-500 mt-1">{groupCancelReasonError}</p>}
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button onClick={() => { setRequestCancelGroupTarget(null); setGroupCancelReason('') }}
+                                className="px-4 py-2 text-sm rounded-lg text-slate-600 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors">
+                                不了
+                            </button>
+                            <button
+                                onClick={executeRequestGroupCancel}
+                                disabled={!!loadingId}
+                                className="px-4 py-2 text-sm rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50">
+                                {loadingId === requestCancelGroupTarget ? '傳送中...' : '確認申請取消（整批）'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Single-item Cancel Request Dialog (for approved leaves) */}
             {requestCancelTarget !== null && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">

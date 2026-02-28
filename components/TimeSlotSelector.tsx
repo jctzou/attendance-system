@@ -7,9 +7,10 @@ interface Props {
     onChange: (value: string) => void
     label: string
     required?: boolean
+    workDate?: string  // 強制綁定日期，避免 value 為空時 fallback 到今日
 }
 
-export default function TimeSlotSelector({ value, onChange, label, required = false }: Props) {
+export default function TimeSlotSelector({ value, onChange, label, required = false, workDate }: Props) {
     // 解析 value 為日期、上午/下午、時間
     const { date, period, time12 } = useMemo(() => {
         if (!value) return { date: '', period: 'AM' as 'AM' | 'PM', time12: '09:00' }
@@ -81,8 +82,8 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
 
     // 處理上午/下午變更
     const handlePeriodChange = (newPeriod: 'AM' | 'PM') => {
-        // 如果沒有日期，使用今天 (Local)
-        const targetDate = date || getTodayDateStr()
+        // 優先使用外部傳入的 workDate，其次是解析自 value 的 date，最後才 fallback 到今日
+        const targetDate = workDate || date || getTodayDateStr()
         const hours24 = convert12to24(time12, newPeriod)
         const newValue = `${targetDate}T${hours24}`
         onChange(newValue)
@@ -90,8 +91,8 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
 
     // 處理時間變更
     const handleTimeChange = (newTime12: string) => {
-        // 如果沒有日期，使用今天 (Local)
-        const targetDate = date || getTodayDateStr()
+        // 優先使用外部傳入的 workDate，其次是解析自 value 的 date，最後才 fallback 到今日
+        const targetDate = workDate || date || getTodayDateStr()
         const hours24 = convert12to24(newTime12, period)
         const newValue = `${targetDate}T${hours24}`
         onChange(newValue)

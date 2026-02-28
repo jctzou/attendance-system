@@ -1,109 +1,29 @@
-'use client'
+// Server Component — 伺服器端取得資料後傳入 LeavesClient
+// 目的：讓 salaryType 在 HTML 送達瀏覽器前即確定，消除特休區塊閃爍問題
 
-import { useEffect, useState } from 'react'
 import { getMyLeaves, getAnnualLeaveBalance } from './actions'
 import { getUserProfile } from '@/app/attendance/actions'
-import LeaveTable from '@/components/LeaveTable'
-import ApplyLeaveDialog from '@/components/ApplyLeaveDialog'
-import { PageContainer } from '@/components/ui/PageContainer'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
+import LeavesClient from './LeavesClient'
 
-export default function LeavesPage() {
-    const [leaves, setLeaves] = useState<any[]>([])
-    const [balance, setBalance] = useState<any>(null)
-    const [salaryType, setSalaryType] = useState<string>('monthly')
-    const [loading, setLoading] = useState(true)
-    const [showApplyDialog, setShowApplyDialog] = useState(false)
+export default async function LeavesPage() {
+    // 1. 先取得使用者 profile，確認 salaryType
+    const profileRes = await getUserProfile()
+    const salaryType = profileRes.success ? (profileRes.data.salary_type || 'monthly') : 'monthly'
 
-    const fetchData = async () => {
-        setLoading(true)
-        const [leavesRes, balanceRes, profileRes] = await Promise.all([
-            getMyLeaves(),
-            getAnnualLeaveBalance(),
-            getUserProfile()
-        ])
+    // 2. 並行取假單列表；特休餘額僅月薪制才需要
+    const [leavesRes, balanceRes] = await Promise.all([
+        getMyLeaves(),
+        salaryType !== 'hourly' ? getAnnualLeaveBalance() : Promise.resolve(null),
+    ])
 
-        if (leavesRes.success) {
-            setLeaves(leavesRes.data)
-        }
-        if (balanceRes.success) {
-            setBalance(balanceRes.data)
-        }
-        if (profileRes.success) {
-            setSalaryType(profileRes.data.salary_type || 'monthly')
-        }
-        setLoading(false)
-    }
-
-    useEffect(() => {
-        fetchData()
-    }, [])
+    const initialLeaves = leavesRes.success ? leavesRes.data : []
+    const initialBalance = (balanceRes && balanceRes.success) ? balanceRes.data : null
 
     return (
-        <PageContainer
-            title="請假管理"
-            description="查看您的請假記錄與特休餘額，並可在此申請新的休假。"
-            action={
-                <Button onClick={() => setShowApplyDialog(true)}>
-                    + 申請請假
-                </Button>
-            }
-        >
-            {/* 特休餘額卡片 */}
-            {salaryType !== 'hourly' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <Card title={`年度特休總天數 (${new Date().getFullYear()})`}>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                                {balance?.total_days || 0}
-                            </span>
-                            <span className="text-sm text-slate-500 dark:text-neutral-400">天</span>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2">包含所有已核發的特休假</p>
-                    </Card>
-
-                    <Card title="已使用 (含審核中)">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-                                {balance?.used_days || 0}
-                            </span>
-                            <span className="text-sm text-slate-500 dark:text-neutral-400">天</span>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2">已批准與待審核的申請</p>
-                    </Card>
-
-                    <Card title="剩餘天數">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-green-600 dark:text-green-400">
-                                {balance ? (balance.total_days - balance.used_days) : 0}
-                            </span>
-                            <span className="text-sm text-slate-500 dark:text-neutral-400">天</span>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2">目前可申請的特休餘額</p>
-                    </Card>
-                </div>
-            )}
-
-            <Card title="我的請假記錄" className="overflow-hidden">
-                {loading ? (
-                    <div className="p-8 text-center text-slate-500">載入中...</div>
-                ) : (
-                    <LeaveTable data={leaves} onRefresh={fetchData} />
-                )}
-            </Card>
-
-            {showApplyDialog && (
-                <ApplyLeaveDialog
-                    onClose={() => setShowApplyDialog(false)}
-                    onSuccess={() => {
-                        setShowApplyDialog(false)
-                        fetchData()
-                    }}
-                    annualLeaveBalance={balance}
-                    salaryType={salaryType}
-                />
-            )}
-        </PageContainer>
+        <LeavesClient
+            initialLeaves={initialLeaves as any}
+            initialBalance={initialBalance}
+            initialSalaryType={salaryType}
+        />
     )
 }

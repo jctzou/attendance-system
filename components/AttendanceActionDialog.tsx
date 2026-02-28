@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { useState, useEffect, useRef } from 'react'
 import { updateAttendance, addAttendanceRecord } from '@/app/attendance/actions'
-import { cancelLeave } from '@/app/leaves/actions'
 import TimeSlotSelector from './TimeSlotSelector'
 import { Dialog, DialogContent, DialogHeader, DialogFooter } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LEAVE_TYPE_MAP } from '@/app/attendance/constants'
-import { formatToTaipeiTime, fromTaipeiLocalToUTC, getTaipeiDateString } from '@/utils/timezone'
+import { formatToTaipeiTime, fromTaipeiLocalToUTC } from '@/utils/timezone'
 
 interface Props {
     date: string
@@ -21,12 +19,7 @@ interface Props {
     salaryType?: 'monthly' | 'hourly'
 }
 
-type Tab = 'attendance' | 'leave'
-
-// Remove manual toLocalISOString helper
-
 export default function AttendanceActionDialog({ date, existingRecord, existingLeave, onClose, onSuccess, isAdmin = false, salaryType = 'monthly' }: Props) {
-    const [activeTab, setActiveTab] = useState<Tab>('attendance')
     const [loading, setLoading] = useState(false)
     const [mode, setMode] = useState<'add' | 'edit'>('add')
     const userSalaryType = salaryType
@@ -38,58 +31,69 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
     const [reason, setReason] = useState('')
     const [validationError, setValidationError] = useState<string | null>(null)
 
-    // Leave Form State
-    const [leaveType, setLeaveType] = useState('sick')
-    const [leaveStart, setLeaveStart] = useState(date)
-    const [leaveEnd, setLeaveEnd] = useState(date)
-    const [leaveReason, setLeaveReason] = useState('')
+    // 追蹤使用者是否已主動更改時間（防止初始化時觸發午休防呆）
+    const hasUserInteracted = useRef(false)
 
     // 1. Initialize Data
     useEffect(() => {
-        // ... fetchUserType ...
-
+        // 重置交互旧慌，避免聲下一次對話框開啟時觤發市休防呆
+        hasUserInteracted.current = false
         if (existingRecord) {
             setMode('edit')
-            // Convert DB UTC -> Local ISO for State
             setClockIn(existingRecord.clock_in_time ? formatToTaipeiTime(existingRecord.clock_in_time, "yyyy-MM-dd'T'HH:mm") : `${date}T09:00`)
             setClockOut(existingRecord.clock_out_time ? formatToTaipeiTime(existingRecord.clock_out_time, "yyyy-MM-dd'T'HH:mm") : '')
             setBreakDuration(existingRecord.break_duration ?? 1.0)
-            setActiveTab('attendance')
         } else {
             setMode('add')
-            // Default: 09:00 / 18:00 Local Time on the selected date
             setClockIn(`${date}T09:00`)
             setClockOut(`${date}T18:00`)
             setBreakDuration(1.0)
+        }
+    }, [existingRecord, date])
 
-            if (existingLeave) {
-                setActiveTab('leave')
+    // 2. Validation for clock-in/out times
+    useEffect(() => {
+        if (clockIn && clockOut) {
+            const inTime = new Date(clockIn)
+            const outTime = new Date(clockOut)
+            if (outTime <= inTime) {
+                setValidationError('下班時間必須晚於上班時間')
             } else {
-                setActiveTab('attendance')
+                setValidationError(null)
             }
-        }
-
-        if (existingLeave) {
-            setLeaveType(existingLeave.leave_type)
-            setLeaveStart(getTaipeiDateString(existingLeave.start_date))
-            setLeaveEnd(getTaipeiDateString(existingLeave.end_date))
-            setLeaveReason(existingLeave.reason || '')
         } else {
-            setLeaveStart(date)
-            setLeaveEnd(date)
+            setValidationError(null)
         }
-    }, [existingRecord, existingLeave, date])
+    }, [clockIn, clockOut])
 
-    // ... validation ...
+    // 3. 使用者主動更改時間後，實施午休防呆
+    // 法則：上班時間 >= 12:00 或 下班時間 < 12:00 → 午休自動歸零
+    useEffect(() => {
+        if (!hasUserInteracted.current) return  // 初始化時不觸發
+        const clockInHour = clockIn ? parseInt(clockIn.split('T')[1]?.split(':')[0] || '0', 10) : -1
+        const clockOutHour = clockOut ? parseInt(clockOut.split('T')[1]?.split(':')[0] || '99', 10) : 99
+        if (clockInHour >= 12 || clockOutHour < 12) {
+            setBreakDuration(0)
+        }
+    }, [clockIn, clockOut])
 
-    // 3. Handlers
+    // 包裝對話框的時間更改 handler，標記使用者已主動互動
+    const handleClockInChange = (val: string) => {
+        hasUserInteracted.current = true
+        setClockIn(val)
+    }
+    const handleClockOutChange = (val: string) => {
+        hasUserInteracted.current = true
+        setClockOut(val)
+    }
+
+    // 4. Handlers
     const handleAttendanceSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (validationError) return
 
         setLoading(true)
         try {
-            // Convert Local ISO -> UTC ISO for DB
             const utcClockIn = clockIn ? fromTaipeiLocalToUTC(clockIn) : null
             const utcClockOut = clockOut ? fromTaipeiLocalToUTC(clockOut) : null
 
@@ -126,61 +130,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         }
     }
 
-    const handleLeaveSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setLoading(true)
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) {
-            setLoading(false)
-            return
-        }
-
-        // @ts-ignore
-        const { error } = await (supabase.from('leaves') as any).insert({
-            user_id: user.id,
-            leave_type: leaveType,
-            start_date: leaveStart,
-            end_date: leaveEnd,
-            reason: leaveReason,
-            status: 'pending'
-        })
-
-        if (error) {
-            alert(error.message)
-        } else {
-            alert('假單已送出申請')
-            onSuccess()
-            onClose()
-        }
-        setLoading(false)
-    }
-
-    const handleCancelLeave = async () => {
-        if (!existingLeave) return
-        if (!confirm('確定要取消此請假申請嗎？')) return
-
-        setLoading(true)
-        try {
-            const res = await cancelLeave(existingLeave.id)
-            if (!res.success) {
-                alert(res.error.message)
-            } else {
-                alert('已取消申請')
-                onSuccess()
-                onClose()
-            }
-        } catch (err) {
-            console.error(err)
-            alert('發生錯誤')
-        } finally {
-            setLoading(false)
-        }
-    }
-
     const getTitle = () => {
-        if (activeTab === 'leave') return existingLeave ? `${date} - 請假詳情` : `${date} - 請假申請`
         return existingRecord ? `${date} - 修改打卡` : `${date} - 補登打卡`
     }
 
@@ -188,228 +138,122 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
         <Dialog isOpen={true} onClose={onClose} maxWidth="lg">
             <DialogHeader title={getTitle()} onClose={onClose} />
 
-            <div className="border-b border-slate-200 dark:border-neutral-700 px-6">
-                <div className="flex space-x-6">
-                    <button
-                        onClick={() => setActiveTab('attendance')}
-                        className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'attendance'
-                            ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        {existingRecord ? '修改打卡' : '補登打卡'}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('leave')}
-                        className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'leave'
-                            ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        {existingLeave ? '請假詳情' : '請假申請'}
-                    </button>
-                </div>
-            </div>
-
             <DialogContent className="pt-6">
-                {activeTab === 'attendance' ? (
-                    <form onSubmit={handleAttendanceSubmit} className="space-y-6">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md text-sm text-blue-800 dark:text-blue-300 mb-4 border border-blue-100 dark:border-blue-900/50">
-                            <p>補登與修改請務必填寫原因，系統將記錄修改歷程。</p>
-                        </div>
+                {/* 若該日有請假，顯示提示橫幅（唯讀） */}
+                {existingLeave && (
+                    <div className={`mb-4 p-3 rounded-md border text-sm flex items-center gap-2 ${existingLeave.status === 'approved'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300'
+                        : existingLeave.status === 'cancel_pending'
+                            ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-300'
+                            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300'
+                        }`}>
+                        <span className="material-symbols-outlined text-[18px]">
+                            {existingLeave.status === 'approved' ? 'event_available' : 'pending'}
+                        </span>
+                        <span>
+                            <span className="font-semibold">
+                                {LEAVE_TYPE_MAP[existingLeave.leave_type] || existingLeave.leave_type}
+                            </span>
+                            {' — '}
+                            {existingLeave.status === 'approved' ? '已核准' :
+                                existingLeave.status === 'cancel_pending' ? '申請取消中' : '審核中'}
+                            {existingLeave.reason && (
+                                <span className="opacity-75">（{existingLeave.reason}）</span>
+                            )}
+                        </span>
+                    </div>
+                )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Salary Type Logic Separation via Implementation Plan */}
-                            {userSalaryType === 'hourly' ? (
-                                <>
+                <form onSubmit={handleAttendanceSubmit} className="space-y-6">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-md text-sm text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-900/50">
+                        <p>補登與修改請務必填寫原因，系統將記錄修改歷程。</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {userSalaryType === 'hourly' ? (
+                            <>
+                                <TimeSlotSelector
+                                    label="上班時間"
+                                    value={clockIn}
+                                    onChange={handleClockInChange}
+                                    workDate={date}
+                                />
+                                <div className="relative">
                                     <TimeSlotSelector
-                                        label="上班時間"
-                                        value={clockIn}
-                                        onChange={setClockIn}
-                                    />
-                                    <div className="relative">
-                                        <TimeSlotSelector
-                                            label="下班時間"
-                                            value={clockOut}
-                                            onChange={setClockOut}
-                                        />
-                                        {clockOut && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setClockOut('')}
-                                                className="absolute right-0 top-0 text-xs text-red-500 hover:text-red-700"
-                                            >
-                                                清除下班時間
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
-                                            午休時間 (小時)
-                                        </label>
-                                        <select
-                                            value={breakDuration}
-                                            onChange={(e) => setBreakDuration(Number(e.target.value))}
-                                            className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                                        >
-                                            {[0, 0.5, 1, 1.5, 2, 2.5, 3].map((val) => (
-                                                <option key={val} value={val}>{val} hr</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <Input
-                                        type="datetime-local"
-                                        label="上班時間"
-                                        value={clockIn}
-                                        onChange={(e) => setClockIn(e.target.value)}
-                                        required
-                                    />
-                                    <Input
-                                        type="datetime-local"
                                         label="下班時間"
                                         value={clockOut}
-                                        onChange={(e) => setClockOut(e.target.value)}
-                                    // 移除 required，允許尚未下班的狀態下修改上班時間
+                                        onChange={handleClockOutChange}
+                                        workDate={date}
                                     />
-                                </>
-                            )}
-                        </div>
-
-                        {/* Error Message */}
-                        {validationError && (
-                            <div className="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-md border border-red-200">
-                                ⚠️ {validationError}
-                            </div>
-                        )}
-
-                        <Input
-                            label={mode === 'edit' ? "修改原因 (必填)" : "補登原因 (必填)"}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder="請說明原因..."
-                            required
-                        />
-
-
-
-                        <DialogFooter>
-                            <Button variant="outline" onClick={onClose} disabled={loading}>
-                                取消
-                            </Button>
-                            <Button type="submit" disabled={loading || !!validationError} isLoading={loading}>
-                                {mode === 'edit' ? '確認修改' : '確認補登'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                ) : (
-                    // Leave Tab
-                    <div className="space-y-6">
-                        {existingLeave ? (
-                            // Existing Leave View
-                            <div className="space-y-4">
-                                <div className={`p-4 rounded-md border ${existingLeave.status === 'approved'
-                                    ? 'bg-green-50 border-green-200 text-green-800'
-                                    : 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                    }`}>
-                                    <div className="font-bold flex items-center gap-2">
-                                        {existingLeave.status === 'approved' ? '✓ 已核准' : '⏳ 審核中'}
-                                        <span className="text-sm font-normal opacity-75">
-                                            ({LEAVE_TYPE_MAP[existingLeave.leave_type] || '未定義假別'})
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs text-slate-500">開始日期</label>
-                                        <div className="font-medium">{existingLeave.start_date.split('T')[0]}</div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-slate-500">結束日期</label>
-                                        <div className="font-medium">{existingLeave.end_date.split('T')[0]}</div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-slate-500">事由</label>
-                                    <div className="font-medium">{existingLeave.reason}</div>
-                                </div>
-
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={onClose}>
-                                        關閉
-                                    </Button>
-                                    {existingLeave.status === 'pending' && (
-                                        <Button
-                                            variant="danger"
-                                            onClick={handleCancelLeave}
-                                            disabled={loading}
-                                            isLoading={loading}
+                                    {clockOut && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setClockOut('')}
+                                            className="absolute right-0 top-0 text-xs text-red-500 hover:text-red-700"
                                         >
-                                            取消申請
-                                        </Button>
+                                            清除下班時間
+                                        </button>
                                     )}
-                                </DialogFooter>
-                            </div>
-                        ) : (
-                            // New Leave Form
-                            <form onSubmit={handleLeaveSubmit} className="space-y-6">
+                                </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
-                                        假別
+                                        午休時間 (小時)
                                     </label>
                                     <select
-                                        value={leaveType}
-                                        onChange={(e) => setLeaveType(e.target.value)}
+                                        value={breakDuration}
+                                        onChange={(e) => setBreakDuration(Number(e.target.value))}
                                         className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                                     >
-                                        {Object.entries(LEAVE_TYPE_MAP).map(([key, label]) => (
-                                            <option key={key} value={key}>{label}</option>
+                                        {[0, 1, 1.5, 2].map((val) => (
+                                            <option key={val} value={val}>{val} hr</option>
                                         ))}
                                     </select>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-6">
-                                    <Input
-                                        type="date"
-                                        label="開始日期"
-                                        value={leaveStart}
-                                        onChange={(e) => setLeaveStart(e.target.value)}
-                                        required
-                                    />
-                                    <Input
-                                        type="date"
-                                        label="結束日期"
-                                        value={leaveEnd}
-                                        onChange={(e) => setLeaveEnd(e.target.value)}
-                                        required
-                                    />
-                                </div>
-
+                            </>
+                        ) : (
+                            <>
                                 <Input
-                                    label="請假事由"
-                                    value={leaveReason}
-                                    onChange={(e) => setLeaveReason(e.target.value)}
-                                    placeholder="請填寫具體事由"
+                                    type="datetime-local"
+                                    label="上班時間"
+                                    value={clockIn}
+                                    onChange={(e) => setClockIn(e.target.value)}
                                     required
                                 />
-
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={onClose} disabled={loading}>
-                                        取消
-                                    </Button>
-                                    <Button type="submit" disabled={loading} isLoading={loading}>
-                                        送出申請
-                                    </Button>
-                                </DialogFooter>
-                            </form>
+                                <Input
+                                    type="datetime-local"
+                                    label="下班時間"
+                                    value={clockOut}
+                                    onChange={(e) => setClockOut(e.target.value)}
+                                />
+                            </>
                         )}
                     </div>
-                )}
+
+                    {/* Error Message */}
+                    {validationError && (
+                        <div className="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-md border border-red-200">
+                            ⚠️ {validationError}
+                        </div>
+                    )}
+
+                    <Input
+                        label={mode === 'edit' ? "修改原因 (必填)" : "補登原因 (必填)"}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="請說明原因..."
+                        required
+                    />
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={onClose} disabled={loading}>
+                            取消
+                        </Button>
+                        <Button type="submit" disabled={loading || !!validationError} isLoading={loading}>
+                            {mode === 'edit' ? '確認修改' : '確認補登'}
+                        </Button>
+                    </DialogFooter>
+                </form>
             </DialogContent>
-        </Dialog >
+        </Dialog>
     )
 }
-
