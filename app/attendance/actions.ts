@@ -126,25 +126,6 @@ export async function clockIn(userId: string, customTime?: Date): Promise<Action
 
         if (error) throw new Error(error.message)
 
-        // 【自動校正日誌】 如果有帶入選擇的特定時間 (代表是鐘點制)，需要記錄「當下真實的按鈕點擊時間」
-        if (input.customTime) {
-            const actualRealTime = new Date().toISOString();
-            // 在此情境中，old 代表「未經修飾的真實時間」，new 代表「選擇寫入的漂亮時間」。或是反過來？
-            // 邏輯上，真實時間是系統剛才抓到的 `new Date()`，使用者選擇的是 `input.customTime`
-            // 保留真實打卡時間到 old 欄位
-            await supabase.from('attendance_edit_logs').insert({
-                attendance_id: newRecord.id,
-                editor_id: input.userId,
-                old_clock_in_time: actualRealTime,
-                new_clock_in_time: now.toISOString(),
-                edit_reason: '[自動整點校正] 保留真實打卡時間紀錄'
-            });
-
-            // 更新主表記錄為已修改，讓前端能顯示紅點/編輯標記
-            await supabase.from('attendance').update({ is_edited: true }).eq('id', newRecord.id);
-            newRecord.is_edited = true;
-        }
-
         // 穩定的伺服器端廣播
         await sendServerBroadcast('public:attendance_sync', 'sync', { action: 'clockIn' })
 
@@ -194,9 +175,6 @@ export async function clockOut(userId: string, customTime?: Date, breakDuration?
             status: status,
             break_duration: finalBreak
         };
-        if (input.customTime) {
-            updatePayload.is_edited = true;
-        }
 
         const { data: updatedRecord, error } = await supabase.from('attendance')
             .update(updatePayload)
@@ -204,18 +182,6 @@ export async function clockOut(userId: string, customTime?: Date, breakDuration?
             .select().single()
 
         if (error) throw new Error(error.message)
-
-        // 【自動校正日誌】 下班打卡如果帶入自選區段，同步將真實時間寫入 old 欄位
-        if (input.customTime) {
-            const actualRealTime = new Date().toISOString();
-            await supabase.from('attendance_edit_logs').insert({
-                attendance_id: updatedRecord.id, // Must be updatedRecord
-                editor_id: input.userId,
-                old_clock_out_time: actualRealTime,
-                new_clock_out_time: now.toISOString(),
-                edit_reason: '[自動整點校正] 保留真實打卡時間紀錄'
-            });
-        }
 
         // 穩定的伺服器端廣播
         await sendServerBroadcast('public:attendance_sync', 'sync', { action: 'clockOut' })

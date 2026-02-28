@@ -44,25 +44,38 @@ export default function ModernClockPanel({
     // Local state for immediate feedback
     const [attendanceRecord, setAttendanceRecord] = useState<AttendanceRow | null>(initialRecord)
 
-    // Hourly: Pre-clock-in slot selection
-    const [selectedTimeSlot, setSelectedTimeSlot] = useState<Date | null>(null)
+    // 上班狀態控制
+    const isClockedIn = !!attendanceRecord?.clock_in_time
+    const isClockedOut = !!attendanceRecord?.clock_out_time
 
-    // Hourly: Post-clock-in break duration selection
+    // --- Hourly Related State ---
     const [breakDuration, setBreakDuration] = useState<number>(1.0)
+    const [scheduledClockOut, setScheduledClockOut] = useState<Date | null>(null)
+    const [isClockOutAdjusted, setIsClockOutAdjusted] = useState(false)
+    const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false)
 
     // Confirmation Modal State
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
-    // Sync with initial record
+    // Sync with initial record & Initialize Scheduled Clock Out
     useEffect(() => {
         if (initialRecord) {
             setAttendanceRecord(initialRecord)
-            // Restore break duration if applicable
-            if (salaryType === 'hourly' && (initialRecord as any).break_duration) {
-                setBreakDuration((initialRecord as any).break_duration)
+            if (salaryType === 'hourly' && (initialRecord as any).break_duration !== undefined) {
+                setBreakDuration((initialRecord as any).break_duration ?? 1.0)
             }
         }
     }, [initialRecord, salaryType])
+
+    // 初始化/同步表定下班時間 (Date 物件)
+    useEffect(() => {
+        if (salaryType === 'hourly' && userSettings.work_end_time) {
+            const [h, m] = userSettings.work_end_time.split(':').map(Number)
+            const d = new Date()
+            d.setHours(h, m, 0, 0)
+            setScheduledClockOut(d)
+        }
+    }, [salaryType, userSettings.work_end_time])
 
     // Timer Logic
     useEffect(() => {
@@ -73,51 +86,21 @@ export default function ModernClockPanel({
         return () => clearInterval(timer)
     }, [])
 
-    // Hourly Slot Logic
-    const calculateTimeSlots = (currentTime: Date) => {
-        const minutes = currentTime.getMinutes()
-        const hours = currentTime.getHours()
-        // Prev 30 min slot
-        const prevMinutes = Math.floor(minutes / 30) * 30
-        const prevSlot = new Date(currentTime)
-        prevSlot.setMinutes(prevMinutes, 0, 0)
-        // Next 30 min slot
-        let nextMinutes = Math.ceil(minutes / 30) * 30
-        const nextSlot = new Date(currentTime)
-        if (nextMinutes === 60) nextSlot.setHours(hours + 1, 0, 0, 0)
-        else nextSlot.setMinutes(nextMinutes, 0, 0)
-
-        return { prevSlot, nextSlot }
-    }
-
-    // Initialize Hourly Slot
-    useEffect(() => {
-        if (salaryType === 'hourly' && time && !selectedTimeSlot) {
-            const { prevSlot } = calculateTimeSlots(time)
-            setSelectedTimeSlot(prevSlot)
-        }
-    }, [salaryType, time, selectedTimeSlot])
-
     // --- Actions ---
 
     const handleClockIn = async () => {
         setMessage('')
+        setMessageType('success')
         startTransition(async () => {
             try {
-                const timeToUse = salaryType === 'hourly' && selectedTimeSlot ? selectedTimeSlot : undefined
-                const res = await clockIn(userId, timeToUse)
-
+                const res = await clockIn(userId)
                 if (!res.success) {
                     setMessageType('error')
-                    if (res.error?.code === 'DUPLICATE_ENTRY') {
-                        setMessage('⚠️ 今日已完成上班打卡，請勿重複操作')
-                    } else {
-                        setMessage(`❌ ${res.error?.message}`)
-                    }
+                    setMessage(res.error?.code === 'DUPLICATE_ENTRY' ? '⚠️ 今日已完成上班打卡' : `❌ ${res.error?.message}`)
                 } else {
-                    setMessageType('success')
-                    setMessage('✅ 上班打卡成功')
-                    setAttendanceRecord(res.data) // Immediate Update
+                    setAttendanceRecord(res.data)
+                    // 鐘點制不再顯示提示，直接進入上班中狀態
+                    if (salaryType !== 'hourly') setMessage('✅ 上班打卡成功')
                 }
             } catch (e) {
                 setMessageType('error')
@@ -128,18 +111,20 @@ export default function ModernClockPanel({
 
     const handleClockOut = async () => {
         setMessage('')
+        setMessageType('success')
         startTransition(async () => {
             try {
-                const timeToUse = salaryType === 'hourly' && selectedTimeSlot ? selectedTimeSlot : undefined
+                // 鐘點制：使用表定或調整後的下班時間；月薪：使用 undefined (即 server 端 new Date())
+                const timeToUse = salaryType === 'hourly' ? scheduledClockOut || undefined : undefined
                 const res = await clockOut(userId, timeToUse, salaryType === 'hourly' ? breakDuration : undefined)
 
                 if (!res.success) {
                     setMessageType('error')
                     setMessage(`❌ ${res.error?.message}`)
                 } else {
-                    setMessageType('success')
-                    setMessage('✅ 下班打卡成功')
-                    setAttendanceRecord(res.data) // Immediate Update
+                    setAttendanceRecord(res.data)
+                    // 鐘點制不顯示提示，直接進入已下班狀態
+                    if (salaryType !== 'hourly') setMessage('✅ 下班打卡成功')
                 }
             } catch (e) {
                 setMessageType('error')
@@ -147,8 +132,6 @@ export default function ModernClockPanel({
             }
         })
     }
-
-    const handleCancelClockOutClick = () => setShowCancelConfirm(true)
 
     const handleConfirmCancelClockOut = async () => {
         setShowCancelConfirm(false)
@@ -160,9 +143,9 @@ export default function ModernClockPanel({
                     setMessageType('error')
                     setMessage(`❌ ${res.error?.message}`)
                 } else {
-                    setMessageType('success')
-                    setMessage('✅ 已取消下班打卡')
-                    setAttendanceRecord(res.data) // Immediate Update
+                    setAttendanceRecord(res.data)
+                    setIsClockOutAdjusted(false)
+                    // 直接回復狀態，不顯示提示
                 }
             } catch (e) {
                 setMessageType('error')
@@ -174,14 +157,28 @@ export default function ModernClockPanel({
     // --- UI Helpers ---
 
     const formatTime = (date: Date) => date.toLocaleTimeString('zh-TW', { hour12: false })
+    const formatHHmm = (date: Date) => date.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })
     const getStatusInfo = (status: string | undefined | null) => {
         if (!status) return STATUS_CONFIG.normal
         return (STATUS_CONFIG as any)[status] || STATUS_CONFIG.normal
     }
-    const isClockedIn = !!attendanceRecord?.clock_in_time
-    const isClockedOut = !!attendanceRecord?.clock_out_time
-
     const statusInfo = getStatusInfo(attendanceRecord?.status)
+
+    // 生成調整時間選單：30 分鐘為單位
+    const generateTimeOptions = () => {
+        const options = []
+        for (let h = 0; h < 24; h++) {
+            for (let m = 0; m < 60; m += 30) {
+                const d = new Date()
+                d.setHours(h, m, 0, 0)
+                options.push(d)
+            }
+        }
+        return options
+    }
+
+    const timeOptions = generateTimeOptions()
+    const clockInTimeObj = attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time) : null
 
     return (
         <>
@@ -204,144 +201,189 @@ export default function ModernClockPanel({
                 {/* Divider */}
                 <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent mb-6"></div>
 
-                {/* Main Action Area */}
-
-                {/* Hourly: Slot Selection */}
-                {salaryType === 'hourly' && !isClockedOut && time && (
-                    <div className="mb-5">
-                        <div className="text-sm text-slate-500 mb-4">{isClockedIn ? '選擇下班時間' : '選擇上班時間'}</div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {(() => {
-                                const { prevSlot, nextSlot } = calculateTimeSlots(time)
-                                const isSelected = (slot: Date) => selectedTimeSlot?.getTime() === slot.getTime()
-                                return [prevSlot, nextSlot].map((slot, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSelectedTimeSlot(slot)}
-                                        className={`py-4 px-2 rounded-xl border-2 transition-all ${isSelected(slot)
-                                            ? 'border-primary bg-orange-50/50 dark:bg-transparent text-primary'
-                                            : 'border-slate-100 dark:border-neutral-800 hover:border-primary/30 text-slate-600'
-                                            }`}
-                                    >
-                                        <div className="text-2xl font-bold">{slot.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
-                                        <div className="text-[10px] uppercase tracking-wider opacity-60">{idx === 0 ? 'Previous' : 'Next'}</div>
-                                    </button>
-                                ))
-                            })()}
-                        </div>
-                    </div>
-                )}
-
-                {/* Hourly: Break Selection (Only when clocked in and about to clock out) */}
-                {salaryType === 'hourly' && isClockedIn && !isClockedOut && (
-                    <div className="mb-5">
-                        <div className="text-sm text-slate-500 mb-2">午休時數</div>
-                        <div className="flex justify-center gap-2">
-                            {[1.0, 1.5, 2.0].map(d => (
-                                <button
-                                    key={d}
-                                    onClick={() => setBreakDuration(d)}
-                                    className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${breakDuration === d
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                >
-                                    {d} hr
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Result / Status Display */}
-                <div className="mb-5 min-h-[60px] flex flex-col items-center justify-center">
+                {/* Result / Action Area */}
+                <div className="space-y-6">
                     {isPending ? (
-                        <div className="text-primary animate-pulse font-bold text-xl">處理中...</div>
-                    ) : message ? (
-                        <div className={`text-lg font-bold ${messageType === 'success' ? 'text-emerald-600' : 'text-red-500'}`}>{message}</div>
-                    ) : isClockedIn ? (
-                        <div className="animate-in fade-in zoom-in duration-300">
-                            <div className="text-sm text-slate-400 mb-1">上班時間</div>
-                            <div className="text-2xl font-bold text-slate-800 dark:text-neutral-100 font-mono mb-1">
-                                {attendanceRecord?.clock_in_time
-                                    ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit' })
-                                    : '--:--'}
-                            </div>
-                            {/* Status Label (Hide for hourly if flag is off) */}
-                            {(!attendanceRecord?.status || attendanceRecord.status === 'normal' || salaryType !== 'hourly' || features.showHourlyStatus) && (
-                                <span className={`inline-flex items-center px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusInfo.color}`}>
-                                    {statusInfo.label}
-                                </span>
-                            )}
+                        <div className="py-10 flex flex-col items-center justify-center">
+                            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3"></div>
+                            <div className="text-primary font-bold text-xl">處理中...</div>
                         </div>
                     ) : (
-                        <div className="text-slate-400">尚未打卡</div>
-                    )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-4">
-                    {!isClockedIn ? (
-                        <button
-                            onClick={handleClockIn}
-                            disabled={isPending}
-                            className="w-full group relative overflow-hidden bg-slate-800 text-white text-lg font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-slate-800/20 hover:shadow-slate-800/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            上班打卡
-                        </button>
-                    ) : !isClockedOut ? (
-                        <button
-                            onClick={handleClockOut}
-                            disabled={isPending}
-                            className="w-full group relative overflow-hidden bg-[var(--color-primary)] text-white text-lg font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            下班打卡
-                        </button>
-                    ) : (
-                        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-                            <div className="p-6 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-2xl">
-                                <div className="flex justify-center gap-8 mb-4">
-                                    <div>
-                                        <div className="text-xs text-slate-400 uppercase">Start</div>
-                                        <div className="font-mono font-bold text-slate-700 dark:text-neutral-300">
-                                            {attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                                        </div>
-                                    </div>
-                                    <div className="w-px bg-slate-200 dark:bg-neutral-700"></div>
-                                    <div>
-                                        <div className="text-xs text-slate-400 uppercase">End</div>
-                                        <div className="font-mono font-bold text-slate-700 dark:text-neutral-300">
-                                            {attendanceRecord?.clock_out_time ? new Date(attendanceRecord.clock_out_time).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                                        </div>
-                                    </div>
+                        <>
+                            {/* Message Display (Only for error or non-hourly success hint) */}
+                            {message && (
+                                <div className={`mb-4 text-center font-bold ${messageType === 'success' ? 'text-emerald-600' : 'text-red-500'}`}>
+                                    {message}
                                 </div>
-                                {attendanceRecord?.work_hours !== undefined && (
-                                    <div className="text-center">
-                                        <div className="inline-block text-3xl font-bold font-mono text-emerald-600">
-                                            {Number(attendanceRecord.work_hours).toFixed(1)}
-                                            <span className="text-sm font-sans ml-1 text-emerald-600/60">hr</span>
+                            )}
+
+                            {!isClockedIn ? (
+                                // --- STATUS: NOT CLOCKED IN ---
+                                <div className="space-y-6">
+                                    <div className="text-slate-400 py-4">尚未打卡</div>
+                                    <button
+                                        onClick={handleClockIn}
+                                        disabled={isPending}
+                                        className="w-full group relative overflow-hidden bg-slate-800 text-white text-lg font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-slate-800/20 hover:shadow-slate-800/30 active:scale-[0.98] transition-all disabled:opacity-70"
+                                    >
+                                        上班打卡
+                                    </button>
+                                </div>
+                            ) : !isClockedOut ? (
+                                // --- STATUS: WORKING (CLOCKED IN) ---
+                                <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                            <div className="text-[10px] text-slate-400 uppercase mb-1">今日上班時間</div>
+                                            <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-200">
+                                                {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
+                                            </div>
                                         </div>
-                                        {(attendanceRecord as any).break_duration > 0 && (
-                                            <div className="text-xs text-emerald-600/50 mt-1">
-                                                (扣除午休 {(attendanceRecord as any).break_duration}h)
+                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                            {salaryType === 'hourly' ? (
+                                                <>
+                                                    <div className="text-[10px] text-slate-400 uppercase mb-1">表定下班時間</div>
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-200">
+                                                            {scheduledClockOut ? formatHHmm(scheduledClockOut) : '--:--'}
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setIsAdjustDialogOpen(true) }}
+                                                            className="text-[10px] text-primary hover:underline mt-1"
+                                                        >
+                                                            調整 {isClockOutAdjusted && '(已調整)'}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="text-[10px] text-slate-400 uppercase mb-1">狀態</div>
+                                                    <div className="py-1">
+                                                        <span className={`inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusInfo.color}`}>
+                                                            {statusInfo.label}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {salaryType === 'hourly' && (
+                                        <p className="text-[11px] text-slate-400 -mt-2">
+                                            若有特殊狀況，可點「調整」修改下班時間。
+                                        </p>
+                                    )}
+
+                                    {salaryType === 'hourly' && (
+                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                            <div className="text-[10px] text-slate-400 uppercase mb-3">午休時數</div>
+                                            <div className="flex justify-center gap-2">
+                                                {[0, 1.0, 1.5].map(d => (
+                                                    <button
+                                                        key={d}
+                                                        onClick={() => setBreakDuration(d)}
+                                                        className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${breakDuration === d
+                                                            ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                                            : 'bg-white dark:bg-neutral-700 text-slate-600 dark:text-neutral-300 border border-slate-200 dark:border-neutral-600'
+                                                            }`}
+                                                    >
+                                                        {d} hr
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={handleClockOut}
+                                        disabled={isPending}
+                                        className="w-full group relative overflow-hidden bg-[var(--color-primary)] text-white text-lg font-bold py-3.5 px-8 rounded-2xl shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 active:scale-[0.98] transition-all"
+                                    >
+                                        下班打卡
+                                    </button>
+                                </div>
+                            ) : (
+                                // --- STATUS: CLOCKED OUT ---
+                                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                                    <div className="p-6 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-2xl">
+                                        <div className="flex justify-center gap-8 mb-4">
+                                            <div>
+                                                <div className="text-[10px] text-slate-400 uppercase mb-1">上班</div>
+                                                <div className="font-mono font-bold text-lg text-slate-700 dark:text-neutral-300">
+                                                    {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
+                                                </div>
+                                            </div>
+                                            <div className="w-px bg-slate-200 dark:bg-neutral-700"></div>
+                                            <div>
+                                                <div className="text-[10px] text-slate-400 uppercase mb-1">下班</div>
+                                                <div className="font-mono font-bold text-lg text-slate-700 dark:text-neutral-300">
+                                                    {formatHHmm(new Date(attendanceRecord.clock_out_time!))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {attendanceRecord.work_hours !== undefined && (
+                                            <div className="text-center pt-2 border-t border-emerald-100/50 dark:border-emerald-800/30">
+                                                <div className="text-[10px] text-slate-400 uppercase mb-1">實收工時</div>
+                                                <div className="inline-block text-4xl font-bold font-mono text-emerald-600">
+                                                    {Number(attendanceRecord.work_hours).toFixed(1)}
+                                                    <span className="text-sm font-sans ml-1 text-emerald-600/60">hr</span>
+                                                </div>
+                                                {(attendanceRecord as any).break_duration !== undefined && Number((attendanceRecord as any).break_duration) > 0 && (
+                                                    <div className="text-[10px] text-emerald-600/50 mt-1">
+                                                        (已扣午休 {(attendanceRecord as any).break_duration}h)
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
-                                )}
-                            </div>
 
-                            <button
-                                onClick={handleCancelClockOutClick}
-                                disabled={isPending}
-                                className="text-slate-400 hover:text-red-500 text-sm transition-colors decoration-slice hover:underline"
-                            >
-                                取消下班 / 重新計算
-                            </button>
-                        </div>
+                                    <button
+                                        onClick={() => setShowCancelConfirm(true)}
+                                        disabled={isPending}
+                                        className="text-slate-400 hover:text-red-500 text-xs transition-colors hover:underline"
+                                    >
+                                        取消下班
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
-
             </div>
+
+            {/* Time Adjustment Dialog (Hourly only) */}
+            <Dialog isOpen={isAdjustDialogOpen} onClose={() => setIsAdjustDialogOpen(false)} maxWidth="sm">
+                <DialogHeader title="調整下班時間" onClose={() => setIsAdjustDialogOpen(false)} />
+                <DialogContent>
+                    <div className="grid grid-cols-4 gap-2">
+                        {timeOptions
+                            .filter(opt => clockInTimeObj ? opt > clockInTimeObj : true)
+                            .map((opt, i) => {
+                                const isSelected = scheduledClockOut && formatHHmm(opt) === formatHHmm(scheduledClockOut)
+                                return (
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            setScheduledClockOut(opt)
+                                            setIsClockOutAdjusted(true)
+                                            setIsAdjustDialogOpen(false)
+                                        }}
+                                        className={`py-2 text-sm font-mono rounded-lg border transition-all ${isSelected
+                                            ? 'bg-primary text-white border-primary shadow-sm'
+                                            : 'border-slate-200 hover:border-primary text-slate-600'
+                                            }`}
+                                    >
+                                        {formatHHmm(opt)}
+                                    </button>
+                                )
+                            })}
+                    </div>
+                </DialogContent>
+                <DialogFooter>
+                    <button onClick={() => setIsAdjustDialogOpen(false)} className="px-4 py-2 text-slate-500">取消</button>
+                </DialogFooter>
+            </Dialog>
 
             {/* Confirmation Modal */}
             <Dialog isOpen={showCancelConfirm} onClose={() => setShowCancelConfirm(false)} maxWidth="sm">

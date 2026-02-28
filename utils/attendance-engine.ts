@@ -62,13 +62,8 @@ export function calculateWorkHours(
 
     if (totalHours < 0) totalHours = 0;
 
-    if (isHourly) {
-        // 向下取整到 0.5
-        totalHours = Math.floor(totalHours * 2) / 2;
-    } else {
-        // 四捨五入到小數第二位
-        totalHours = Math.round(totalHours * 100) / 100;
-    }
+    // 統一四捨五入到小數第二位
+    totalHours = Math.round(totalHours * 100) / 100;
 
     return totalHours;
 }
