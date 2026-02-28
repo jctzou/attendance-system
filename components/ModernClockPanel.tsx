@@ -51,7 +51,6 @@ export default function ModernClockPanel({
     // --- Hourly Related State ---
     const [breakDuration, setBreakDuration] = useState<number>(1.0)
     const [scheduledClockOut, setScheduledClockOut] = useState<Date | null>(null)
-    const [isClockOutAdjusted, setIsClockOutAdjusted] = useState(false)
     const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false)
 
     // Confirmation Modal State
@@ -67,15 +66,19 @@ export default function ModernClockPanel({
         }
     }, [initialRecord, salaryType])
 
-    // 初始化/同步表定下班時間 (Date 物件)
+    // 修正初始化邏輯：若已有下班紀錄（例如頁面重新整理），優先恢復該時間，否則使用預設表定時間
     useEffect(() => {
-        if (salaryType === 'hourly' && userSettings.work_end_time) {
-            const [h, m] = userSettings.work_end_time.split(':').map(Number)
-            const d = new Date()
-            d.setHours(h, m, 0, 0)
-            setScheduledClockOut(d)
+        if (salaryType === 'hourly') {
+            if (attendanceRecord?.clock_out_time) {
+                setScheduledClockOut(new Date(attendanceRecord.clock_out_time))
+            } else if (userSettings.work_end_time) {
+                const [h, m] = userSettings.work_end_time.split(':').map(Number)
+                const d = new Date()
+                d.setHours(h, m, 0, 0)
+                setScheduledClockOut(d)
+            }
         }
-    }, [salaryType, userSettings.work_end_time])
+    }, [salaryType, userSettings.work_end_time, !!attendanceRecord?.clock_out_time])
 
     // Timer Logic
     useEffect(() => {
@@ -144,7 +147,6 @@ export default function ModernClockPanel({
                     setMessage(`❌ ${res.error?.message}`)
                 } else {
                     setAttendanceRecord(res.data)
-                    setIsClockOutAdjusted(false)
                     // 直接回復狀態，不顯示提示
                 }
             } catch (e) {
@@ -179,6 +181,17 @@ export default function ModernClockPanel({
 
     const timeOptions = generateTimeOptions()
     const clockInTimeObj = attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time) : null
+
+    // 規格化表定時間為 HH:mm (確保比對基準一致，不論原始格式是 18:00 或 18:00:00)
+    const normalizedSettingEndStr = userSettings.work_end_time?.slice(0, 5)
+
+    // 檢查是否與表定時間不同 (HH:mm 格式比遞)
+    const currentClockOutStr = scheduledClockOut ? formatHHmm(scheduledClockOut) : null
+    const isActuallyAdjusted = salaryType === 'hourly' && currentClockOutStr && currentClockOutStr !== normalizedSettingEndStr
+
+    // 已下班狀態的調整檢查
+    const clockOutTimeObj = attendanceRecord?.clock_out_time ? new Date(attendanceRecord.clock_out_time) : null
+    const isClockedOutAdjusted = salaryType === 'hourly' && clockOutTimeObj && formatHHmm(clockOutTimeObj) !== normalizedSettingEndStr
 
     return (
         <>
@@ -242,7 +255,13 @@ export default function ModernClockPanel({
                                         <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
                                             {salaryType === 'hourly' ? (
                                                 <>
-                                                    <div className="text-[10px] text-slate-400 uppercase mb-1">表定下班時間</div>
+                                                    <div className="text-[10px] text-slate-400 uppercase mb-1">
+                                                        {isActuallyAdjusted ? (
+                                                            <span>下班時間 <span className="text-orange-500 font-bold ml-1">(已調整)</span></span>
+                                                        ) : (
+                                                            '表定下班時間'
+                                                        )}
+                                                    </div>
                                                     <div className="flex flex-col items-center">
                                                         <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-200">
                                                             {scheduledClockOut ? formatHHmm(scheduledClockOut) : '--:--'}
@@ -251,7 +270,7 @@ export default function ModernClockPanel({
                                                             onClick={(e) => { e.stopPropagation(); setIsAdjustDialogOpen(true) }}
                                                             className="text-[10px] text-primary hover:underline mt-1"
                                                         >
-                                                            調整 {isClockOutAdjusted && '(已調整)'}
+                                                            調整時間
                                                         </button>
                                                     </div>
                                                 </>
@@ -315,7 +334,11 @@ export default function ModernClockPanel({
                                             </div>
                                             <div className="w-px bg-slate-200 dark:bg-neutral-700"></div>
                                             <div>
-                                                <div className="text-[10px] text-slate-400 uppercase mb-1">下班</div>
+                                                <div className="text-[10px] text-slate-400 uppercase mb-1">
+                                                    {isClockedOutAdjusted ? (
+                                                        <span>下班 <span className="text-orange-500 font-bold ml-0.5">(已調整)</span></span>
+                                                    ) : '下班'}
+                                                </div>
                                                 <div className="font-mono font-bold text-lg text-slate-700 dark:text-neutral-300">
                                                     {formatHHmm(new Date(attendanceRecord.clock_out_time!))}
                                                 </div>
@@ -366,7 +389,6 @@ export default function ModernClockPanel({
                                         key={i}
                                         onClick={() => {
                                             setScheduledClockOut(opt)
-                                            setIsClockOutAdjusted(true)
                                             setIsAdjustDialogOpen(false)
                                         }}
                                         className={`py-2 text-sm font-mono rounded-lg border transition-all ${isSelected
