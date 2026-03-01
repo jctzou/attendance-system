@@ -30,6 +30,7 @@ export interface Database {
                     annual_leave_total: number | null
                     annual_leave_used: number | null
                     last_reset_date: string | null
+                    break_hours: number | null
                 }
                 Insert: {
                     id: string
@@ -51,6 +52,7 @@ export interface Database {
                     annual_leave_total?: number | null
                     annual_leave_used?: number | null
                     last_reset_date?: string | null
+                    break_hours?: number | null
                 }
                 Update: {
                     id?: string
@@ -71,6 +73,7 @@ export interface Database {
                     onboard_date?: string | null
                     annual_leave_used?: number | null
                     last_reset_date?: string | null
+                    break_hours?: number | null
                 }
                 Relationships: []
             }
@@ -88,6 +91,7 @@ export interface Database {
                     is_edited: boolean
                     created_at: string
                     updated_at: string
+                    break_duration: number | null
                 }
                 Insert: {
                     id?: number
@@ -102,6 +106,7 @@ export interface Database {
                     is_edited?: boolean
                     created_at?: string
                     updated_at?: string
+                    break_duration?: number | null
                 }
                 Update: {
                     id?: number
@@ -116,6 +121,7 @@ export interface Database {
                     is_edited?: boolean
                     created_at?: string
                     updated_at?: string
+                    break_duration?: number | null
                 }
                 Relationships: []
             }

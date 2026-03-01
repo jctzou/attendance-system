@@ -51,7 +51,7 @@ export default function WorkingEmployeesList({ initialEmployees }: Props) {
 
     return (
         <div className="flex flex-col items-center gap-3 mt-4">
-            <p className="text-xs font-bold text-slate-400 dark:text-neutral-500 tracking-wider">
+            <p className="text-[20px] font-bold text-slate-400 dark:text-neutral-500 tracking-wider">
                 目前正在上班中 ({workingEmployees.length})
             </p>
             <div className="flex flex-wrap justify-center items-center px-4">

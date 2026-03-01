@@ -58,7 +58,7 @@ async function calculateAttendanceFields(
 ) {
     const { data: userSettings, error } = await supabase
         .from('users')
-        .select('work_start_time, work_end_time, salary_type')
+        .select('work_start_time, work_end_time, salary_type, break_hours')
         .eq('id', userId)
         .single()
 
@@ -68,8 +68,15 @@ async function calculateAttendanceFields(
     const workEndTime = userSettings.work_end_time || '18:00:00'
     const isHourly = userSettings.salary_type === 'hourly'
 
-    // 鐘點制無預設午休，需打卡時手動傳入；月薪預設為 1.0 (或不從時數扣除，端看設定，這裡先預設 1.0 若需計算月薪缺勤工時)
-    const breakHours = (isHourly && manualBreakDuration !== undefined) ? manualBreakDuration : (isHourly ? 0 : 1.0);
+    // 優先順序：手動傳入 (修改時) > 使用者設定中的 break_hours > 程式預設 (月薪 1.0, 鐘點 0)
+    let breakHours = 0
+    if (manualBreakDuration !== undefined) {
+        breakHours = manualBreakDuration
+    } else if (userSettings.break_hours !== null && userSettings.break_hours !== undefined) {
+        breakHours = userSettings.break_hours
+    } else {
+        breakHours = isHourly ? 0 : 1.0
+    }
 
     const inTimeStr = clockInTime ? getTaipeiTimeString(clockInTime) : null;
     const outTimeStr = clockOutTime ? getTaipeiTimeString(clockOutTime) : null;
@@ -84,7 +91,7 @@ async function calculateAttendanceFields(
     return {
         status,
         workHours,
-        breakDuration: isHourly ? breakHours : null
+        breakDuration: breakHours // 不分班別，統一回傳以供 UI 呈現「已扣除午休」
     }
 }
 

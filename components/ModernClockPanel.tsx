@@ -17,6 +17,7 @@ interface Props {
     userSettings: {
         work_start_time: string
         work_end_time: string
+        break_hours: number | null
     }
     todayRecord: AttendanceRow | null
 }
@@ -60,13 +61,12 @@ export default function ModernClockPanel({
     useEffect(() => {
         if (initialRecord) {
             setAttendanceRecord(initialRecord)
-            if (salaryType === 'hourly' && (initialRecord as any).break_duration !== undefined) {
-                setBreakDuration((initialRecord as any).break_duration ?? 1.0)
+            if (salaryType === 'hourly' && initialRecord.break_duration !== undefined) {
+                setBreakDuration(initialRecord.break_duration ?? 1.0)
             }
         }
     }, [initialRecord, salaryType])
 
-    // 修正初始化邏輯：若已有下班紀錄（例如頁面重新整理），優先恢復該時間，否則使用預設表定時間
     useEffect(() => {
         if (salaryType === 'hourly') {
             if (attendanceRecord?.clock_out_time) {
@@ -77,8 +77,12 @@ export default function ModernClockPanel({
                 d.setHours(h, m, 0, 0)
                 setScheduledClockOut(d)
             }
+        } else {
+            // 月薪制初始化午休時數
+            const defaultBreak = userSettings.break_hours ?? 1.0
+            setBreakDuration(defaultBreak)
         }
-    }, [salaryType, userSettings.work_end_time, !!attendanceRecord?.clock_out_time])
+    }, [salaryType, userSettings.work_end_time, userSettings.break_hours, !!attendanceRecord?.clock_out_time])
 
     // Timer Logic
     useEffect(() => {
@@ -205,8 +209,8 @@ export default function ModernClockPanel({
                         {mounted && time ? formatTime(time) : '00:00:00'}
                     </div>
                     {salaryType === 'monthly' && (
-                        <div className="flex items-center justify-center space-x-2 text-sm text-slate-400 dark:text-neutral-500">
-                            <span>規定工時: {userSettings.work_start_time?.slice(0, 5)} - {userSettings.work_end_time?.slice(0, 5)}</span>
+                        <div className="flex items-center justify-center space-x-2 text-[16px] text-slate-400 dark:text-neutral-500">
+                            <span>表定工時: {userSettings.work_start_time?.slice(0, 5)} - {userSettings.work_end_time?.slice(0, 5)}</span>
                         </div>
                     )}
                 </div>
@@ -233,7 +237,7 @@ export default function ModernClockPanel({
                             {!isClockedIn ? (
                                 // --- STATUS: NOT CLOCKED IN ---
                                 <div className="space-y-6">
-                                    <div className="text-slate-400 py-4">尚未打卡</div>
+                                    <div className="text-[20px] text-slate-400 py-4 font-bold">尚未打卡</div>
                                     <button
                                         onClick={handleClockIn}
                                         disabled={isPending}
@@ -247,15 +251,18 @@ export default function ModernClockPanel({
                                 <div className="space-y-6 animate-in fade-in zoom-in duration-300">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
-                                            <div className="text-[10px] text-slate-400 uppercase mb-1">今日上班時間</div>
+                                            <div className="text-[16px] text-slate-400 uppercase mb-1">今日上班時間</div>
                                             <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-200">
                                                 {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                             </div>
                                         </div>
-                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                        <div
+                                            onClick={salaryType === 'hourly' ? () => setIsAdjustDialogOpen(true) : undefined}
+                                            className={`bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700 ${salaryType === 'hourly' ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-750 transition-colors active:scale-[0.98]' : ''}`}
+                                        >
                                             {salaryType === 'hourly' ? (
                                                 <>
-                                                    <div className="text-[10px] text-slate-400 uppercase mb-1">
+                                                    <div className="text-[16px] text-slate-400 uppercase mb-1">
                                                         {isActuallyAdjusted ? (
                                                             <span>下班時間 <span className="text-orange-500 font-bold ml-1">(已調整)</span></span>
                                                         ) : (
@@ -266,19 +273,16 @@ export default function ModernClockPanel({
                                                         <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-200">
                                                             {scheduledClockOut ? formatHHmm(scheduledClockOut) : '--:--'}
                                                         </div>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setIsAdjustDialogOpen(true) }}
-                                                            className="text-[10px] text-primary hover:underline mt-1"
-                                                        >
+                                                        <div className="text-[16px] text-primary hover:underline mt-1">
                                                             調整時間
-                                                        </button>
+                                                        </div>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <div className="text-[10px] text-slate-400 uppercase mb-1">狀態</div>
-                                                    <div className="py-1">
-                                                        <span className={`inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusInfo.color}`}>
+                                                    <div className="text-[16px] text-slate-400 uppercase mb-1">狀態</div>
+                                                    <div className="py-1 text-center flex justify-center">
+                                                        <span className={`inline-flex px-3 py-0.5 rounded-full text-[14px] font-bold uppercase ${statusInfo.color}`}>
                                                             {statusInfo.label}
                                                         </span>
                                                     </div>
@@ -288,14 +292,14 @@ export default function ModernClockPanel({
                                     </div>
 
                                     {salaryType === 'hourly' && (
-                                        <p className="text-[11px] text-slate-400 -mt-2">
+                                        <p className="text-[17px] text-slate-400 -mt-2">
                                             若有特殊狀況，可點「調整」修改下班時間。
                                         </p>
                                     )}
 
                                     {salaryType === 'hourly' && (
                                         <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
-                                            <div className="text-[10px] text-slate-400 uppercase mb-3">午休時數</div>
+                                            <div className="text-[16px] text-slate-400 uppercase mb-3">午休時數</div>
                                             <div className="flex justify-center gap-2">
                                                 {[0, 1.0, 1.5].map(d => (
                                                     <button
@@ -327,19 +331,19 @@ export default function ModernClockPanel({
                                     <div className="p-6 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-2xl">
                                         <div className="flex justify-center gap-8 mb-4">
                                             <div>
-                                                <div className="text-[10px] text-slate-400 uppercase mb-1">上班</div>
-                                                <div className="font-mono font-bold text-lg text-slate-700 dark:text-neutral-300">
+                                                <div className="text-[16px] text-slate-400 uppercase mb-1 font-bold">上班</div>
+                                                <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-300">
                                                     {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                                 </div>
                                             </div>
                                             <div className="w-px bg-slate-200 dark:bg-neutral-700"></div>
                                             <div>
-                                                <div className="text-[10px] text-slate-400 uppercase mb-1">
+                                                <div className="text-[16px] text-slate-400 uppercase mb-1 font-bold">
                                                     {isClockedOutAdjusted ? (
                                                         <span>下班 <span className="text-orange-500 font-bold ml-0.5">(已調整)</span></span>
                                                     ) : '下班'}
                                                 </div>
-                                                <div className="font-mono font-bold text-lg text-slate-700 dark:text-neutral-300">
+                                                <div className="font-mono font-bold text-xl text-slate-700 dark:text-neutral-300">
                                                     {formatHHmm(new Date(attendanceRecord.clock_out_time!))}
                                                 </div>
                                             </div>
@@ -347,14 +351,14 @@ export default function ModernClockPanel({
 
                                         {attendanceRecord.work_hours !== undefined && (
                                             <div className="text-center pt-2 border-t border-emerald-100/50 dark:border-emerald-800/30">
-                                                <div className="text-[10px] text-slate-400 uppercase mb-1">實收工時</div>
+                                                <div className="text-[16px] text-slate-400 uppercase mb-1 font-bold">實收工時</div>
                                                 <div className="inline-block text-4xl font-bold font-mono text-emerald-600">
                                                     {Number(attendanceRecord.work_hours).toFixed(1)}
                                                     <span className="text-sm font-sans ml-1 text-emerald-600/60">hr</span>
                                                 </div>
-                                                {(attendanceRecord as any).break_duration !== undefined && Number((attendanceRecord as any).break_duration) > 0 && (
-                                                    <div className="text-[10px] text-emerald-600/50 mt-1">
-                                                        (已扣午休 {(attendanceRecord as any).break_duration}h)
+                                                {attendanceRecord.break_duration !== undefined && attendanceRecord.break_duration !== null && Number(attendanceRecord.break_duration) > 0 && (
+                                                    <div className="text-[16px] text-emerald-600/50 mt-1">
+                                                        (已扣午休 {attendanceRecord.break_duration}h)
                                                     </div>
                                                 )}
                                             </div>
@@ -364,7 +368,7 @@ export default function ModernClockPanel({
                                     <button
                                         onClick={() => setShowCancelConfirm(true)}
                                         disabled={isPending}
-                                        className="text-slate-400 hover:text-red-500 text-xs transition-colors hover:underline"
+                                        className="text-slate-400 hover:text-red-500 text-[16px] transition-colors hover:underline"
                                     >
                                         取消下班
                                     </button>
