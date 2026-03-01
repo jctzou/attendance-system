@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { clockIn, clockOut, cancelClockOut } from '@/app/attendance/actions'
+import { getDailyFortune } from '@/app/attendance/fortune'
 import { Database } from '@/types/supabase'
 import { Dialog, DialogHeader, DialogContent, DialogFooter } from '@/components/ui/Dialog'
 import { ATTENDANCE_STATUS_MAP } from '@/app/attendance/constants'
@@ -54,6 +55,10 @@ export default function ModernClockPanel({
     const [scheduledClockOut, setScheduledClockOut] = useState<Date | null>(null)
     const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false)
 
+    // AI Fortune State
+    const [fortune, setFortune] = useState<string>('')
+    const [fortuneLoading, setFortuneLoading] = useState(false)
+
     // Confirmation Modal State
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
@@ -92,6 +97,24 @@ export default function ModernClockPanel({
         const timer = setInterval(updateTime, 1000)
         return () => clearInterval(timer)
     }, [])
+
+    // AI Fortune Logic (快取暫時關閉，用於測試)
+    useEffect(() => {
+        if (!isClockedIn && mounted) {
+            const fetchFortune = async () => {
+                setFortuneLoading(true)
+                try {
+                    const result = await getDailyFortune(userName)
+                    setFortune(result)
+                } catch (e) {
+                    setFortune('今天也是充滿希望的一天！')
+                } finally {
+                    setFortuneLoading(false)
+                }
+            }
+            fetchFortune()
+        }
+    }, [isClockedIn, mounted, userName])
 
     // --- Actions ---
 
@@ -237,7 +260,30 @@ export default function ModernClockPanel({
                             {!isClockedIn ? (
                                 // --- STATUS: NOT CLOCKED IN ---
                                 <div className="space-y-6">
-                                    <div className="text-[18px] text-slate-400 py-4 font-bold">尚未打卡</div>
+                                    <div className="text-[18px] text-slate-400 py-1 font-bold uppercase tracking-widest">
+                                        尚未打卡
+                                    </div>
+
+                                    {/* AI Fortune Card */}
+                                    <div className="relative group mx-auto max-w-[95%] transform transition-all hover:scale-[1.02]">
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-amber-500/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                                        <div className="relative bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-slate-100 dark:border-neutral-800 p-4 rounded-2xl shadow-sm">
+                                            {fortuneLoading ? (
+                                                <div className="flex flex-col items-center gap-2 py-2">
+                                                    <div className="w-5 h-5 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                                                    <div className="text-[13px] text-slate-400 animate-pulse">正在為你捕捉今日好運...</div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-start gap-3">
+                                                    <span className="text-xl shrink-0">✨</span>
+                                                    <p className="text-[14px] text-slate-600 dark:text-neutral-300 leading-relaxed text-left flex-1 italic font-medium">
+                                                        {fortune || '準備好迎接充滿活力的一天了嗎？'}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <button
                                         onClick={handleClockIn}
                                         disabled={isPending}
