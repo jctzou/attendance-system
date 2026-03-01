@@ -8,12 +8,13 @@ interface Props {
     label: string
     required?: boolean
     workDate?: string  // 強制綁定日期，避免 value 為空時 fallback 到今日
+    allowAnyMinute?: boolean // 是否允許設定每一分鐘
 }
 
-export default function TimeSlotSelector({ value, onChange, label, required = false, workDate }: Props) {
+export default function TimeSlotSelector({ value, onChange, label, required = false, workDate, allowAnyMinute = false }: Props) {
     // 解析 value 為日期、上午/下午、時間
-    const { date, period, time12 } = useMemo(() => {
-        if (!value) return { date: '', period: 'AM' as 'AM' | 'PM', time12: '09:00' }
+    const { date, period, hours12, minutes } = useMemo(() => {
+        if (!value) return { date: '', period: 'AM' as 'AM' | 'PM', hours12: 9, minutes: 0 }
 
         try {
             // 直接從 ISO 字串 (YYYY-MM-DDTHH:mm) 解析，避免 new Date() 時區偏移
@@ -21,81 +22,76 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
             const dateStr = datePart
             // 處理可能有秒數或 'Z' 的狀況 (e.g. 09:30:00.000Z)
             const timePart = timePartRaw.split('.')[0].replace('Z', '')
-            const hStr = timePart.split(':')[0]
-            const mStr = timePart.split(':')[1]
-            const hours = parseInt(hStr, 10)
-            const minutes = parseInt(mStr, 10)
+            const [hStr, mStr] = timePart.split(':')
+            const hours24 = parseInt(hStr, 10)
+            let rawMinutes = parseInt(mStr, 10)
 
-            // 四捨五入到最近的30分鐘
-            const roundedMinutes = minutes >= 15 && minutes < 45 ? 30 : minutes >= 45 ? 0 : 0
-            let roundedHours = minutes >= 45 ? (hours + 1) % 24 : hours
+            // 如果不允許每一分，則進行四捨五入到最近的30分鐘
+            let finalHours24 = hours24
+            let finalMinutes = rawMinutes
+
+            if (!allowAnyMinute) {
+                finalMinutes = rawMinutes >= 15 && rawMinutes < 45 ? 30 : 0
+                if (rawMinutes >= 45) {
+                    finalHours24 = (hours24 + 1) % 24
+                    finalMinutes = 0
+                }
+            }
 
             // 轉換為12小時制
-            const period: 'AM' | 'PM' = roundedHours >= 12 ? 'PM' : 'AM'
-            let hours12 = roundedHours % 12
-            if (hours12 === 0) hours12 = 12  // 0點和12點顯示為12
+            const period: 'AM' | 'PM' = finalHours24 >= 12 ? 'PM' : 'AM'
+            let h12 = finalHours24 % 12
+            if (h12 === 0) h12 = 12
 
-            const time12Str = `${String(hours12).padStart(2, '0')}:${roundedMinutes === 30 ? '30' : '00'}`
-
-            return { date: dateStr, period, time12: time12Str }
+            return { date: dateStr, period, hours12: h12, minutes: finalMinutes }
         } catch (e) {
-            return { date: '', period: 'AM' as 'AM' | 'PM', time12: '09:00' }
+            return { date: '', period: 'AM' as 'AM' | 'PM', hours12: 9, minutes: 0 }
         }
-    }, [value])
+    }, [value, allowAnyMinute])
 
-    // 生成12小時制時間選項（12:00, 12:30, 01:00, ..., 11:30）
-    const timeSlots = useMemo(() => {
-        const slots: string[] = []
-        // 12:00, 12:30
-        slots.push('12:00')
-        slots.push('12:30')
-        // 01:00 到 11:30
+    // 生成12小時制「時」選項 (12, 01, 02, ..., 11)
+    const hourSlots = useMemo(() => {
+        const slots: string[] = ['12']
         for (let h = 1; h <= 11; h++) {
-            slots.push(`${String(h).padStart(2, '0')}:00`)
-            slots.push(`${String(h).padStart(2, '0')}:30`)
+            slots.push(String(h).padStart(2, '0'))
         }
         return slots
     }, [])
 
-    // 將12小時制轉換為24小時制
-    const convert12to24 = (time12: string, period: 'AM' | 'PM'): string => {
-        const [hoursStr, minutesStr] = time12.split(':')
-        let hours = parseInt(hoursStr)
-
-        if (period === 'AM') {
-            if (hours === 12) hours = 0  // 12 AM = 00:00
-        } else { // PM
-            if (hours !== 12) hours += 12  // PM 加12，但12 PM保持12
+    // 生成「分」選項
+    const minuteSlots = useMemo(() => {
+        if (!allowAnyMinute) {
+            return ['00', '30']
         }
+        const slots: string[] = []
+        for (let m = 0; m < 60; m++) {
+            slots.push(String(m).padStart(2, '0'))
+        }
+        return slots
+    }, [allowAnyMinute])
 
-        return `${String(hours).padStart(2, '0')}:${minutesStr}`
+    // 將12小時制轉換為24小時制
+    const convert12to24 = (h12: number, min: number, period: 'AM' | 'PM'): string => {
+        let h24 = h12
+        if (period === 'AM') {
+            if (h24 === 12) h24 = 0  // 12 AM = 00:00
+        } else { // PM
+            if (h24 !== 12) h24 += 12  // PM 加12，但12 PM保持12
+        }
+        return `${String(h24).padStart(2, '0')}:${String(min).padStart(2, '0')}`
     }
 
     // Helper to get today's date in Local YYYY-MM-DD format
     const getTodayDateStr = () => {
         const now = new Date()
-        const year = now.getFullYear()
-        const month = String(now.getMonth() + 1).padStart(2, '0')
-        const day = String(now.getDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     }
 
-    // 處理上午/下午變更
-    const handlePeriodChange = (newPeriod: 'AM' | 'PM') => {
-        // 優先使用外部傳入的 workDate，其次是解析自 value 的 date，最後才 fallback 到今日
+    // 統一處理變更
+    const emitChange = (newPeriod: 'AM' | 'PM', newH12: number, newMin: number) => {
         const targetDate = workDate || date || getTodayDateStr()
-        const hours24 = convert12to24(time12, newPeriod)
-        const newValue = `${targetDate}T${hours24}`
-        onChange(newValue)
-    }
-
-    // 處理時間變更
-    const handleTimeChange = (newTime12: string) => {
-        // 優先使用外部傳入的 workDate，其次是解析自 value 的 date，最後才 fallback 到今日
-        const targetDate = workDate || date || getTodayDateStr()
-        const hours24 = convert12to24(newTime12, period)
-        const newValue = `${targetDate}T${hours24}`
-        onChange(newValue)
+        const hours24 = convert12to24(newH12, newMin, newPeriod)
+        onChange(`${targetDate}T${hours24}`)
     }
 
     return (
@@ -104,27 +100,39 @@ export default function TimeSlotSelector({ value, onChange, label, required = fa
                 {label}
                 {required && <span className="text-red-500 ml-1">*</span>}
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
                 {/* 上午/下午選擇 */}
                 <select
                     value={period}
-                    onChange={(e) => handlePeriodChange(e.target.value as 'AM' | 'PM')}
+                    onChange={(e) => emitChange(e.target.value as 'AM' | 'PM', hours12, minutes)}
                     className="w-full border border-slate-300 dark:border-neutral-600 rounded-md p-2 text-sm bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-neutral-500"
                     required={required}
                 >
-                    <option value="AM">上午 (AM)</option>
-                    <option value="PM">下午 (PM)</option>
+                    <option value="AM">上午</option>
+                    <option value="PM">下午</option>
                 </select>
 
-                {/* 時間選擇（12小時制下拉選單）*/}
+                {/* 小時選擇 */}
                 <select
-                    value={time12}
-                    onChange={(e) => handleTimeChange(e.target.value)}
+                    value={String(hours12).padStart(2, '0')}
+                    onChange={(e) => emitChange(period, parseInt(e.target.value, 10), minutes)}
                     className="w-full border border-slate-300 dark:border-neutral-600 rounded-md p-2 text-sm bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-neutral-500"
                     required={required}
                 >
-                    {timeSlots.map(slot => (
-                        <option key={slot} value={slot}>{slot}</option>
+                    {hourSlots.map(slot => (
+                        <option key={slot} value={slot}>{slot} 點</option>
+                    ))}
+                </select>
+
+                {/* 分鐘選擇 */}
+                <select
+                    value={String(minutes).padStart(2, '0')}
+                    onChange={(e) => emitChange(period, hours12, parseInt(e.target.value, 10))}
+                    className="w-full border border-slate-300 dark:border-neutral-600 rounded-md p-2 text-sm bg-white dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent hover:border-slate-400 dark:hover:border-neutral-500"
+                    required={required}
+                >
+                    {minuteSlots.map(slot => (
+                        <option key={slot} value={slot}>{slot} 分</option>
                     ))}
                 </select>
             </div>

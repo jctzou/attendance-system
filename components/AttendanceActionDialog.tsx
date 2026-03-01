@@ -177,6 +177,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                                     value={clockIn}
                                     onChange={handleClockInChange}
                                     workDate={date}
+                                    allowAnyMinute={true}
                                 />
                                 <div className="relative">
                                     <TimeSlotSelector
