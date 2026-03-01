@@ -292,9 +292,15 @@ export default function ModernClockPanel({
                                     </div>
 
                                     {salaryType === 'hourly' && (
-                                        <p className="text-[15px] text-slate-400 -mt-2">
-                                            ※若有特殊狀況，可先告知及修改下班時間
-                                        </p>
+                                        <div className="flex justify-end -mt-3 pr-2">
+                                            <div className="relative bg-transparent py-2 px-3 rounded-xl border border-slate-400 dark:border-neutral-500 w-fit">
+                                                {/* 指標尖端座落於右側 30% 位置，背景色與卡片底色一致 */}
+                                                <div className="absolute -top-[9px] right-[30%] translate-x-1/2 w-4 h-4 bg-white dark:bg-neutral-900 border-t border-l border-slate-400 dark:border-neutral-500 rotate-45" />
+                                                <p className="text-[13px] text-slate-500 dark:text-neutral-400 whitespace-nowrap">
+                                                    ※若有特殊狀況，可先告知及調整下班時間
+                                                </p>
+                                            </div>
+                                        </div>
                                     )}
 
                                     {salaryType === 'hourly' && (
