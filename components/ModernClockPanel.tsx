@@ -98,9 +98,9 @@ export default function ModernClockPanel({
         return () => clearInterval(timer)
     }, [])
 
-    // AI Fortune Logic (快取暫時關閉，用於測試)
+    // AI Fortune Logic
     useEffect(() => {
-        if (!isClockedIn && mounted) {
+        if (!isClockedIn && mounted && !fortune && !fortuneLoading) {
             const fetchFortune = async () => {
                 setFortuneLoading(true)
                 try {
@@ -114,7 +114,7 @@ export default function ModernClockPanel({
             }
             fetchFortune()
         }
-    }, [isClockedIn, mounted, userName])
+    }, [isClockedIn, mounted, userName, fortune, fortuneLoading])
 
     // --- Actions ---
 

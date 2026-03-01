@@ -1,7 +1,7 @@
 # 系統架構白皮書 (System Architecture v2.1)
 
 > **狀態**: 正式版 (Release)
-> **日期**: 2026-02-15
+> **日期**: 2026-03-01
 > **目的**: 本文件為系統開發的「單一事實來源 (Single Source of Truth)」，定義所有全域規範、資料庫結構與技術標準。
 
 ---
@@ -543,3 +543,19 @@ interface AppError {
 -   **快取清除 (Cache Busting)**：上傳新檔案覆蓋舊網址時，為了避免瀏覽器永久快取，更新後的 URL 應自動附加時戳參數 (`?t=12345678`) 強制刷新視圖。
 -   **孤立檔案清理 (Cleanup)**：如果系統允許上傳替換，Server Action 在獲取新圖片 URL 並更新 Database 成功後，**必須** 呼叫 Supabase 移除相同路徑下的舊檔案以避免無用資料堆疊。
 
+
+ ---
+ 
+ ## 14. AI 整合服務 (AI Services)
+ 
+ **目的**：利用生成式 AI 提升員工互動體驗與心理關懷。
+ 
+ ### 14.1 技術架構
+ - **Provider**: OpenAI API。
+ - **Model**: `gpt-4o-mini` (兼顧成本與回應速度)。
+ - **Implementation**: 封裝於 `app/attendance/fortune.ts` 的 Server Action。
+ - **Security**: API Key (`niizo_staff_ai_key`) 存儲於 Vercel 環境變數，嚴禁外洩。
+ 
+ ### 14.2 內容安全性
+ - 系統在 Prompt 中預設「專業命理師」角色，並過濾敏感政治或冒犯性語言。
+ - 設有字數限制 (60 字) 與 Fallback 機制，確保輸出的可預測性。
