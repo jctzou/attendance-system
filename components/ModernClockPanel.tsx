@@ -359,7 +359,7 @@ export default function ModernClockPanel({
                                             <div className="text-center pt-2 border-t border-emerald-100/50 dark:border-emerald-800/30">
                                                 <div className="text-[14px] text-slate-400 uppercase mb-1 font-bold">實收工時</div>
                                                 <div className="inline-block text-4xl font-bold font-mono text-emerald-600">
-                                                    {Number(attendanceRecord.work_hours).toFixed(1)}
+                                                    {Number(attendanceRecord.work_hours).toFixed(2)}
                                                     <span className="text-sm font-sans ml-1 text-emerald-600/60">hr</span>
                                                 </div>
                                                 {attendanceRecord.break_duration !== undefined && attendanceRecord.break_duration !== null && Number(attendanceRecord.break_duration) > 0 && (
