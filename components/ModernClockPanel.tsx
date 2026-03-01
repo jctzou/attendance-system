@@ -252,7 +252,7 @@ export default function ModernClockPanel({
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
                                             <div className="text-[14px] text-slate-400 uppercase mb-1">今日上班時間</div>
-                                            <div className="font-mono font-bold text-[23px] text-slate-700 dark:text-neutral-200">
+                                            <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-200">
                                                 {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                             </div>
                                         </div>
@@ -270,7 +270,7 @@ export default function ModernClockPanel({
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <div className="font-mono font-bold text-[23px] text-slate-700 dark:text-neutral-200">
+                                                        <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-200">
                                                             {scheduledClockOut ? formatHHmm(scheduledClockOut) : '--:--'}
                                                         </div>
                                                         <div className="text-[14px] text-primary hover:underline mt-1">
@@ -332,7 +332,7 @@ export default function ModernClockPanel({
                                         <div className="flex justify-center gap-8 mb-4">
                                             <div>
                                                 <div className="text-[14px] text-slate-400 uppercase mb-1 font-bold">上班</div>
-                                                <div className="font-mono font-bold text-[23px] text-slate-700 dark:text-neutral-300">
+                                                <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-300">
                                                     {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                                 </div>
                                             </div>
@@ -343,7 +343,7 @@ export default function ModernClockPanel({
                                                         <span>下班 <span className="text-orange-500 font-bold ml-0.5">(已調整)</span></span>
                                                     ) : '下班'}
                                                 </div>
-                                                <div className="font-mono font-bold text-[23px] text-slate-700 dark:text-neutral-300">
+                                                <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-300">
                                                     {formatHHmm(new Date(attendanceRecord.clock_out_time!))}
                                                 </div>
                                             </div>
