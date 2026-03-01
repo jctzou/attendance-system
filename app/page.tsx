@@ -60,7 +60,8 @@ export default async function Home() {
             salaryType={userProfile.salary_type}
             userSettings={{
               work_start_time: userProfile.work_start_time || '09:00:00',
-              work_end_time: userProfile.work_end_time || '18:00:00'
+              work_end_time: userProfile.work_end_time || '18:00:00',
+              break_hours: userProfile.break_hours
             }}
             todayRecord={todayRecord}
           />
