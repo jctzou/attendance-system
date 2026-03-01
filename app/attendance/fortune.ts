@@ -1,22 +1,19 @@
 'use server'
 
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import OpenAI from 'openai'
 
 export async function getDailyFortune(userName: string | null) {
-    const apiKey = process.env.GOOGLE_AI_API_KEY
+    const apiKey = process.env.niizo_staff_ai_key
     if (!apiKey) {
-        throw new Error('Missing GOOGLE_AI_API_KEY')
+        throw new Error('Missing niizo_staff_ai_key')
     }
 
-    console.log('[Fortune] Environment API KEY check:', !!process.env.GOOGLE_AI_API_KEY)
+    console.log('[Fortune] Environment API KEY check:', !!process.env.niizo_staff_ai_key)
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey)
-        // 使用您指定的 Gemini 2.5 模型
-        const model = genAI.getGenerativeModel(
-            { model: 'gemini-2.5-flash' },
-            { apiVersion: 'v1beta' }
-        )
+        const openai = new OpenAI({
+            apiKey: apiKey,
+        })
 
         const date = new Date().toLocaleDateString('zh-TW', {
             year: 'numeric',
@@ -25,28 +22,33 @@ export async function getDailyFortune(userName: string | null) {
         })
 
         const prompt = `
-        你是一位幽默正能量的職場導師。
-        任務： 根據今天日期 ${date} 與 ${userName}，生成 35 字內今日運勢。
-        要求： 
-        1. 自動偵測： 請 AI 自行判斷今日的「星期、天氣、農曆節氣」。
-        2. 工作場景: 布包品牌、出貨縫紉製作工作室。
-        3. 內容： 結合上述資訊給予一句運勢分析 + 一個辦公室幸運物。
-        4. 風格： 拒絕死板，使用職場梗，直接輸出繁體中文。
+        角色設定：
+        你是一位布包品牌niizo工作室聘請的命理師,目的是提升員工的運勢與健康。
+        任務指令：
+        請分析 ${date} 的運勢，請隨機選擇以下其中一個(天氣、八字命學、紫微斗數、生命靈數、農民曆或西洋占星)作為分析的依據，結合時事、工作與生活的綜合資訊，
+        開頭先依時間給予問候 ${userName},(例如：早安、午安、晚安)
+        接著給一句[60]字內的提示,說明依據、籤詞 + 幸運物或幸運色。
         `
 
-        console.log('[Fortune] Sending request to Gemini (v1)...')
-        const result = await model.generateContent(prompt)
-        const response = await result.response
-        const text = response.text().trim()
+        console.log('[Fortune] Sending request to OpenAI...')
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'user', content: prompt }
+            ],
+            max_tokens: 150,
+            temperature: 0.7,
+        })
+
+        const text = response.choices[0].message.content?.trim() || '今天也是充滿希望的一天，加油！'
 
         console.log('[Fortune] Success! Result:', text)
         return text
     } catch (error: any) {
-        console.error('[Fortune] Gemini API Error Details:', {
+        console.error('[Fortune] OpenAI API Error Details:', {
             message: error.message,
             status: error.status,
             name: error.name,
-            reason: error.reason || 'Unknown reason'
         })
         return '今天也是充滿希望的一天，加油！'
     }

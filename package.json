@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@heroicons/react": "^2.2.0",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
@@ -19,6 +18,7 @@
     "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.34.3",
     "next": "16.1.6",
+    "openai": "^6.25.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.6",
