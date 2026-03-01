@@ -12,10 +12,10 @@ export async function getDailyFortune(userName: string | null) {
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey)
-        // 使用您指定的 Gemini 2.5 模型
+        // 使用 Gemini 1.5 模型
         const model = genAI.getGenerativeModel(
-            { model: 'gemini-2.5-flash' },
-            { apiVersion: 'v1beta' }
+            { model: 'gemini-1.5-flash' },
+            { apiVersion: 'v1' }
         )
 
         const date = new Date().toLocaleDateString('zh-TW', {
