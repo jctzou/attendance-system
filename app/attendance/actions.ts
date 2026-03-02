@@ -81,7 +81,11 @@ async function calculateAttendanceFields(
     const inTimeStr = clockInTime ? getTaipeiTimeString(clockInTime) : null;
     const outTimeStr = clockOutTime ? getTaipeiTimeString(clockOutTime) : null;
 
-    const status = determineAttendanceStatus(inTimeStr, outTimeStr, workStartTime, workEndTime);
+    // 鐘點人員不標註「遲到」或「早退」標籤，只要有打卡一律為 'normal'
+    // 月薪人員則遵循 5 分鐘上班緩衝判定規則
+    const status = isHourly
+        ? (clockInTime ? 'normal' : 'absent')
+        : determineAttendanceStatus(inTimeStr, outTimeStr, workStartTime, workEndTime, 5);
 
     let workHours: number | null = null;
     if (clockInTime && clockOutTime) {

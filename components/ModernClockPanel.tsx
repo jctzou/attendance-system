@@ -7,6 +7,7 @@ import { Database } from '@/types/supabase'
 import { Dialog, DialogHeader, DialogContent, DialogFooter } from '@/components/ui/Dialog'
 import { ATTENDANCE_STATUS_MAP } from '@/app/attendance/constants'
 import { features } from '@/utils/features'
+import { getTaipeiDateString } from '@/utils/timezone'
 
 // --- Types ---
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
@@ -98,23 +99,51 @@ export default function ModernClockPanel({
         return () => clearInterval(timer)
     }, [])
 
-    // AI Fortune Logic
-    useEffect(() => {
-        if (!isClockedIn && mounted && !fortune && !fortuneLoading) {
-            const fetchFortune = async () => {
-                setFortuneLoading(true)
+    // AI Fortune Logic (Cache for same day, supports manual refresh)
+    const fetchFortune = async (force: boolean = false) => {
+        if (!mounted || fortuneLoading) return
+
+        const todayStr = getTaipeiDateString()
+        const cacheKey = 'niizo_daily_fortune'
+
+        if (!force) {
+            const cached = localStorage.getItem(cacheKey)
+            if (cached) {
                 try {
-                    const result = await getDailyFortune(userName)
-                    setFortune(result)
+                    const parsed = JSON.parse(cached)
+                    if (parsed.date === todayStr && parsed.content) {
+                        setFortune(parsed.content)
+                        return
+                    }
                 } catch (e) {
-                    setFortune('今天也是充滿希望的一天！')
-                } finally {
-                    setFortuneLoading(false)
+                    console.error('Failed to parse fortune cache', e)
                 }
             }
+        }
+
+        // Fetch from API
+        setFortuneLoading(true)
+        try {
+            const result = await getDailyFortune(userName)
+            if (result) {
+                setFortune(result)
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    date: todayStr,
+                    content: result
+                }))
+            }
+        } catch (e) {
+            setFortune('今天也是充滿希望的一天！')
+        } finally {
+            setFortuneLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (isClockedIn && !isClockedOut && mounted && !fortune) {
             fetchFortune()
         }
-    }, [isClockedIn, mounted, userName, fortune, fortuneLoading])
+    }, [isClockedIn, isClockedOut, mounted, fortune])
 
     // --- Actions ---
 
@@ -224,15 +253,15 @@ export default function ModernClockPanel({
         <>
             <div className="w-full max-w-lg bg-[var(--color-card-light)] bg-white dark:bg-neutral-900 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-200 dark:border-neutral-700 p-6 md:p-7 text-center transition-all duration-300">
                 {/* Header Info */}
-                <div className="space-y-2 mb-6">
-                    <p className="text-slate-500 dark:text-neutral-400 font-medium tracking-wide">
+                <div className="space-y-0.5 mb-4">
+                    <p className="text-slate-500 dark:text-neutral-400 font-medium tracking-wide text-sm">
                         {mounted && time ? time.toLocaleDateString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric' }) : 'Loading...'}
                     </p>
-                    <div className="font-mono text-5xl md:text-6xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
+                    <div className="font-mono text-[34px] md:text-[42px] font-bold text-slate-900 dark:text-white tabular-nums tracking-tight leading-tight">
                         {mounted && time ? formatTime(time) : '00:00:00'}
                     </div>
                     {salaryType === 'monthly' && (
-                        <div className="flex items-center justify-center space-x-2 text-[14px] text-slate-400 dark:text-neutral-500">
+                        <div className="flex items-center justify-center space-x-2 text-[13px] text-slate-400 dark:text-neutral-500">
                             <span>表定工時: {userSettings.work_start_time?.slice(0, 5)} - {userSettings.work_end_time?.slice(0, 5)}</span>
                         </div>
                     )}
@@ -262,26 +291,6 @@ export default function ModernClockPanel({
                                 <div className="space-y-6">
                                     <div className="text-[18px] text-slate-400 py-1 font-bold uppercase tracking-widest">
                                         尚未打卡
-                                    </div>
-
-                                    {/* AI Fortune Card */}
-                                    <div className="relative group mx-auto max-w-[95%] transform transition-all hover:scale-[1.02]">
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-amber-500/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                                        <div className="relative bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-slate-100 dark:border-neutral-800 p-4 rounded-2xl shadow-sm">
-                                            {fortuneLoading ? (
-                                                <div className="flex flex-col items-center gap-2 py-2">
-                                                    <div className="w-5 h-5 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-                                                    <div className="text-[13px] text-slate-400 animate-pulse">正在為你捕捉今日好運...</div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-start gap-3">
-                                                    <span className="text-xl shrink-0">✨</span>
-                                                    <p className="text-[14px] text-slate-600 dark:text-neutral-300 leading-relaxed text-left flex-1 italic font-medium">
-                                                        {fortune || '準備好迎接充滿活力的一天了嗎？'}
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
                                     </div>
 
                                     <button
@@ -368,6 +377,30 @@ export default function ModernClockPanel({
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* AI Fortune Card */}
+                                    <div
+                                        onClick={() => fetchFortune(true)}
+                                        className="relative group mx-auto max-w-[95%] transform transition-all hover:scale-[1.02] cursor-pointer active:scale-[0.98]"
+                                        title="點擊刷新今日運勢"
+                                    >
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-amber-500/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                                        <div className="relative bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-slate-100 dark:border-neutral-800 p-4 rounded-2xl shadow-sm group-hover:bg-white dark:group-hover:bg-neutral-800 transition-colors">
+                                            {fortuneLoading ? (
+                                                <div className="flex flex-col items-center gap-2 py-2">
+                                                    <div className="w-5 h-5 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                                                    <div className="text-[13px] text-slate-400 animate-pulse">正在為你捕捉今日好運...</div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-start gap-3">
+                                                    <span className="text-xl shrink-0 group-hover:animate-pulse">✨</span>
+                                                    <p className="text-[14px] text-slate-600 dark:text-neutral-300 leading-relaxed text-left flex-1 italic font-medium">
+                                                        {fortune || '準備好迎接充滿活力的一天了嗎？'}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
 
                                     <button
                                         onClick={handleClockOut}

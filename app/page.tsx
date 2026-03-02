@@ -52,7 +52,7 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] py-4 md:py-8">
-      <div className="w-full max-w-[480px] flex flex-col gap-4 md:gap-8 px-2 md:px-4">
+      <div className="w-full max-w-[480px] flex flex-col gap-[11px] md:gap-[22px] px-2 md:px-4">
         {userProfile && user ? (
           <ModernClockPanel
             userId={user.id}
