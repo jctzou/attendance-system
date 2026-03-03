@@ -30,6 +30,16 @@ export default function MySalaryPage() {
         setLoading(false)
     }
 
+    const formatHM = (val: number | undefined) => {
+        if (val === undefined || val === 0) return '-'
+        // 判斷是否為分鐘級數據 (通常工時不大於 500 小時，若大於則視為分鐘)
+        // 或者是針對新數據統一處理
+        const totalMinutes = val > 500 ? Math.round(val) : Math.round(val * 60)
+        const h = Math.floor(totalMinutes / 60)
+        const m = totalMinutes % 60
+        return `${h}小時${m}分`
+    }
+
     // 渲染出勤統計詳情
     const renderDetails = (details: any) => {
         if (!details) return null
@@ -85,10 +95,10 @@ export default function MySalaryPage() {
                                             <div className="text-slate-900 dark:text-white">
                                                 {record.user?.salary_type === 'hourly' ? (
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium text-lg">{((record.settled_data as any)?.work_hours || record.work_hours || 0)} 小時</span>
+                                                        <span className="font-medium text-lg">{formatHM((record.settled_data as any)?.work_hours || record.work_hours || 0)}</span>
                                                         {((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours) > 0 && (
                                                             <span className="text-xs text-slate-500 font-normal">
-                                                                (已扣除 {((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours)} 小時午休)
+                                                                (已扣除 {formatHM((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours)} 午休)
                                                             </span>
                                                         )}
                                                     </div>
