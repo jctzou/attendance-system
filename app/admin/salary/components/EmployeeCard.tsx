@@ -25,6 +25,14 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(val).replace('USD', '$')
     }
 
+    const formatHM = (hours: number | undefined) => {
+        if (hours === undefined) return '-'
+        const totalMinutes = Math.round(hours * 60)
+        const h = Math.floor(totalMinutes / 60)
+        const m = totalMinutes % 60
+        return `${h}小時${m}分`
+    }
+
     const handleExpand = async () => {
         if (!isExpanded && !liveData) {
             setLoadingLive(true)
@@ -104,10 +112,10 @@ export const EmployeeCard: React.FC<Props> = ({ data, onSettle, onResettle, onEd
                                 {isHourly ? (
                                     <>
                                         <div>
-                                            {data.workHours}h
+                                            {formatHM(data.workHours)}
                                             {data.totalBreakHours !== undefined && data.totalBreakHours > 0 && (
                                                 <span className="text-[10px] text-slate-400 block -mt-1 font-normal">
-                                                    (已扣 {data.totalBreakHours}h)
+                                                    (已扣 {formatHM(data.totalBreakHours)})
                                                 </span>
                                             )}
                                         </div>

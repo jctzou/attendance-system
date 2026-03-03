@@ -49,33 +49,31 @@ export function determineAttendanceStatus(
 }
 
 /**
- * 計算兩次打卡之間的淨工時
+ * 計算兩次打卡之間的淨工時 (單位：分鐘)
  * 
  * @param clockInTime ISO 上班時間 
  * @param clockOutTime ISO 下班時間
- * @param breakHours 午休/休息小時數 (例如 1.0, 1.5)
- * @param isHourly 是否為時薪制
- * @returns 淨工時 (小數，如 8.0, 7.5)
+ * @param breakDuration 休息時數 (單位：小時，例如 1.0, 1.5)
+ * @returns 淨工時 (單位：分鐘，整數)
  */
-export function calculateWorkHours(
+export function calculateWorkMinutes(
     clockInTime: string,
     clockOutTime: string,
-    breakHours: number = 0,
-    isHourly: boolean = false
+    breakDuration: number = 0
 ): number {
     const inDate = parseISO(clockInTime);
     const outDate = parseISO(clockOutTime);
 
-    const totalMinutes = differenceInMinutes(outDate, inDate);
+    let totalMinutes = differenceInMinutes(outDate, inDate);
+    console.log('[ENGINE] Raw diff in minutes:', totalMinutes);
     if (totalMinutes <= 0) return 0;
 
-    let totalHours = totalMinutes / 60;
-    totalHours -= breakHours;
+    // 將小時轉換為分鐘扣除
+    const breakMinutes = Math.round(breakDuration * 60);
+    totalMinutes -= breakMinutes;
+    console.log('[ENGINE] After break subtraction:', totalMinutes);
 
-    if (totalHours < 0) totalHours = 0;
+    if (totalMinutes < 0) totalMinutes = 0;
 
-    // 統一四捨五入到小數第二位
-    totalHours = Math.round(totalHours * 100) / 100;
-
-    return totalHours;
+    return totalMinutes;
 }

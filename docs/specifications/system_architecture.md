@@ -52,8 +52,8 @@
 | `work_date` | Date | **台北時間**日期 (YYYY-MM-DD) |
 | `clock_in_time` | Timestamptz | 上班打卡 (UTC ISO) |
 | `clock_out_time` | Timestamptz | 下班打卡 (UTC ISO) |
-| `work_hours` | Numeric | 計算工時 (小數點 2 位) |
-| `break_duration` | Numeric | 午休扣除時數 (Hourly Only) |
+| `work_hours` | BigInt | 計算工時 (儲存單位：**分鐘**) |
+| `break_duration` | BigInt | 午休扣除時間 (儲存單位：**分鐘**) |
 | `status` | Text | `'normal'`, `'late'`, `'early_leave'`, `'absent'` |
 | `is_edited` | Boolean | 是否經過手動修改 |
 
@@ -194,7 +194,6 @@
 系統將複雜的業務規則從 UI 與 API 路由中抽離，獨立建立三個核心運算引擎：
 1. **`utils/attendance-engine.ts`**:
    - 負責**出勤狀態判定**。包含遲到/早退判定、工時計算、休息時間扣除等。
-   - 時薪制的 30 分鐘防呆進位邏輯 (Nearest 30 minutes)。
 2. **`utils/salary-engine.ts`**:
    - 負責**月薪與時薪的複雜計薪**。處理基本薪資、全勤獎金、請假扣款等。
    - 提供實時 Snapshot 運算以支援前端「即時試算」。
@@ -234,11 +233,11 @@
 -   **排程服務 (Background Services)**：給假判斷不依賴前端觸發，而是提供 API Endpoint (`/api/cron/annual-leave`) 供外部排程系統（如 Vercel Cron）每日凌晨呼叫。該 API 會讀取所有員工 `onboard_date` 並配合引擎判定是否為週年紀念日，進而寫入 `annual_leave_logs` 紀錄。
 -   **安全限制**：任何排程 API 都必須透過判斷 `SUPABASE_SERVICE_ROLE_KEY` 或是專屬的 Bearer Token 以防止未經授權的外部偽造請求。
 
-### 6.6 鐘點人員打卡校正與審計日誌 (Hourly Auto-Correction & Audit Logs)
-**目的**：避免時鐘點人員薪資結算時因小數點或零碎分鐘產生無法對齊的誤差。
--   **強制作法**：介面上「鐘點制員工 (`salary_type === 'hourly'`)」進行任何打卡（上班、下班）或後補打卡操作時，**強制禁止** 自由選時，只能使用以 30 分鐘為一階的 `TimeSlotSelector`（例如 `09:00`, `09:30`）。
--   **修訂日誌 (`edit_logs`)**：當系統接受此類經過「自定義時間」選擇校正過的打卡請求時，除了將 `attendance.is_edited` 標記為 `true`，還必須強制在背景向 `attendance_edit_logs` 資料表寫入一筆追蹤記錄，記錄使用者當時的「實際操作時間」與「選擇校正後的時間」，確保後續審計透明。
--   **異常狀態顯示切換 (Feature Flag)**：對於鐘點制員工之「遲到 (Late) / 早退 (Early Leave)」紀錄，底層 `attendance-engine.ts` 仍會如實計算與寫入資料庫。但在 UI 呈現層，一律透過全域環境變數 `NEXT_PUBLIC_SHOW_HOURLY_STATUS` (封裝於 `utils/features.ts`) 來決定是否隱藏這些紅燈警告。預設為 `false` (隱藏)，以此保持版面乾淨並為未來擴充保留後路。
+### 6.6 鐘點人員實即打卡與審計日誌 (Hourly Real-time Clocking & Audit Logs)
+**目的**：確保時薪人員工時計薪之絕對精確，並提供透明的修改軌跡。
+- **實時原則**：時薪人員下班打卡採用當下系統時間，並以「分鐘」為單位精確寫入資料庫。
+- **修訂日誌 (`edit_logs`)**：當系統接受人工補登或修改請求時，除了將 `attendance.is_edited` 標記為 `true`，還必須向 `attendance_edit_logs` 資料表寫入一筆追蹤記錄，內容包含修改前後的時間與原因。
+- **異常狀態顯示切換 (Feature Flag)**：對於鐘點制員工之「遲到 (Late) / 早退 (Early Leave)」紀錄，底層 `attendance-engine.ts` 仍會運作。但在 UI 呈現層，透過環境變數 `NEXT_PUBLIC_SHOW_HOURLY_STATUS` 來決定是否隱藏這些警告。
 
 ### 6.7 員工帳號與權限生命週期管理 (Employee Account Lifecycle)
 **目的**：確保員工由到職至離職的權限控制符合企業級資訊安全規範。

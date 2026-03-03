@@ -227,12 +227,12 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
             console.warn(`[Salary] 異常：${userId} 在 ${yearMonth} 有 ${attendance.length} 筆出勤記錄（超過一個月天數），請檢查 DB 日期篩選是否正確。startDate=${startDate}, endDate=${endDate}`)
         }
         attendance.forEach((record: any) => {
-            const hours = Number(record.work_hours) || 0
-            if (hours > 24) {
-                console.warn(`[Salary] 異常工時：attendance id=${record.id}, work_date=${record.work_date}, work_hours=${record.work_hours}`)
+            const minutes = Number(record.work_hours) || 0
+            if (minutes > 1440) {
+                console.warn(`[Salary] 異常工時(分)：attendance id=${record.id}, work_date=${record.work_date}, work_hours=${record.work_hours}`)
             }
-            workHours += hours
-            totalBreakHours += Number(record.break_duration) || 0
+            workHours += minutes / 60
+            totalBreakHours += (Number(record.break_duration) || 0) / 60
             if (record.status?.includes('late')) lateCount++
             if (record.status?.includes('early_leave')) earlyLeaveCount++
         })
@@ -530,17 +530,17 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
     const leavesByUser = new Map<string, any[]>()
     const salaryRecordByUser = new Map<string, any>()
 
-    ;(allAttendance || []).forEach((rec: any) => {
-        if (!attendanceByUser.has(rec.user_id)) attendanceByUser.set(rec.user_id, [])
-        attendanceByUser.get(rec.user_id)!.push(rec)
-    })
-    ;(allLeaves || []).forEach((rec: any) => {
-        if (!leavesByUser.has(rec.user_id)) leavesByUser.set(rec.user_id, [])
-        leavesByUser.get(rec.user_id)!.push(rec)
-    })
-    ;(allSalaryRecords || []).forEach((rec: any) => {
-        salaryRecordByUser.set(rec.user_id, rec)
-    })
+        ; (allAttendance || []).forEach((rec: any) => {
+            if (!attendanceByUser.has(rec.user_id)) attendanceByUser.set(rec.user_id, [])
+            attendanceByUser.get(rec.user_id)!.push(rec)
+        })
+        ; (allLeaves || []).forEach((rec: any) => {
+            if (!leavesByUser.has(rec.user_id)) leavesByUser.set(rec.user_id, [])
+            leavesByUser.get(rec.user_id)!.push(rec)
+        })
+        ; (allSalaryRecords || []).forEach((rec: any) => {
+            salaryRecordByUser.set(rec.user_id, rec)
+        })
 
     // 6. Calculate per user
     const results: SalaryRecordData[] = users.map((userData: any) => {
@@ -582,12 +582,12 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
         const leaveDetails: Record<string, number> = {}
 
         attendance.forEach((rec: any) => {
-            const hours = Number(rec.work_hours) || 0
-            if (hours > 24) {
-                console.warn(`[Salary Batch] Abnormal work_hours: work_date=${rec.work_date}, work_hours=${rec.work_hours}, user=${userData.display_name}`)
+            const minutes = Number(rec.work_hours) || 0
+            if (minutes > 1440) {
+                console.warn(`[Salary Batch] Abnormal work_minutes: work_date=${rec.work_date}, work_hours=${rec.work_hours}, user=${userData.display_name}`)
             }
-            workHours += hours
-            totalBreakHours += Number(rec.break_duration) || 0
+            workHours += minutes / 60
+            totalBreakHours += (Number(rec.break_duration) || 0) / 60
             if (rec.status?.includes('late')) lateCount++
             if (rec.status?.includes('early_leave')) earlyLeaveCount++
         })

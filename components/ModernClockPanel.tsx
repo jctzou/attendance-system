@@ -53,8 +53,6 @@ export default function ModernClockPanel({
 
     // --- Hourly Related State ---
     const [breakDuration, setBreakDuration] = useState<number>(1.0)
-    const [scheduledClockOut, setScheduledClockOut] = useState<Date | null>(null)
-    const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false)
 
     // AI Fortune State
     const [fortune, setFortune] = useState<string>('')
@@ -74,21 +72,12 @@ export default function ModernClockPanel({
     }, [initialRecord, salaryType])
 
     useEffect(() => {
-        if (salaryType === 'hourly') {
-            if (attendanceRecord?.clock_out_time) {
-                setScheduledClockOut(new Date(attendanceRecord.clock_out_time))
-            } else if (userSettings.work_end_time) {
-                const [h, m] = userSettings.work_end_time.split(':').map(Number)
-                const d = new Date()
-                d.setHours(h, m, 0, 0)
-                setScheduledClockOut(d)
-            }
-        } else {
+        if (salaryType === 'monthly') {
             // 月薪制初始化午休時數
             const defaultBreak = userSettings.break_hours ?? 1.0
             setBreakDuration(defaultBreak)
         }
-    }, [salaryType, userSettings.work_end_time, userSettings.break_hours, !!attendanceRecord?.clock_out_time])
+    }, [salaryType, userSettings.break_hours])
 
     // Timer Logic
     useEffect(() => {
@@ -173,9 +162,8 @@ export default function ModernClockPanel({
         setMessageType('success')
         startTransition(async () => {
             try {
-                // 鐘點制：使用表定或調整後的下班時間；月薪：使用 undefined (即 server 端 new Date())
-                const timeToUse = salaryType === 'hourly' ? scheduledClockOut || undefined : undefined
-                const res = await clockOut(userId, timeToUse, salaryType === 'hourly' ? breakDuration : undefined)
+                // 統一使用當前伺服器時間 (即 server 端 new Date())
+                const res = await clockOut(userId, undefined, salaryType === 'hourly' ? breakDuration : undefined)
 
                 if (!res.success) {
                     setMessageType('error')
@@ -220,34 +208,15 @@ export default function ModernClockPanel({
         if (!status) return STATUS_CONFIG.normal
         return (STATUS_CONFIG as any)[status] || STATUS_CONFIG.normal
     }
-    const statusInfo = getStatusInfo(attendanceRecord?.status)
 
-    // 生成調整時間選單：30 分鐘為單位
-    const generateTimeOptions = () => {
-        const options = []
-        for (let h = 0; h < 24; h++) {
-            for (let m = 0; m < 60; m += 30) {
-                const d = new Date()
-                d.setHours(h, m, 0, 0)
-                options.push(d)
-            }
-        }
-        return options
+    const formatWorkTime = (minutes: number | null | undefined) => {
+        if (minutes === null || minutes === undefined) return '-'
+        const h = Math.floor(minutes / 60)
+        const m = Math.round(minutes % 60)
+        return `${h}小時${m}分`
     }
 
-    const timeOptions = generateTimeOptions()
-    const clockInTimeObj = attendanceRecord?.clock_in_time ? new Date(attendanceRecord.clock_in_time) : null
-
-    // 規格化表定時間為 HH:mm (確保比對基準一致，不論原始格式是 18:00 或 18:00:00)
-    const normalizedSettingEndStr = userSettings.work_end_time?.slice(0, 5)
-
-    // 檢查是否與表定時間不同 (HH:mm 格式比遞)
-    const currentClockOutStr = scheduledClockOut ? formatHHmm(scheduledClockOut) : null
-    const isActuallyAdjusted = salaryType === 'hourly' && currentClockOutStr && currentClockOutStr !== normalizedSettingEndStr
-
-    // 已下班狀態的調整檢查
-    const clockOutTimeObj = attendanceRecord?.clock_out_time ? new Date(attendanceRecord.clock_out_time) : null
-    const isClockedOutAdjusted = salaryType === 'hourly' && clockOutTimeObj && formatHHmm(clockOutTimeObj) !== normalizedSettingEndStr
+    const statusInfo = getStatusInfo(attendanceRecord?.status)
 
     return (
         <>
@@ -311,52 +280,16 @@ export default function ModernClockPanel({
                                                 {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                             </div>
                                         </div>
-                                        <div
-                                            onClick={salaryType === 'hourly' ? () => setIsAdjustDialogOpen(true) : undefined}
-                                            className={`bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700 ${salaryType === 'hourly' ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-750 transition-colors active:scale-[0.98]' : ''}`}
-                                        >
-                                            {salaryType === 'hourly' ? (
-                                                <>
-                                                    <div className="text-[14px] text-slate-400 uppercase mb-1">
-                                                        {isActuallyAdjusted ? (
-                                                            <span>下班時間 <span className="text-orange-500 font-bold ml-1">(已調整)</span></span>
-                                                        ) : (
-                                                            '表定下班時間'
-                                                        )}
-                                                    </div>
-                                                    <div className="flex flex-col items-center">
-                                                        <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-200">
-                                                            {scheduledClockOut ? formatHHmm(scheduledClockOut) : '--:--'}
-                                                        </div>
-                                                        <div className="text-[14px] text-primary hover:underline mt-1">
-                                                            調整時間
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div className="text-[14px] text-slate-400 uppercase mb-1">狀態</div>
-                                                    <div className="py-1 text-center flex justify-center">
-                                                        <span className={`inline-flex px-3 py-0.5 rounded-full text-[13px] font-bold uppercase ${statusInfo.color}`}>
-                                                            {statusInfo.label}
-                                                        </span>
-                                                    </div>
-                                                </>
-                                            )}
+                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                            <div className="text-[14px] text-slate-400 uppercase mb-1">狀態</div>
+                                            <div className="py-1 text-center flex justify-center">
+                                                <span className={`inline-flex px-3 py-0.5 rounded-full text-[13px] font-bold uppercase ${statusInfo.color}`}>
+                                                    {statusInfo.label}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {salaryType === 'hourly' && (
-                                        <div className="flex justify-end -mt-3 pr-2">
-                                            <div className="relative bg-transparent py-2 px-3 rounded-xl border border-slate-400 dark:border-neutral-500 w-fit">
-                                                {/* 指標尖端座落於右側 30% 位置，背景色與卡片底色一致 */}
-                                                <div className="absolute -top-[9px] right-[30%] translate-x-1/2 w-4 h-4 bg-white dark:bg-neutral-900 border-t border-l border-slate-400 dark:border-neutral-500 rotate-45" />
-                                                <p className="text-[13px] text-slate-500 dark:text-neutral-400 whitespace-nowrap">
-                                                    ※若有特殊狀況，可先告知及調整下班時間
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
 
                                     {salaryType === 'hourly' && (
                                         <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
@@ -423,27 +356,22 @@ export default function ModernClockPanel({
                                             </div>
                                             <div className="w-px bg-slate-200 dark:bg-neutral-700"></div>
                                             <div>
-                                                <div className="text-[14px] text-slate-400 uppercase mb-1 font-bold">
-                                                    {isClockedOutAdjusted ? (
-                                                        <span>下班 <span className="text-orange-500 font-bold ml-0.5">(已調整)</span></span>
-                                                    ) : '下班'}
-                                                </div>
+                                                <div className="text-[14px] text-slate-400 uppercase mb-1 font-bold">下班</div>
                                                 <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-300">
                                                     {formatHHmm(new Date(attendanceRecord.clock_out_time!))}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {attendanceRecord.work_hours !== undefined && (
+                                        {attendanceRecord.work_hours !== undefined && attendanceRecord.work_hours !== null && (
                                             <div className="text-center pt-2 border-t border-emerald-100/50 dark:border-emerald-800/30">
                                                 <div className="text-[14px] text-slate-400 uppercase mb-1 font-bold">實收工時</div>
-                                                <div className="inline-block text-4xl font-bold font-mono text-emerald-600">
-                                                    {Number(attendanceRecord.work_hours).toFixed(2)}
-                                                    <span className="text-sm font-sans ml-1 text-emerald-600/60">hr</span>
+                                                <div className="inline-block text-3xl font-bold font-mono text-emerald-600">
+                                                    {formatWorkTime(Number(attendanceRecord.work_hours))}
                                                 </div>
                                                 {attendanceRecord.break_duration !== undefined && attendanceRecord.break_duration !== null && Number(attendanceRecord.break_duration) > 0 && (
                                                     <div className="text-[14px] text-emerald-600/50 mt-1">
-                                                        (已扣午休 {attendanceRecord.break_duration}h)
+                                                        (已扣午休 {formatWorkTime(Number(attendanceRecord.break_duration))})
                                                     </div>
                                                 )}
                                             </div>
@@ -464,37 +392,6 @@ export default function ModernClockPanel({
                 </div>
             </div>
 
-            {/* Time Adjustment Dialog (Hourly only) */}
-            <Dialog isOpen={isAdjustDialogOpen} onClose={() => setIsAdjustDialogOpen(false)} maxWidth="sm">
-                <DialogHeader title="調整下班時間" onClose={() => setIsAdjustDialogOpen(false)} />
-                <DialogContent>
-                    <div className="grid grid-cols-4 gap-2">
-                        {timeOptions
-                            .filter(opt => clockInTimeObj ? opt > clockInTimeObj : true)
-                            .map((opt, i) => {
-                                const isSelected = scheduledClockOut && formatHHmm(opt) === formatHHmm(scheduledClockOut)
-                                return (
-                                    <button
-                                        key={i}
-                                        onClick={() => {
-                                            setScheduledClockOut(opt)
-                                            setIsAdjustDialogOpen(false)
-                                        }}
-                                        className={`py-2 text-sm font-mono rounded-lg border transition-all ${isSelected
-                                            ? 'bg-primary text-white border-primary shadow-sm'
-                                            : 'border-slate-200 hover:border-primary text-slate-600'
-                                            }`}
-                                    >
-                                        {formatHHmm(opt)}
-                                    </button>
-                                )
-                            })}
-                    </div>
-                </DialogContent>
-                <DialogFooter>
-                    <button onClick={() => setIsAdjustDialogOpen(false)} className="px-4 py-2 text-slate-500">取消</button>
-                </DialogFooter>
-            </Dialog>
 
             {/* Confirmation Modal */}
             <Dialog isOpen={showCancelConfirm} onClose={() => setShowCancelConfirm(false)} maxWidth="sm">

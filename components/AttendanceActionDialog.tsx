@@ -42,7 +42,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
             setMode('edit')
             setClockIn(existingRecord.clock_in_time ? formatToTaipeiTime(existingRecord.clock_in_time, "yyyy-MM-dd'T'HH:mm") : `${date}T09:00`)
             setClockOut(existingRecord.clock_out_time ? formatToTaipeiTime(existingRecord.clock_out_time, "yyyy-MM-dd'T'HH:mm") : '')
-            setBreakDuration(existingRecord.break_duration ?? 1.0)
+            setBreakDuration(existingRecord.break_duration ? existingRecord.break_duration / 60 : 1.0)
         } else {
             setMode('add')
             setClockIn(`${date}T09:00`)
@@ -185,6 +185,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                                         value={clockOut}
                                         onChange={handleClockOutChange}
                                         workDate={date}
+                                        allowAnyMinute={true}
                                     />
                                     {clockOut && (
                                         <button
@@ -205,7 +206,7 @@ export default function AttendanceActionDialog({ date, existingRecord, existingL
                                         onChange={(e) => setBreakDuration(Number(e.target.value))}
                                         className="w-full p-2 border border-slate-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
                                     >
-                                        {[0, 1, 1.5, 2].map((val) => (
+                                        {[0, 1, 1.5].map((val) => (
                                             <option key={val} value={val}>{val} hr</option>
                                         ))}
                                     </select>

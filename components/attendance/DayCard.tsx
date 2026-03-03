@@ -73,9 +73,9 @@ export function DayCard({
 
             {leave ? (
                 <div className={`text-xs px-2 py-1 rounded font-medium mb-1 ${leave.leave_type === 'sick_leave' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                        leave.leave_type === 'personal_leave' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
-                            leave.leave_type === 'annual_leave' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                                'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
+                    leave.leave_type === 'personal_leave' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+                        leave.leave_type === 'annual_leave' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                            'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
                     }`}>
                     {leave.leave_type === 'sick_leave' ? '💊 ' :
                         leave.leave_type === 'personal_leave' ? '📝 ' :
@@ -90,7 +90,9 @@ export function DayCard({
                     <div className="flex items-center gap-1">
                         <span className="text-green-600 dark:text-green-400 font-medium">✓ 已打卡</span>
                         {att.break_duration > 0 && (
-                            <span className="text-slate-400 text-[10px]">(休{att.break_duration}h)</span>
+                            <span className="text-slate-400 text-[10px]">
+                                (休{Math.floor(Number(att.break_duration) / 60)}小時{Math.round(Number(att.break_duration) % 60)}分)
+                            </span>
                         )}
                     </div>
                     <div className="text-slate-600 dark:text-neutral-400">

@@ -8,7 +8,7 @@ import { Database } from '@/types/supabase'
 import { z } from 'zod'
 import { ActionResult, ErrorCodes } from '@/types/actions'
 import { requireUserProfile, requireUserRole, withErrorHandling } from '@/utils/actions_common'
-import { determineAttendanceStatus, calculateWorkHours } from '@/utils/attendance-engine'
+import { determineAttendanceStatus, calculateWorkMinutes } from '@/utils/attendance-engine'
 import { getTaipeiDateString, getTaipeiTimeString } from '@/utils/timezone'
 
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
@@ -89,14 +89,16 @@ async function calculateAttendanceFields(
 
     let workHours: number | null = null;
     if (clockInTime && clockOutTime) {
-        workHours = calculateWorkHours(clockInTime, clockOutTime, breakHours, isHourly);
+        workHours = calculateWorkMinutes(clockInTime, clockOutTime, breakHours);
     }
 
-    return {
+    const res = {
         status,
         workHours,
-        breakDuration: breakHours // 不分班別，統一回傳以供 UI 呈現「已扣除午休」
+        breakDuration: Math.round(breakHours * 60) // 轉為分鐘儲存於資料庫
     }
+    console.log('[DEBUG] calculateAttendanceFields results:', res);
+    return res;
 }
 
 
