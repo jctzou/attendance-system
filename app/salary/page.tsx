@@ -119,7 +119,7 @@ export default function MySalaryPage() {
 
                                     {/* 獎金區域 - 僅當有獎金時顯示 */}
                                     {(((record.settled_data as any)?.bonus || record.bonus) > 0) && (
-                                        <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-4 mb-6 border border-sky-200 dark:border-sky-800">
+                                        <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-4 mb-3 border border-sky-200 dark:border-sky-800">
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <label className="block text-sm font-medium text-sky-700 dark:text-sky-400 mb-1">額外獎金</label>
@@ -129,6 +129,56 @@ export default function MySalaryPage() {
                                                 </div>
                                                 <div className="text-sky-700 dark:text-sky-400 font-bold text-lg">
                                                     +${((record.settled_data as any)?.bonus || record.bonus)?.toLocaleString()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 扣除區域 - 僅當有扣除時顯示 */}
+                                    {(((record.settled_data as any)?.details?.deduction || record.deduction || (record.settled_data as any)?.deduction) > 0) && (
+                                        <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-4 mb-6 border border-red-200 dark:border-red-900/30">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-red-700 dark:text-red-400 mb-1">假勤扣除</label>
+
+                                                    {/* 明細展開 */}
+                                                    {(() => {
+                                                        const settledData = record.settled_data as any
+                                                        const details = settledData?.details || record.details
+                                                        const leaveDetails = details?.leaveDetails
+                                                        const rate = (settledData?.rate || record.rate || 0)
+                                                        const dailyRate = rate / 30
+
+                                                        if (leaveDetails && Object.keys(leaveDetails).length > 0 && record.user?.salary_type !== 'hourly') {
+                                                            return (
+                                                                <div className="text-xs text-red-600/80 dark:text-red-400/80 mt-1.5 space-y-1">
+                                                                    {Object.entries(leaveDetails).map(([leaveType, count]) => {
+                                                                        // 這裡無法直接呼叫 getLeaveTypeName，用簡單的中文映射
+                                                                        const leaveMap: Record<string, { name: string, weight: number }> = {
+                                                                            'personal_leave': { name: '事假', weight: 1 },
+                                                                            'sick_leave': { name: '病假 (未住院)', weight: 0.5 },
+                                                                            'family_care_leave': { name: '家庭照顧假', weight: 1 },
+                                                                            'menstrual_leave': { name: '生理假', weight: 0.5 },
+                                                                            'annual_leave': { name: '特休假', weight: 0 }
+                                                                        }
+                                                                        const info = leaveMap[leaveType as string]
+                                                                        if (!info || info.weight === 0) return null
+                                                                        const countNum = count as number
+                                                                        const deductVal = Math.ceil(dailyRate * countNum * info.weight)
+                                                                        return (
+                                                                            <div key={leaveType}>
+                                                                                ↳ {info.name} ({countNum}天 × {info.weight}係數) : -${deductVal.toLocaleString()}
+                                                                            </div>
+                                                                        )
+                                                                    })}
+                                                                </div>
+                                                            )
+                                                        }
+                                                        return null
+                                                    })()}
+                                                </div>
+                                                <div className="text-red-600 dark:text-red-400 font-bold text-lg">
+                                                    -${(((record.settled_data as any)?.details?.deduction || record.deduction || (record.settled_data as any)?.deduction))?.toLocaleString()}
                                                 </div>
                                             </div>
                                         </div>

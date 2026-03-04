@@ -10,6 +10,7 @@ import { ActionResult, ErrorCodes } from '@/types/actions'
 import { requireUserProfile, requireUserRole, withErrorHandling } from '@/utils/actions_common'
 import { checkLeaveConflicts, LeaveRequestDay } from '@/utils/leaves_helper'
 import { v4 as uuidv4 } from 'uuid'
+import { LEAVE_POLICIES, type LeaveType } from '@/utils/leave-policies'
 
 // ---- 廣播 Helper（只發 Broadcast 訊號，不插入通知記錄）----
 // 通知記錄由 DB Trigger (handle_leave_notifications) 統一負責插入（含去重邏輯）
@@ -114,6 +115,46 @@ export async function applyLeave(
                 throw {
                     code: ErrorCodes.BUSINESS_CONFLICT,
                     message: `特休額度不足。剩餘(含審核中扣除): ${remaining.toFixed(1)} 天，本次申請: ${input.days} 天`
+                }
+            }
+        } else if (['personal_leave', 'sick_leave', 'family_care_leave', 'menstrual_leave'].includes(input.leaveType)) {
+            const currentYearStr = input.startDate.split('-')[0]
+            const currentMonthStr = input.startDate.split('-').slice(0, 2).join('-')
+
+            // Fetch all leaves for the current calendar year to evaluate limits
+            const { data: existingLeaves } = await supabase
+                .from('leaves')
+                .select('leave_type, days, start_date')
+                .eq('user_id', profile.id)
+                .in('status', ['pending', 'approved', 'cancel_pending'])
+                .gte('start_date', `${currentYearStr}-01-01`)
+                .lte('start_date', `${currentYearStr}-12-31`)
+
+            const records = existingLeaves || []
+
+            if (input.leaveType === 'menstrual_leave') {
+                const monthLeaves = records.filter(l => l.leave_type === 'menstrual_leave' && l.start_date.startsWith(currentMonthStr))
+                const used = monthLeaves.reduce((sum, l) => sum + Number(l.days), 0)
+                if (used + input.days > LEAVE_POLICIES.menstrual_leave.maxDaysPerYear!) {
+                    throw { code: ErrorCodes.BUSINESS_CONFLICT, message: `生理假每月上限 1 天。本月已請(含審核中): ${used} 天，本次申請: ${input.days} 天` }
+                }
+            } else if (input.leaveType === 'sick_leave') {
+                const used = records.filter(l => l.leave_type === 'sick_leave').reduce((sum, l) => sum + Number(l.days), 0)
+                if (used + input.days > LEAVE_POLICIES.sick_leave.maxDaysPerYear!) {
+                    throw { code: ErrorCodes.BUSINESS_CONFLICT, message: `病假本年度上限 30 天。已請(含審核中): ${used} 天，本次申請: ${input.days} 天` }
+                }
+            } else if (input.leaveType === 'family_care_leave' || input.leaveType === 'personal_leave') {
+                const usedPersonal = records.filter(l => l.leave_type === 'personal_leave').reduce((sum, l) => sum + Number(l.days), 0)
+                const usedFamily = records.filter(l => l.leave_type === 'family_care_leave').reduce((sum, l) => sum + Number(l.days), 0)
+
+                if (input.leaveType === 'family_care_leave') {
+                    if (usedFamily + input.days > LEAVE_POLICIES.family_care_leave.maxDaysPerYear!) {
+                        throw { code: ErrorCodes.BUSINESS_CONFLICT, message: `家庭照顧假本年度上限 7 天。已請(含審核中): ${usedFamily} 天，本次申請: ${input.days} 天` }
+                    }
+                }
+
+                if (usedPersonal + usedFamily + input.days > LEAVE_POLICIES.personal_leave.maxDaysPerYear!) {
+                    throw { code: ErrorCodes.BUSINESS_CONFLICT, message: `事假與家庭照顧假合計本年度上限 14 天。已請事假: ${usedPersonal}天，照顧假: ${usedFamily}天，本次申請: ${input.days} 天` }
                 }
             }
         }

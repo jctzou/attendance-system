@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getLeaveDeductionWeight } from '@/utils/leave-policies'
 
 // --- Types ---
 
@@ -41,12 +42,15 @@ export interface SalaryRecordData {
     lateCount: number
     earlyLeaveCount: number
     leaveDays: number
+    leaveDetails: Record<string, number>
     totalBreakHours?: number // New field
 
     rate: number // Hourly rate or Monthly base
 
     notes?: string
     settledDate?: string
+    workStartTime?: string
+    workEndTime?: string
 }
 
 export interface ActionResponse<T = any> {
@@ -134,7 +138,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     // 1. Get User Data
     const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('display_name, avatar_url, salary_type, salary_amount')
+        .select('display_name, avatar_url, salary_type, salary_amount, work_start_time, work_end_time')
         .eq('id', userId)
         .single()
 
@@ -183,10 +187,13 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
                 lateCount: settledData.details?.lateCount || 0,
                 earlyLeaveCount: settledData.details?.earlyLeaveCount || 0,
                 leaveDays: settledData.details?.leaveDays || 0,
+                leaveDetails: settledData.details?.leaveDetails || {},
                 totalBreakHours: settledData.details?.totalBreakHours || 0,
 
                 notes: existingRecord.notes || '',
-                settledDate: existingRecord.paid_at
+                settledDate: existingRecord.paid_at,
+                workStartTime: settledData.details?.workStartTime || userData.work_start_time || '09:00:00',
+                workEndTime: settledData.details?.workEndTime || userData.work_end_time || '18:00:00'
             }
         }
     }
@@ -262,15 +269,23 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
 
     // Deduction Logic:
     let deduction = 0
-    let unpaidLeaveDays = leaveDays - (leaveDetails['annual_leave'] || 0)
+    let deductPoints = 0
 
-    if (salaryType === 'monthly' && unpaidLeaveDays > 0) {
-        // 月薪制扣薪：預設每月 30 天做分母
-        const dailyRate = Math.round(salaryAmount / 30)
-        deduction = Math.round(dailyRate * unpaidLeaveDays)
+    // 計算無薪假點數 (扣薪權重)
+    if (leaves) {
+        leaves.forEach((leave: any) => {
+            const weight = getLeaveDeductionWeight(leave.leave_type)
+            deductPoints += (Number(leave.days) || 0) * weight
+        })
     }
 
-    const totalSalary = baseSalary + bonus - deduction
+    if (salaryType === 'monthly' && deductPoints > 0) {
+        // 月薪制扣薪：預設每月 30 天做分母
+        const dailyRate = Math.round(salaryAmount / 30)
+        deduction = Math.ceil(dailyRate * deductPoints) // 採用無條件進位取整數
+    }
+
+    const totalSalary = Math.ceil(baseSalary + bonus - deduction) // 總薪資也無條件進位
 
     const result: SalaryRecordData = {
         id: existingRecord?.id,
@@ -291,10 +306,13 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
         lateCount,
         earlyLeaveCount,
         leaveDays,
+        leaveDetails,
 
         rate: salaryAmount,
 
-        notes
+        notes,
+        workStartTime: userData.work_start_time || '09:00:00',
+        workEndTime: userData.work_end_time || '18:00:00'
     }
 
     return { success: true, data: result }
@@ -409,7 +427,10 @@ export async function settleSalary(userId: string, yearMonth: string): Promise<A
             lateCount: data.lateCount,
             earlyLeaveCount: data.earlyLeaveCount,
             leaveDays: data.leaveDays,
-            totalBreakHours: data.totalBreakHours
+            leaveDetails: data.leaveDetails,
+            totalBreakHours: data.totalBreakHours,
+            workStartTime: data.workStartTime,
+            workEndTime: data.workEndTime
         }
     }
 
@@ -494,7 +515,7 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
     // 1. All employees
     const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('id, display_name, avatar_url, salary_type, salary_amount')
+        .select('id, display_name, avatar_url, salary_type, salary_amount, work_start_time, work_end_time')
         .in('role', ['employee', 'manager', 'super_admin'])
         .order('id', { ascending: true })
 
@@ -566,9 +587,12 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
                 lateCount: s.details?.lateCount || 0,
                 earlyLeaveCount: s.details?.earlyLeaveCount || 0,
                 leaveDays: s.details?.leaveDays || 0,
+                leaveDetails: s.details?.leaveDetails || {},
                 totalBreakHours: s.details?.totalBreakHours || 0,
                 notes: existingRecord.notes || '',
                 settledDate: existingRecord.paid_at,
+                workStartTime: s.details?.workStartTime || userData.work_start_time || '09:00:00',
+                workEndTime: s.details?.workEndTime || userData.work_end_time || '18:00:00',
             } satisfies SalaryRecordData
         }
 
@@ -603,11 +627,19 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
         const notes = existingRecord?.notes || ''
 
         let deduction = 0
-        const unpaidLeaveDays = leaveDays - (leaveDetails['annual_leave'] || 0)
-        if (salaryType === 'monthly' && unpaidLeaveDays > 0) {
+        let deductPoints = 0
+
+        leaves.forEach((leave: any) => {
+            const weight = getLeaveDeductionWeight(leave.leave_type)
+            deductPoints += (Number(leave.days) || 0) * weight
+        })
+
+        if (salaryType === 'monthly' && deductPoints > 0) {
             const dailyRate = Math.round(salaryAmount / 30)
-            deduction = Math.round(dailyRate * unpaidLeaveDays)
+            deduction = Math.ceil(dailyRate * deductPoints) // 採用無條件進位取整數
         }
+
+        const totalSalary = Math.ceil(baseSalary + bonus - deduction) // 總薪資也無條件進位
 
         return {
             id: existingRecord?.id,
@@ -620,14 +652,17 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
             baseSalary,
             bonus,
             deduction,
-            totalSalary: baseSalary + bonus - deduction,
+            totalSalary,
             workHours: parseFloat(workHours.toFixed(2)),
             totalBreakHours: parseFloat(totalBreakHours.toFixed(2)),
             lateCount,
             earlyLeaveCount,
             leaveDays,
+            leaveDetails,
             rate: salaryAmount,
             notes,
+            workStartTime: userData.work_start_time || '09:00:00',
+            workEndTime: userData.work_end_time || '18:00:00'
         } satisfies SalaryRecordData
     })
 

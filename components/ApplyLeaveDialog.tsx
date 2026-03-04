@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogFooter } from '@/components/
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
+import { LEAVE_POLICIES, type LeaveType } from '@/utils/leave-policies'
+
 interface Props {
     onClose: () => void
     onSuccess: () => void
@@ -13,12 +15,10 @@ interface Props {
     salaryType?: string
 }
 
-const LEAVE_TYPES = [
-    { value: 'sick_leave', label: '病假' },
-    { value: 'personal_leave', label: '事假' },
-    { value: 'annual_leave', label: '特休' },
-    { value: 'other', label: '其他' },
-]
+const LEAVE_TYPES = Object.values(LEAVE_POLICIES).map(policy => ({
+    value: policy.id,
+    label: policy.name
+}))
 
 export default function ApplyLeaveDialog({ onClose, onSuccess, annualLeaveBalance, salaryType = 'monthly' }: Props) {
     const [leaveType, setLeaveType] = useState('sick_leave')

@@ -90,14 +90,17 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 ### 2.3 假別類型 (`leave_type`)
 
-| 值 | 中文 | 特殊規則 |
-|----|------|---------|
-| `sick_leave` | 病假 | 無特殊額度限制 |
-| `personal_leave` | 事假 | 無特殊額度限制 |
-| `annual_leave` / `annual` | 特休 | 受 `users.annual_leave_total` 額度限制；批准時自動累計 `annual_leave_used` |
-| `other` | 其他 | 無特殊額度限制 |
+自 v2.3 起，假別收斂並統整於 `utils/leave-policies.ts` 做全域打底管理。以下為可用的五種假別：
 
-> **注意**：`annual_leave` 和 `annual` 皆視為特休，程式碼中兩者並列處理以維持相容性。
+| 值 (`leave_type`) | 中文名稱 | 本系統設定之「年額度」與週期 | 本系統設定之「扣薪係數」 |
+|-------------------|----------|------------------------------|--------------------------|
+| `annual_leave` / `annual` | 特休 | **【週年制】**，依登錄額度 | `0.0` (不扣薪) |
+| `personal_leave` | 事假 | **【曆年制 1/1~12/31】**，全年上限 14 天 | `1.0` (扣全薪) |
+| `sick_leave` | 病假 | **【曆年制 1/1~12/31】**，全年上限 30 天 | `0.5` (扣半薪) |
+| `family_care_leave` | 家庭照顧假 | **【曆年制 1/1~12/31】**，全年上限 7 天 (**併入事假計算**) | `1.0` (扣全薪) |
+| `menstrual_leave` | 生理假 | **【每月】**，每月上限 1 天 | `0.5` (扣半薪) |
+
+> **注意**：舊有記錄的 `other` (或其他) 假別系統仍保留顯示，但申請介面不再提供。另外 `annual_leave` 和 `annual` 皆視為特休，程式碼中兩者並列處理以維持相容性。
 
 ### 2.4 group_id 設計原因與規則
 
@@ -130,15 +133,21 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 - `reason`：必填，非空字串
 - `dailyStatus`：至少一天，陣列內每筆含 `{ date: YYYY-MM-DD, days: 0.5 | 1.0 }`
 
-#### 特休額度檢查
-僅適用於 `annual_leave` / `annual`：
+#### 特休與曆年制假別額度檢查（雙軌制）
 
-```
-申請合法條件：
-  approvedDays（已批准天數）+ pendingDays（待審中天數）+ 本次申請 days ≤ annual_leave_total
-```
+1. **特休 (`annual_leave`) - 週年制防線**：
+   ```
+   approvedDays（已批准天數）+ pendingDays（待審中天數）+ 本次申請 days ≤ annual_leave_total
+   ```
+   違反時拋出錯誤：`特休額度不足。剩餘(含審核中扣除): X 天，本次申請: Y 天`
 
-違反時拋出錯誤：`特休額度不足。剩餘(含審核中扣除): X 天，本次申請: Y 天`
+2. **曆年假別 (`personal`, `sick`, `family_care`) - 曆年防線 (以 startDate 的年份為準)**：
+   - 系統提取該年份（1/1 ~ 12/31）所有有效假單，進行額度加算阻擋。
+   - `sick_leave`：全年 ≤ 30 天。
+   - `family_care_leave`：全年 ≤ 7 天。
+   - `personal_leave` + `family_care_leave` 總計 ≤ 14 天。
+3. **生理假 (`menstrual_leave`) - 每月防線**：
+   - 提取當月所有有效生理假，若累積 ≥ 1 天即報錯。
 
 #### 衝突防呆（`checkLeaveConflicts`）
 ```
@@ -394,16 +403,20 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 薪資計算邏輯位於 `/app/admin/salary/actions.ts`。
 
-### 扣薪計算方式
+### 扣薪計算方式 (權重積點制)
 
-```sql
--- 直接對 leaves 資料表的 days 加總，不再做日期範圍展開
-SUM(leaves.days) WHERE leave_type != 'annual_leave' AND status = 'approved'
-```
+為了精確計算半薪假（病假、生理假）與全薪假（事假、曠職）。我們將結算的引擎更新為**日薪固定除以 30**，並結合**權重積點計算**：
 
-**為什麼這樣做**：採用多日拆分架構後，每筆 row 已是單日，`days` 值即為實際扣薪天數（`0.5` 或 `1.0`）。舊架構中跨越週末的假單會把週末也算進去，新架構完全避免這個問題。
+1. **日工資**：無論大月小月，一日工資固定為 `Math.round(月薪 / 30)`。
+2. **扣薪積點 (`deductPoints`)**：
+   - 系統遍歷該月度內，員工所有「已批准」的假單。
+   - 事假、家庭照顧假：`days` * 1.0 點。
+   - 病假、生理假：`days` * 0.5 點。
+   - 特休：`days` * 0.0 點 (不扣薪)。
+3. **最後扣款**：
+   `扣除總金額 (deduction) = Math.round(日工資 * deductPoints)`
 
-**特休不扣薪**：`annual_leave` 類型的假單不列入扣薪計算。
+這個設計解決了以往不論何種假別一律扣除整日薪水的問題。
 
 ---
 

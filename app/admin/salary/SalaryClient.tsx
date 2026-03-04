@@ -6,6 +6,7 @@ import { ControlBar } from './components/ControlBar'
 import { EmployeeCard } from './components/EmployeeCard'
 import { SalarySettingsDialog } from './components/SalarySettingsDialog'
 import { BonusDialog } from './components/BonusDialog'
+import { AuditDrawer } from './components/AuditDrawer'
 import { Dialog, DialogContent, DialogHeader, DialogFooter } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { settleSalary, resettleSalary, type SalaryRecordData } from './actions'
@@ -20,8 +21,9 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
     const router = useRouter()
     const [processingId, setProcessingId] = useState<string | null>(null)
 
-    // Dialogs
+    // Dialogs & Drawers
     const [showSettings, setShowSettings] = useState(false)
+    const [selectedAuditRecord, setSelectedAuditRecord] = useState<SalaryRecordData | null>(null)
     const [bonusTarget, setBonusTarget] = useState<SalaryRecordData | null>(null)
     const [resettleTarget, setResettleTarget] = useState<SalaryRecordData | null>(null)
     const [resettleError, setResettleError] = useState<string | null>(null)
@@ -80,12 +82,7 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
                         <EmployeeCard
                             key={record.userId}
                             data={record}
-                            onSettle={handleSettle}
-                            onResettle={() => {
-                                setResettleTarget(record)
-                                setResettleError(null)
-                            }}
-                            onEditBonus={setBonusTarget}
+                            onClick={(r) => setSelectedAuditRecord(r)}
                             isProcessing={processingId === record.userId}
                         />
                     ))
@@ -149,6 +146,22 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
                     </Button>
                 </DialogFooter>
             </Dialog>
+
+            <AuditDrawer
+                isOpen={!!selectedAuditRecord}
+                record={selectedAuditRecord}
+                onClose={() => setSelectedAuditRecord(null)}
+                onEditBonus={setBonusTarget}
+                onSettle={handleSettle}
+                onResettle={(userId) => {
+                    const rec = initialRecords.find(r => r.userId === userId)
+                    if (rec) {
+                        setResettleTarget(rec)
+                        setResettleError(null)
+                    }
+                }}
+                isProcessing={!!processingId}
+            />
         </>
     )
 }
