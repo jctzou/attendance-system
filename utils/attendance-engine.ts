@@ -33,8 +33,12 @@ export function calculateWorkMinutes(
     const inDate = parseISO(clockInTime);
     const outDate = parseISO(clockOutTime);
 
+    // 抹除秒數與毫秒，確保與 UI 顯示的 HH:mm 分鐘數落差完全一致
+    inDate.setSeconds(0, 0);
+    outDate.setSeconds(0, 0);
+
     let totalMinutes = differenceInMinutes(outDate, inDate);
-    console.log('[ENGINE] Raw diff in minutes:', totalMinutes);
+    console.log('[ENGINE] Raw diff in minutes (seconds cleared):', totalMinutes);
     if (totalMinutes <= 0) return 0;
 
     // 將小時轉換為分鐘扣除
