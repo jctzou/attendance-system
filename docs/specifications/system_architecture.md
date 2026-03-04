@@ -161,8 +161,8 @@
     -   `Time` 欄位 (如 `work_start_time`) 存台北時間的 HH:mm:ss。
 
 ### 4.2 出勤判定 (Grace Period)
--   **遲到 (Late)**: 實際上班 > 表定上班 + **59秒** 寬容值。
--   **早退 (Early Leave)**: 實際下班 < 表定下班 (0秒寬容)。
+-   **廢除行政標籤**: 不論月薪或鐘點人員，不再使用 `late` 或 `early_leave`，一律寫入 `normal`。
+-   **工時差額提示**: 改由系統於下班結算時，比對「實收淨工時」與「表定淨工時」。誤差於 ±10 分鐘內不提示；誤差 >=11 分鐘則依正負值給予「不足」或「超過」之提示。
 
 ---
 
@@ -193,7 +193,7 @@
 ### 6.1 引擎化架構 (Engine Utils)
 系統將複雜的業務規則從 UI 與 API 路由中抽離，獨立建立三個核心運算引擎：
 1. **`utils/attendance-engine.ts`**:
-   - 負責**出勤狀態判定**。包含遲到/早退判定、工時計算、休息時間扣除等。
+   - 負責**工時與差額轉換**。運用 `timeStrToMinutes` 與 `calculateWorkMinutes` 計算精確的淨分鐘數。
 2. **`utils/salary-engine.ts`**:
    - 負責**月薪與時薪的複雜計薪**。處理基本薪資、全勤獎金、請假扣款等。
    - 提供實時 Snapshot 運算以支援前端「即時試算」。
@@ -201,17 +201,15 @@
    - 負責**特休週年制發放邏輯**。比對到職日 (`onboard_date`)、計算年資與應得天數。
 
 ### 6.2 薪資計算公式
--   **月薪制**：`當月實發 = (基本薪資 + 獎金) - (缺勤扣款 + 遲到/早退扣款)`
--   **扣款標準**：遲到/早退之扣款邏輯必須由後端 `actions.ts` 統一計算，**禁止**在前端進行金額運算。
+-   **月薪制**：`當月實發 = (基本薪資 + 獎金) - 缺勤扣款`。
+-   **扣款標準**：過去的系統自動「遲到/早退扣款」邏輯已棄用，回歸實收工時客觀比較。
 
-### 出勤判定邏輯
--   **基準時間**：系統應以 `users.work_start_time` 為準。超過 1 分鐘即標註 `status = 'late'`。
--   **防呆機制**：同一 `user_id` 在同一 `work_date` 僅允許一筆 `attendance` 記錄（除非特定排班需求）。重複打卡應視為 **更新 (Update)** 而非新增 (Insert)。
+### 出勤核心邏輯
+-   **單日唯一性**：同一 `user_id` 在同一 `work_date` 僅允許一筆 `attendance` 記錄（除非特定排班需求）。重複打卡應視為 **更新 (Update)** 而非新增 (Insert)。
 -   **統一計算核心 (Centralized Calculation)**：任何涉及打卡時間的寫入（新增/修改/補登/取消下班），**必須** 呼叫同一套計算邏輯 function (e.g. `calculateAttendanceFields`)。該核心必須：
-    1.  讀取最新 `users` 設定 (`work_start_time`, `work_end_time`)。
-    2.  將 ISO 時間轉換為台北時間字串 (`HH:mm:ss`)。
-    3.  重新執行 `determineAttendanceStatus`。
-    4.  **禁止** 在個別 API 中自行撰寫判斷式，以確保邏輯一致。
+    1.  永遠將 `status` 預設為 `normal`。
+    2.  呼叫 `calculateWorkMinutes` 將分鐘減去午休後儲存。
+    3.  **禁止** 在個別 API 中自行撰寫判斷式，以確保邏輯一致。
 
 ### 6.3 系統通知與權限管理 (Notifications & RLS)
 **目的**：解決一般員工無法跨權限派發「系統通知」給特定部門或管理員的 Row Level Security (RLS) 限制。
@@ -237,7 +235,6 @@
 **目的**：確保時薪人員工時計薪之絕對精確，並提供透明的修改軌跡。
 - **實時原則**：時薪人員下班打卡採用當下系統時間，並以「分鐘」為單位精確寫入資料庫。
 - **修訂日誌 (`edit_logs`)**：當系統接受人工補登或修改請求時，除了將 `attendance.is_edited` 標記為 `true`，還必須向 `attendance_edit_logs` 資料表寫入一筆追蹤記錄，內容包含修改前後的時間與原因。
-- **異常狀態顯示切換 (Feature Flag)**：對於鐘點制員工之「遲到 (Late) / 早退 (Early Leave)」紀錄，底層 `attendance-engine.ts` 仍會運作。但在 UI 呈現層，透過環境變數 `NEXT_PUBLIC_SHOW_HOURLY_STATUS` 來決定是否隱藏這些警告。
 
 ### 6.7 員工帳號與權限生命週期管理 (Employee Account Lifecycle)
 **目的**：確保員工由到職至離職的權限控制符合企業級資訊安全規範。

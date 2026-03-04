@@ -246,11 +246,9 @@ export default function ModernClockPanel({
                     <div className="font-mono text-[34px] md:text-[42px] font-bold text-slate-900 dark:text-white tabular-nums tracking-tight leading-tight">
                         {mounted && time ? formatTime(time) : '00:00:00'}
                     </div>
-                    {salaryType === 'monthly' && (
-                        <div className="flex items-center justify-center space-x-2 text-[13px] text-slate-400 dark:text-neutral-500">
-                            <span>表定工時: {userSettings.work_start_time?.slice(0, 5)} - {userSettings.work_end_time?.slice(0, 5)}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center justify-center space-x-2 text-[13px] text-slate-400 dark:text-neutral-500 mt-2">
+                        <span>表定工時: {userSettings.work_start_time?.slice(0, 5) || '09:00'} - {userSettings.work_end_time?.slice(0, 5) || '18:00'}</span>
+                    </div>
                 </div>
 
                 {/* Divider */}
@@ -290,9 +288,9 @@ export default function ModernClockPanel({
                             ) : !isClockedOut ? (
                                 // --- STATUS: WORKING (CLOCKED IN) ---
                                 <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-                                    <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                    <div className="flex flex-col items-center justify-center pt-2">
                                         <div className="text-[14px] text-slate-400 uppercase mb-1">今日上班時間</div>
-                                        <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-200">
+                                        <div className="font-mono font-bold text-[32px] text-slate-700 dark:text-neutral-200 leading-none">
                                             {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                         </div>
                                     </div>
