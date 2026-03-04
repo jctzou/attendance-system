@@ -189,7 +189,7 @@ const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
 
 兩個函式（`calculateMonthlySalary`、`calculateAllMonthlySalaries`）均內建異常偵測：
 
-- **單筆 `work_hours > 24`** → `console.warn` 目標記錄的 `work_date` 與工時值
+- **單筆 `work_minutes > 24`** → `console.warn` 目標記錄的 `work_date` 與工時值
 - **單月筆數 > 35** → 警告日期篩選可能未生效（僅 `calculateMonthlySalary`）
 
 > **已知案例 - 工時 625h**：補登/修改對話框 `TimeSlotSelector` 的日期 fallback bug，導致 `clock_out_time` 寫入今日（而非補登日期），造成工時橫跨 26 天。根本原因已修正並記錄於 `attendance_record_spec.md §3.6`。

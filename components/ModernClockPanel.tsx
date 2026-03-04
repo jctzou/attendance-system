@@ -215,7 +215,7 @@ export default function ModernClockPanel({
     // 計算是否超過或低於表定時間
     let showDiffWarning = false
     let diffWarningMsg = ''
-    if (isClockedOut && attendanceRecord?.work_hours !== undefined && attendanceRecord?.work_hours !== null) {
+    if (isClockedOut && attendanceRecord?.work_minutes !== undefined && attendanceRecord?.work_minutes !== null) {
         const schedStart = userSettings.work_start_time || '09:00:00'
         const schedEnd = userSettings.work_end_time || '18:00:00'
 
@@ -224,7 +224,7 @@ export default function ModernClockPanel({
         const scheduledNet = scheduledGross - (Number(attendanceRecord.break_duration) || 0)
 
         // 落差：正值代表多做，負值代表少做
-        const diffMinutes = Number(attendanceRecord.work_hours) - scheduledNet
+        const diffMinutes = Number(attendanceRecord.work_minutes) - scheduledNet
 
         if (diffMinutes <= -11) {
             showDiffWarning = true
@@ -368,11 +368,11 @@ export default function ModernClockPanel({
                                             </div>
                                         </div>
 
-                                        {attendanceRecord.work_hours !== undefined && attendanceRecord.work_hours !== null && (
+                                        {attendanceRecord.work_minutes !== undefined && attendanceRecord.work_minutes !== null && (
                                             <div className="text-center pt-2 border-t border-emerald-100/50 dark:border-emerald-800/30">
                                                 <div className="text-[14px] text-slate-400 uppercase mb-1 font-bold">實收工時</div>
                                                 <div className="inline-block text-3xl font-bold font-mono text-emerald-600">
-                                                    {formatWorkTime(Number(attendanceRecord.work_hours))}
+                                                    {formatWorkTime(Number(attendanceRecord.work_minutes))}
                                                 </div>
                                                 {attendanceRecord.break_duration !== undefined && attendanceRecord.break_duration !== null && Number(attendanceRecord.break_duration) > 0 && (
                                                     <div className="text-[14px] text-emerald-600/50 mt-1">

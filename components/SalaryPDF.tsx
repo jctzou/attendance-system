@@ -168,14 +168,14 @@ const SalaryPDF = ({ record, user }: SalaryPDFProps) => (
                     </View>
                 </View>
 
-                {record.work_hours > 0 && (
+                {record.work_minutes > 0 && (
                     <View style={styles.tableRow}>
                         <View style={styles.tableCol}>
                             <Text style={styles.tableCellLabel}>工作時數/出勤</Text>
                         </View>
                         <View style={styles.tableCol}>
                             <Text style={styles.tableCell}>
-                                {Math.floor(record.work_hours)}小時{Math.round((record.work_hours % 1) * 60)}分
+                                {Math.floor(record.work_minutes)}小時{Math.round((record.work_minutes % 1) * 60)}分
                             </Text>
                         </View>
                     </View>

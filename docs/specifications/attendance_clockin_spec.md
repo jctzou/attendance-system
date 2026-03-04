@@ -57,7 +57,7 @@
 ### 3.3 計算引擎規則
 - **工時計算**: 統一採用 `utils/attendance-engine.ts`。
 - **資料儲存 (v2.3 更新)**: 
-    - `attendance.work_hours`: 儲存為 **分鐘 (Minutes)** 數，採整數記錄以維持計算精確度。
+    - `attendance.work_minutes`: 儲存為 **分鐘 (Minutes)** 數，採整數記錄以維持計算精確度。
     - `attendance.break_duration`: 儲存為 **分鐘 (Minutes)** 數。
     - **顯示層**: UI 顯示時會自動將分鐘轉換回小時與分鐘格式，例如：**8小時6分**。規則說明：
         - 數字與文字間**無空格**。

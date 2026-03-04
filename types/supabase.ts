@@ -84,7 +84,7 @@ export interface Database {
                     work_date: string
                     clock_in_time: string | null
                     clock_out_time: string | null
-                    work_hours: number | null
+                    work_minutes: number | null
                     status: string
                     ip_address: string | null
                     device_info: string | null
@@ -99,7 +99,7 @@ export interface Database {
                     work_date: string
                     clock_in_time?: string | null
                     clock_out_time?: string | null
-                    work_hours?: number | null
+                    work_minutes?: number | null
                     status?: string
                     ip_address?: string | null
                     device_info?: string | null
@@ -114,7 +114,7 @@ export interface Database {
                     work_date?: string
                     clock_in_time?: string | null
                     clock_out_time?: string | null
-                    work_hours?: number | null
+                    work_minutes?: number | null
                     status?: string
                     ip_address?: string | null
                     device_info?: string | null
@@ -191,7 +191,7 @@ export interface Database {
                     bonus: number | null
                     deduction: number | null
                     total_salary: number | null
-                    work_hours: number | null
+                    work_minutes: number | null
                     is_paid: boolean
                     paid_at: string | null
                     settled_data: Json | null
@@ -207,7 +207,7 @@ export interface Database {
                     bonus?: number | null
                     deduction?: number | null
                     total_salary?: number | null
-                    work_hours?: number | null
+                    work_minutes?: number | null
                     is_paid?: boolean
                     paid_at?: string | null
                     settled_data?: Json | null
@@ -223,7 +223,7 @@ export interface Database {
                     bonus?: number | null
                     deduction?: number | null
                     total_salary?: number | null
-                    work_hours?: number | null
+                    work_minutes?: number | null
                     is_paid?: boolean
                     paid_at?: string | null
                     settled_data?: Json | null

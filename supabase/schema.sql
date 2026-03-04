@@ -72,7 +72,7 @@ CREATE TABLE attendance (
     work_date DATE NOT NULL,
     clock_in_time TIMESTAMPTZ,
     clock_out_time TIMESTAMPTZ,
-    work_hours DECIMAL(5, 2),
+    work_minutes DECIMAL(5, 2),
     status TEXT DEFAULT 'normal', -- 可能包含多個狀態，如 'late early_leave'
     ip_address INET,
     device_info VARCHAR(255),
@@ -255,7 +255,7 @@ CREATE TABLE salary_records (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     year_month TEXT NOT NULL,  -- 格式: '2026-02'
     base_salary DECIMAL(10, 2),  -- 基本薪資
-    work_hours DECIMAL(6, 2),    -- 總工時（鐘點人員）
+    work_minutes DECIMAL(6, 2),    -- 總工時（鐘點人員）
     bonus DECIMAL(10, 2) DEFAULT 0,  -- 獎金
     deduction DECIMAL(10, 2) DEFAULT 0,  -- 扣款
     total_salary DECIMAL(10, 2),  -- 總薪資

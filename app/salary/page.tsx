@@ -95,7 +95,7 @@ export default function MySalaryPage() {
                                             <div className="text-slate-900 dark:text-white">
                                                 {record.user?.salary_type === 'hourly' ? (
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium text-lg">{formatHM((record.settled_data as any)?.work_hours || record.work_hours || 0)}</span>
+                                                        <span className="font-medium text-lg">{formatHM((record.settled_data as any)?.work_minutes || record.work_minutes || 0)}</span>
                                                         {((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours) > 0 && (
                                                             <span className="text-xs text-slate-500 font-normal">
                                                                 (已扣除 {formatHM((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours)} 午休)

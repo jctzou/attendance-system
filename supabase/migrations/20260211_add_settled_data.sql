@@ -4,4 +4,4 @@
 ALTER TABLE salary_records 
 ADD COLUMN IF NOT EXISTS settled_data JSONB;
 
-COMMENT ON COLUMN salary_records.settled_data IS '結算時的薪資數據快照，包含 base_salary, work_hours, bonus, deduction, total_salary, details 等資訊';
+COMMENT ON COLUMN salary_records.settled_data IS '結算時的薪資數據快照，包含 base_salary, work_minutes, bonus, deduction, total_salary, details 等資訊';

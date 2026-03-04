@@ -34,8 +34,8 @@ export function calculateSalary(params: SalaryParams): SalaryCalculationResult {
 
     // 1. 總工時統計 (來自 attendanceRecords)
     params.attendanceRecords.forEach(record => {
-        if (record.work_hours) {
-            totalWorkingHours += Number(record.work_hours);
+        if (record.work_minutes) {
+            totalWorkingHours += Number(record.work_minutes);
         }
     });
 

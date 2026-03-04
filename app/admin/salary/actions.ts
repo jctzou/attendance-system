@@ -179,7 +179,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
                 totalSalary: settledData.total_salary,
                 rate: settledData.rate,
 
-                workHours: settledData.work_hours,
+                workHours: settledData.work_minutes,
                 lateCount: settledData.details?.lateCount || 0,
                 earlyLeaveCount: settledData.details?.earlyLeaveCount || 0,
                 leaveDays: settledData.details?.leaveDays || 0,
@@ -227,9 +227,9 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
             console.warn(`[Salary] 異常：${userId} 在 ${yearMonth} 有 ${attendance.length} 筆出勤記錄（超過一個月天數），請檢查 DB 日期篩選是否正確。startDate=${startDate}, endDate=${endDate}`)
         }
         attendance.forEach((record: any) => {
-            const minutes = Number(record.work_hours) || 0
+            const minutes = Number(record.work_minutes) || 0
             if (minutes > 1440) {
-                console.warn(`[Salary] 異常工時(分)：attendance id=${record.id}, work_date=${record.work_date}, work_hours=${record.work_hours}`)
+                console.warn(`[Salary] 異常工時(分)：attendance id=${record.id}, work_date=${record.work_date}, work_minutes=${record.work_minutes}`)
             }
             workHours += minutes / 60
             totalBreakHours += (Number(record.break_duration) || 0) / 60
@@ -328,7 +328,7 @@ export async function saveSalaryRecord(data: SalaryRecordData): Promise<ActionRe
             user_id: data.userId,
             year_month: data.yearMonth,
             base_salary: data.baseSalary,
-            work_hours: data.workHours,
+            work_minutes: data.workHours,
             bonus: data.bonus,
             total_salary: data.totalSalary,
             notes: data.notes,
@@ -403,7 +403,7 @@ export async function settleSalary(userId: string, yearMonth: string): Promise<A
         base_salary: data.baseSalary,
         bonus: data.bonus,
         total_salary: data.totalSalary,
-        work_hours: data.workHours,
+        work_minutes: data.workHours,
         rate: data.rate,
         details: {
             lateCount: data.lateCount,
@@ -422,7 +422,7 @@ export async function settleSalary(userId: string, yearMonth: string): Promise<A
             settled_data: settledData,
             total_salary: data.totalSalary,
             base_salary: data.baseSalary, // Ensure columns match snapshot
-            work_hours: data.workHours,
+            work_minutes: data.workHours,
             bonus: data.bonus,
             updated_at: new Date().toISOString()
         })
@@ -504,7 +504,7 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
     // 2. Batch attendance (single query)
     const { data: allAttendance } = await supabase
         .from('attendance')
-        .select('user_id, work_hours, break_duration, status, work_date')
+        .select('user_id, work_minutes, break_duration, status, work_date')
         .in('user_id', userIds)
         .gte('work_date', startDate)
         .lte('work_date', endDate)
@@ -562,7 +562,7 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
                 deduction: s.details?.deduction || 0,
                 totalSalary: s.total_salary,
                 rate: s.rate,
-                workHours: s.work_hours,
+                workHours: s.work_minutes,
                 lateCount: s.details?.lateCount || 0,
                 earlyLeaveCount: s.details?.earlyLeaveCount || 0,
                 leaveDays: s.details?.leaveDays || 0,
@@ -582,9 +582,9 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
         const leaveDetails: Record<string, number> = {}
 
         attendance.forEach((rec: any) => {
-            const minutes = Number(rec.work_hours) || 0
+            const minutes = Number(rec.work_minutes) || 0
             if (minutes > 1440) {
-                console.warn(`[Salary Batch] Abnormal work_minutes: work_date=${rec.work_date}, work_hours=${rec.work_hours}, user=${userData.display_name}`)
+                console.warn(`[Salary Batch] Abnormal work_minutes: work_date=${rec.work_date}, work_minutes=${rec.work_minutes}, user=${userData.display_name}`)
             }
             workHours += minutes / 60
             totalBreakHours += (Number(rec.break_duration) || 0) / 60

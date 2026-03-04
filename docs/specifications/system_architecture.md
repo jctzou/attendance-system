@@ -52,7 +52,7 @@
 | `work_date` | Date | **台北時間**日期 (YYYY-MM-DD) |
 | `clock_in_time` | Timestamptz | 上班打卡 (UTC ISO) |
 | `clock_out_time` | Timestamptz | 下班打卡 (UTC ISO) |
-| `work_hours` | BigInt | 計算工時 (儲存單位：**分鐘**) |
+| `work_minutes` | BigInt | 計算工時 (儲存單位：**分鐘**) |
 | `break_duration` | BigInt | 午休扣除時間 (儲存單位：**分鐘**) |
 | `status` | Text | `'normal'`, `'late'`, `'early_leave'`, `'absent'` |
 | `is_edited` | Boolean | 是否經過手動修改 |

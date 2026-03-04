@@ -180,7 +180,7 @@ export async function clockOut(userId: string, customTime?: Date, breakDuration?
 
         const updatePayload: any = {
             clock_out_time: now.toISOString(),
-            work_hours: workHours,
+            work_minutes: workHours,
             status: status,
             break_duration: finalBreak
         };
@@ -230,7 +230,7 @@ export async function cancelClockOut(userId: string): Promise<ActionResult<Atten
         const { data: updatedRecord, error } = await supabase.from('attendance')
             .update({
                 clock_out_time: null,
-                work_hours: null,
+                work_minutes: null,
                 status: status,
                 break_duration: null
             })
@@ -286,7 +286,7 @@ export async function addAttendanceRecord(
             work_date: input.workDate,
             clock_in_time: input.clockInTime,
             clock_out_time: input.clockOutTime,
-            work_hours: workHours,
+            work_minutes: workHours,
             status: status,
             is_edited: true,
             break_duration: finalBreak
@@ -342,7 +342,7 @@ export async function updateAttendance(
         const { error: updateError } = await supabase.from('attendance').update({
             clock_in_time: input.newClockIn,
             clock_out_time: input.newClockOut,
-            work_hours: workHours,
+            work_minutes: workHours,
             status: status,
             is_edited: true,
             break_duration: finalBreak
