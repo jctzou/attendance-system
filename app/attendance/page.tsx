@@ -18,7 +18,7 @@ import AttendanceLogDialog from '@/components/AttendanceLogDialog'
 import { PageContainer } from '@/components/ui/PageContainer'
 import { Card } from '@/components/ui/Card'
 import { DayCard } from '@/components/attendance/DayCard'
-
+import { DayCardSkeleton } from '@/components/attendance/DayCardSkeleton'
 
 
 export default function AttendancePage() {
@@ -323,7 +323,12 @@ export default function AttendancePage() {
             </Card>
 
             {loading ? (
-                <div className="text-center py-20 text-slate-400">載入中...</div>
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+                    {/* Render 31 skeleton cards to match the rough shape of a month */}
+                    {Array.from({ length: 31 }).map((_, i) => (
+                        <DayCardSkeleton key={`skeleton-${i}`} />
+                    ))}
+                </div>
             ) : (
                 renderDayView()
             )}
