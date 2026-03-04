@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
     getUserProfile,
@@ -128,14 +128,19 @@ export default function AttendancePage() {
         try {
             let attRes, leaveRes
 
+            // 使用 Promise.all 併發請求，將等待時間減半
             if (isManager && selectedEmployee !== currentUser?.id) {
                 // 管理員查看其他員工
-                attRes = await getEmployeeAttendanceRecords(selectedEmployee, yearMonth)
-                leaveRes = await getEmployeeLeaveRecords(selectedEmployee, yearMonth)
+                [attRes, leaveRes] = await Promise.all([
+                    getEmployeeAttendanceRecords(selectedEmployee, yearMonth),
+                    getEmployeeLeaveRecords(selectedEmployee, yearMonth)
+                ])
             } else {
                 // 查看自己
-                attRes = await getMyMonthlyAttendance(yearMonth)
-                leaveRes = await getMyMonthlyLeaves(yearMonth)
+                [attRes, leaveRes] = await Promise.all([
+                    getMyMonthlyAttendance(yearMonth),
+                    getMyMonthlyLeaves(yearMonth)
+                ])
             }
 
             if (attRes?.success) setAttendance(attRes.data)
@@ -145,37 +150,38 @@ export default function AttendancePage() {
         }
     }
 
-    const getDaysInMonth = () => {
-        const [year, month] = yearMonth.split('-')
-        return new Date(parseInt(year), parseInt(month), 0).getDate()
-    }
+    // 建立 O(1) 字典查表，避免在繪製卡片時做 93 次 O(N) 迴圈與日期轉換
+    const attendanceMap = useMemo(() => {
+        const map: Record<string, any> = {}
+        attendance.forEach(a => {
+            if (a.work_date) map[a.work_date] = a
+        })
+        return map
+    }, [attendance])
 
-    const getAttendanceForDate = (date: string) => {
-        return attendance.find(a => a.work_date === date)
-    }
-
-    const getLeaveForDate = (date: string) => {
-        return leaves.find(l => {
-            // 在新的拆分架構下，start_date 就是請今日期 (YYYY-MM-DD)。
-            // 為了相容舊資料 (帶 T00:00:00.000Z)，先轉回 YYYY-MM-DD 比對
+    const leaveMap = useMemo(() => {
+        const map: Record<string, any> = {}
+        leaves.forEach(l => {
             const leaveDate = new Date(l.start_date).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
-
-            // 如果是舊的「未拆分」長時段資料 (start < end)，則維持舊邏輯作為退路
             const leaveEndDate = new Date(l.end_date).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
+
             if (leaveDate !== leaveEndDate) {
                 const start = new Date(leaveDate)
                 const end = new Date(leaveEndDate)
-                const check = new Date(date)
-                return check >= start && check <= end
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    map[d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })] = l
+                }
+            } else {
+                map[leaveDate] = l
             }
-
-            return leaveDate === date
         })
-    }
+        return map
+    }, [leaves])
+
 
     const handleDateClick = (date: string) => {
-        const existingRecord = getAttendanceForDate(date)
-        const leaveRecord = getLeaveForDate(date)
+        const existingRecord = attendanceMap[date]
+        const leaveRecord = leaveMap[date]
 
         setDialogState({
             isOpen: true,
@@ -204,8 +210,8 @@ export default function AttendancePage() {
     }
 
     const renderDayView = () => {
-        const daysInMonth = getDaysInMonth()
         const [year, month] = yearMonth.split('-')
+        const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate()
         const days = []
 
         const selectedEmployeeData = employees.find(e => e.id === selectedEmployee) || currentUser
@@ -221,8 +227,8 @@ export default function AttendancePage() {
 
         for (let day = 1; day <= daysInMonth; day++) {
             const date = `${year}-${month}-${String(day).padStart(2, '0')}`
-            const att = getAttendanceForDate(date)
-            const leave = getLeaveForDate(date)
+            const att = attendanceMap[date]
+            const leave = leaveMap[date]
 
             days.push(
                 <DayCard

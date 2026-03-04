@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Card } from '@/components/ui/Card'
 import { LEAVE_TYPE_MAP, WEEKDAY_MAP, ATTENDANCE_STATUS_MAP } from '@/app/attendance/constants'
 import { features } from '@/utils/features'
@@ -12,7 +13,7 @@ interface DayCardProps {
     id?: string
 }
 
-export function DayCard({
+export const DayCard = memo(function DayCard({
     date,
     attendance: att,
     leave,
@@ -96,11 +97,22 @@ export function DayCard({
                         )}
                     </div>
                     <div className="text-slate-600 dark:text-neutral-400">
-                        上班: {att.clock_in_time ? new Date(att.clock_in_time).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
+                        打卡: {att.clock_in_time ? new Date(att.clock_in_time).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: false }) : '?'}~{att.clock_out_time ? new Date(att.clock_out_time).toLocaleTimeString('zh-TW', { hour: 'numeric', minute: '2-digit', hour12: false }) : '?'}
                     </div>
-                    <div className="text-slate-600 dark:text-neutral-400">
-                        下班: {att.clock_out_time ? new Date(att.clock_out_time).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
-                    </div>
+                    {att.work_minutes !== null && att.work_minutes !== undefined && (
+                        <div className="text-slate-600 dark:text-neutral-400 font-bold">
+                            工時: {
+                                (() => {
+                                    const mins = Number(att.work_minutes)
+                                    const h = Math.floor(mins / 60)
+                                    const m = Math.round(mins % 60)
+                                    if (h > 0 && m === 0) return `${h}小時`
+                                    if (h > 0 && m > 0) return `${h}小時${m}分`
+                                    return `${m}分`
+                                })()
+                            }
+                        </div>
+                    )}
 
 
                     {/* Hourly: Hide Status unless flag is true. Monthly: Show Status */}
@@ -131,4 +143,4 @@ export function DayCard({
             ) : null}
         </Card>
     )
-}
+})
