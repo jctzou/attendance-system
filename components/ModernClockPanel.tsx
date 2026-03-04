@@ -212,6 +212,16 @@ export default function ModernClockPanel({
         return `${h}小時${m}分`
     }
 
+    const formatDiffTime = (minutes: number) => {
+        const absM = Math.abs(minutes)
+        const h = Math.floor(absM / 60)
+        const m = Math.round(absM % 60)
+        if (h > 0) {
+            return `${h}小時${m}分`
+        }
+        return `${m}分`
+    }
+
     // 計算是否超過或低於表定時間
     let showDiffWarning = false
     let diffWarningMsg = ''
@@ -228,10 +238,10 @@ export default function ModernClockPanel({
 
         if (diffMinutes <= -11) {
             showDiffWarning = true
-            diffWarningMsg = `比表定時間不足 ${Math.abs(diffMinutes)} 分`
+            diffWarningMsg = `比表定時間不足${formatDiffTime(diffMinutes)}`
         } else if (diffMinutes >= 11) {
             showDiffWarning = true
-            diffWarningMsg = `比表定時間超過 ${diffMinutes} 分`
+            diffWarningMsg = `比表定時間超過${formatDiffTime(diffMinutes)}`
         }
     }
 
