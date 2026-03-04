@@ -8,7 +8,9 @@ import {
     getMyMonthlyAttendance,
     getMyMonthlyLeaves,
     getEmployeeAttendanceRecords,
-    getEmployeeLeaveRecords
+    getEmployeeLeaveRecords,
+    getAllEmployeesMonthlyAttendance,
+    getAllEmployeesMonthlyLeaves
 } from './actions'
 import { createClient } from '@/utils/supabase/client'
 import AttendanceActionDialog from '@/components/AttendanceActionDialog'
@@ -60,8 +62,7 @@ export default function AttendancePage() {
         if (yearMonth && currentUser) {
             fetchData()
         }
-    }, [yearMonth, selectedEmployee, currentUser])
-
+    }, [yearMonth, currentUser]) // 移除 selectedEmployee 依賴，切換員工不觸發網路請求
     // 自動捲動至「今日卡片」機制
     useEffect(() => {
         if (!loading) {
@@ -129,11 +130,11 @@ export default function AttendancePage() {
             let attRes, leaveRes
 
             // 使用 Promise.all 併發請求，將等待時間減半
-            if (isManager && selectedEmployee !== currentUser?.id) {
-                // 管理員查看其他員工
+            if (isManager) {
+                // 管理員一次撈出「全月全公司」資料，切換員工時直接從前端讀取
                 [attRes, leaveRes] = await Promise.all([
-                    getEmployeeAttendanceRecords(selectedEmployee, yearMonth),
-                    getEmployeeLeaveRecords(selectedEmployee, yearMonth)
+                    getAllEmployeesMonthlyAttendance(yearMonth),
+                    getAllEmployeesMonthlyLeaves(yearMonth)
                 ])
             } else {
                 // 查看自己
@@ -151,17 +152,24 @@ export default function AttendancePage() {
     }
 
     // 建立 O(1) 字典查表，避免在繪製卡片時做 93 次 O(N) 迴圈與日期轉換
+    // 透過 targetUserId 本地過濾，達成 0 秒員工切換 (Zero-latency UI)
     const attendanceMap = useMemo(() => {
         const map: Record<string, any> = {}
+        const targetUserId = isManager && selectedEmployee ? selectedEmployee : currentUser?.id
         attendance.forEach(a => {
-            if (a.work_date) map[a.work_date] = a
+            if (a.work_date && a.user_id === targetUserId) {
+                map[a.work_date] = a
+            }
         })
         return map
-    }, [attendance])
+    }, [attendance, selectedEmployee, isManager, currentUser])
 
     const leaveMap = useMemo(() => {
         const map: Record<string, any> = {}
+        const targetUserId = isManager && selectedEmployee ? selectedEmployee : currentUser?.id
         leaves.forEach(l => {
+            if (l.user_id !== targetUserId) return
+
             const leaveDate = new Date(l.start_date).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
             const leaveEndDate = new Date(l.end_date).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
 
@@ -176,7 +184,7 @@ export default function AttendancePage() {
             }
         })
         return map
-    }, [leaves])
+    }, [leaves, selectedEmployee, isManager, currentUser])
 
 
     const handleDateClick = (date: string) => {

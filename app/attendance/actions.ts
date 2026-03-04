@@ -521,6 +521,51 @@ export async function getEmployeeLeaveRecords(employeeId: string, yearMonth: str
     })
 }
 
+export async function getAllEmployeesMonthlyAttendance(yearMonth: string): Promise<ActionResult<AttendanceRow[]>> {
+    return withErrorHandling(async () => {
+        await requireUserRole(['manager', 'super_admin'])
+        const supabase = await createClient()
+
+        const [year, month] = yearMonth.split('-').map(Number)
+        const lastDay = new Date(year, month, 0).getDate()
+        const startDate = `${yearMonth}-01`
+        const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
+
+        const { data, error } = await supabase
+            .from('attendance')
+            .select('*')
+            .gte('work_date', startDate)
+            .lte('work_date', endDate)
+            .order('work_date', { ascending: true })
+
+        if (error) throw new Error(error.message)
+        return data || []
+    })
+}
+
+export async function getAllEmployeesMonthlyLeaves(yearMonth: string): Promise<ActionResult<any[]>> {
+    return withErrorHandling(async () => {
+        await requireUserRole(['manager', 'super_admin'])
+        const supabase = await createClient()
+
+        const [year, month] = yearMonth.split('-').map(Number)
+        const lastDay = new Date(year, month, 0).getDate()
+        const startDate = `${yearMonth}-01`
+        const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
+
+        const { data, error } = await supabase
+            .from('leaves')
+            .select('*')
+            .eq('status', 'approved')
+            .gte('start_date', startDate)
+            .lte('end_date', endDate)
+            .order('start_date', { ascending: true })
+
+        if (error) throw new Error(error.message)
+        return data || []
+    })
+}
+
 /**
  * 取得目前正在上班的員工清單 (包含 Avatar 與名稱)
  * 定義：今日有打上班卡，且尚未打下班卡。
