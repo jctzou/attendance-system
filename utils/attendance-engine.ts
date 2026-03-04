@@ -7,45 +7,14 @@ import { getTaipeiDateString, getTaipeiTimeString, compareTimeStrings } from './
 export type AttendanceStatus = 'normal' | 'late' | 'early_leave' | 'absent';
 
 /**
- * 依據排班時間判定打卡的狀態
+ * 將時間字串轉換為分鐘數進行計算
  * 
- * @param clockInTimeStr 上班時間字串 (HH:mm:ss) 
- * @param clockOutTimeStr 下班時間字串 (HH:mm:ss, Optional)
- * @param workStartTime 表定上班時間 (HH:mm:ss)
- * @param workEndTime 表定下班時間 (HH:mm:ss)
- * @param bufferMinutes 上班時間容緩分鐘數 (Optional, e.g. 5 分鐘)
- * @returns 判定狀態 (normal, late, early_leave)
+ * @param timeStr 時間字串 (HH:mm:ss 或 HH:mm)
  */
-export function determineAttendanceStatus(
-    clockInTimeStr: string | null,
-    clockOutTimeStr: string | null,
-    workStartTime: string,
-    workEndTime: string,
-    bufferMinutes: number = 0
-): AttendanceStatus {
-    if (!clockInTimeStr) return 'absent';
-
-    let status: AttendanceStatus = 'normal';
-
-    // 將時間轉為分鐘數進行精確比較含緩衝
-    const timeToMinutes = (t: string) => {
-        const [h, m, s] = t.split(':').map(Number);
-        return h * 60 + m + (s || 0) / 60;
-    };
-
-    const inMinutes = timeToMinutes(clockInTimeStr);
-    const startMinutes = timeToMinutes(workStartTime);
-
-    // 如果打卡時間超過了 (表定時間 + 緩衝分鐘)，才算遲到
-    if (inMinutes > (startMinutes + bufferMinutes)) {
-        status = 'late';
-    }
-
-    if (clockOutTimeStr && compareTimeStrings(clockOutTimeStr, workEndTime) < 0) {
-        status = 'early_leave';
-    }
-
-    return status;
+export function timeStrToMinutes(timeStr: string): number {
+    if (!timeStr) return 0;
+    const [h, m, s] = timeStr.split(':').map(Number);
+    return Math.round((h || 0) * 60 + (m || 0) + (s || 0) / 60);
 }
 
 /**

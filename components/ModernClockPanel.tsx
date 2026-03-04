@@ -8,6 +8,7 @@ import { Dialog, DialogHeader, DialogContent, DialogFooter } from '@/components/
 import { ATTENDANCE_STATUS_MAP } from '@/app/attendance/constants'
 import { features } from '@/utils/features'
 import { getTaipeiDateString } from '@/utils/timezone'
+import { timeStrToMinutes } from '@/utils/attendance-engine'
 
 // --- Types ---
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
@@ -204,11 +205,6 @@ export default function ModernClockPanel({
 
     const formatTime = (date: Date) => date.toLocaleTimeString('zh-TW', { hour12: false })
     const formatHHmm = (date: Date) => date.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })
-    const getStatusInfo = (status: string | undefined | null) => {
-        if (!status) return STATUS_CONFIG.normal
-        return (STATUS_CONFIG as any)[status] || STATUS_CONFIG.normal
-    }
-
     const formatWorkTime = (minutes: number | null | undefined) => {
         if (minutes === null || minutes === undefined) return '-'
         const h = Math.floor(minutes / 60)
@@ -216,7 +212,28 @@ export default function ModernClockPanel({
         return `${h}小時${m}分`
     }
 
-    const statusInfo = getStatusInfo(attendanceRecord?.status)
+    // 計算是否超過或低於表定時間
+    let showDiffWarning = false
+    let diffWarningMsg = ''
+    if (isClockedOut && attendanceRecord?.work_hours !== undefined && attendanceRecord?.work_hours !== null) {
+        const schedStart = userSettings.work_start_time || '09:00:00'
+        const schedEnd = userSettings.work_end_time || '18:00:00'
+
+        // 表定總分鐘數 - 午休扣除分鐘數 = 表定應上分鐘數
+        const scheduledGross = timeStrToMinutes(schedEnd) - timeStrToMinutes(schedStart)
+        const scheduledNet = scheduledGross - (Number(attendanceRecord.break_duration) || 0)
+
+        // 落差：正值代表多做，負值代表少做
+        const diffMinutes = Number(attendanceRecord.work_hours) - scheduledNet
+
+        if (diffMinutes <= -11) {
+            showDiffWarning = true
+            diffWarningMsg = `比表定時間不足 ${Math.abs(diffMinutes)} 分`
+        } else if (diffMinutes >= 11) {
+            showDiffWarning = true
+            diffWarningMsg = `比表定時間超過 ${diffMinutes} 分`
+        }
+    }
 
     return (
         <>
@@ -273,20 +290,10 @@ export default function ModernClockPanel({
                             ) : !isClockedOut ? (
                                 // --- STATUS: WORKING (CLOCKED IN) ---
                                 <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
-                                            <div className="text-[14px] text-slate-400 uppercase mb-1">今日上班時間</div>
-                                            <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-200">
-                                                {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
-                                            </div>
-                                        </div>
-                                        <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
-                                            <div className="text-[14px] text-slate-400 uppercase mb-1">狀態</div>
-                                            <div className="py-1 text-center flex justify-center">
-                                                <span className={`inline-flex px-3 py-0.5 rounded-full text-[13px] font-bold uppercase ${statusInfo.color}`}>
-                                                    {statusInfo.label}
-                                                </span>
-                                            </div>
+                                    <div className="bg-slate-50 dark:bg-neutral-800 p-4 rounded-2xl border border-slate-100 dark:border-neutral-700">
+                                        <div className="text-[14px] text-slate-400 uppercase mb-1">今日上班時間</div>
+                                        <div className="font-mono font-bold text-[26px] text-slate-700 dark:text-neutral-200">
+                                            {formatHHmm(new Date(attendanceRecord.clock_in_time!))}
                                         </div>
                                     </div>
 
@@ -372,6 +379,11 @@ export default function ModernClockPanel({
                                                 {attendanceRecord.break_duration !== undefined && attendanceRecord.break_duration !== null && Number(attendanceRecord.break_duration) > 0 && (
                                                     <div className="text-[14px] text-emerald-600/50 mt-1">
                                                         (已扣午休 {formatWorkTime(Number(attendanceRecord.break_duration))})
+                                                    </div>
+                                                )}
+                                                {showDiffWarning && (
+                                                    <div className={`text-[15px] mt-2 font-bold ${diffWarningMsg.includes('不足') ? 'text-rose-500' : 'text-blue-500'}`}>
+                                                        {diffWarningMsg}
                                                     </div>
                                                 )}
                                             </div>

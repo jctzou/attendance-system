@@ -8,7 +8,7 @@ import { Database } from '@/types/supabase'
 import { z } from 'zod'
 import { ActionResult, ErrorCodes } from '@/types/actions'
 import { requireUserProfile, requireUserRole, withErrorHandling } from '@/utils/actions_common'
-import { determineAttendanceStatus, calculateWorkMinutes } from '@/utils/attendance-engine'
+import { calculateWorkMinutes } from '@/utils/attendance-engine'
 import { getTaipeiDateString, getTaipeiTimeString } from '@/utils/timezone'
 
 type AttendanceRow = Database['public']['Tables']['attendance']['Row']
@@ -81,11 +81,7 @@ async function calculateAttendanceFields(
     const inTimeStr = clockInTime ? getTaipeiTimeString(clockInTime) : null;
     const outTimeStr = clockOutTime ? getTaipeiTimeString(clockOutTime) : null;
 
-    // 鐘點人員不標註「遲到」或「早退」標籤，只要有打卡一律為 'normal'
-    // 月薪人員則遵循 5 分鐘上班緩衝判定規則
-    const status = isHourly
-        ? (clockInTime ? 'normal' : 'absent')
-        : determineAttendanceStatus(inTimeStr, outTimeStr, workStartTime, workEndTime, 5);
+    const status = clockInTime ? 'normal' : 'absent';
 
     let workHours: number | null = null;
     if (clockInTime && clockOutTime) {
