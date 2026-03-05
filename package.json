@@ -18,7 +18,7 @@
     "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.34.3",
     "next": "16.1.6",
-    "next-nprogress-bar": "^2.4.7",
+    "nextjs-toploader": "^3.9.17",
     "openai": "^6.25.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
