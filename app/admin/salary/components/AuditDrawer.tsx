@@ -155,12 +155,20 @@ export const AuditDrawer: React.FC<Props> = ({ isOpen, record, onClose, onEditBo
                     const schedEnd = record.workEndTime || '18:00:00'
 
                     const scheduledGross = timeStrToMinutes(schedEnd) - timeStrToMinutes(schedStart)
-                    const scheduledNet = scheduledGross - (Number(att.break_duration) || 0)
+
+                    // 個人當日設定的固定午休（或預設：月薪1h，時薪0h）
+                    const defaultBreak = record.defaultBreakHours !== undefined ? record.defaultBreakHours : (isHourly ? 0 : 1.0)
+                    const fixedBreakMins = Math.round(defaultBreak * 60)
+
+                    // 目標工時 (Target Net) = 表定毛工時 - 固定午休
+                    const targetNet = scheduledGross - fixedBreakMins
 
                     if (clockIn && clockOut) {
-                        // 月薪看 Gross vs scheduledGross，時薪看 Net vs scheduledNet
-                        const expectedMins = isHourly ? scheduledNet : scheduledGross
-                        const diffMinutes = displayMins - expectedMins
+                        // 實際計算出來的工時 (Net Time: 已依據當日情況扣光所需的午休)
+                        const actualNet = Number(att.work_minutes) || 0
+
+                        // 落差 = 實作的淨工時 vs 應該達成的目標淨工時
+                        const diffMinutes = actualNet - targetNet
 
                         const warnings = []
 

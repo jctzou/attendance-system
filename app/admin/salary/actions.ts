@@ -44,6 +44,7 @@ export interface SalaryRecordData {
     leaveDays: number
     leaveDetails: Record<string, number>
     totalBreakHours?: number // New field
+    defaultBreakHours?: number // User's break hours setting
 
     rate: number // Hourly rate or Monthly base
 
@@ -138,7 +139,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
     // 1. Get User Data
     const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('display_name, avatar_url, salary_type, salary_amount, work_start_time, work_end_time')
+        .select('display_name, avatar_url, salary_type, salary_amount, work_start_time, work_end_time, break_hours')
         .eq('id', userId)
         .single()
 
@@ -193,7 +194,8 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
                 notes: existingRecord.notes || '',
                 settledDate: existingRecord.paid_at,
                 workStartTime: settledData.details?.workStartTime || userData.work_start_time || '09:00:00',
-                workEndTime: settledData.details?.workEndTime || userData.work_end_time || '18:00:00'
+                workEndTime: settledData.details?.workEndTime || userData.work_end_time || '18:00:00',
+                defaultBreakHours: userData.break_hours !== null ? userData.break_hours : ((settledData.salaryType as SalaryType) === 'monthly' ? 1.0 : 0)
             }
         }
     }
@@ -312,7 +314,8 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
 
         notes,
         workStartTime: userData.work_start_time || '09:00:00',
-        workEndTime: userData.work_end_time || '18:00:00'
+        workEndTime: userData.work_end_time || '18:00:00',
+        defaultBreakHours: userData.break_hours !== null ? userData.break_hours : (salaryType === 'monthly' ? 1.0 : 0)
     }
 
     return { success: true, data: result }
@@ -515,7 +518,7 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
     // 1. All employees
     const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('id, display_name, avatar_url, salary_type, salary_amount, work_start_time, work_end_time')
+        .select('id, display_name, avatar_url, salary_type, salary_amount, work_start_time, work_end_time, break_hours')
         .in('role', ['employee', 'manager', 'super_admin'])
         .order('id', { ascending: true })
 
@@ -593,6 +596,7 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
                 settledDate: existingRecord.paid_at,
                 workStartTime: s.details?.workStartTime || userData.work_start_time || '09:00:00',
                 workEndTime: s.details?.workEndTime || userData.work_end_time || '18:00:00',
+                defaultBreakHours: userData.break_hours !== null ? userData.break_hours : ((s.salaryType as SalaryType) || 'monthly' === 'monthly' ? 1.0 : 0)
             } satisfies SalaryRecordData
         }
 
@@ -662,7 +666,8 @@ export async function calculateAllMonthlySalaries(yearMonth: string): Promise<Ac
             rate: salaryAmount,
             notes,
             workStartTime: userData.work_start_time || '09:00:00',
-            workEndTime: userData.work_end_time || '18:00:00'
+            workEndTime: userData.work_end_time || '18:00:00',
+            defaultBreakHours: userData.break_hours !== null ? userData.break_hours : (salaryType === 'monthly' ? 1.0 : 0)
         } satisfies SalaryRecordData
     })
 

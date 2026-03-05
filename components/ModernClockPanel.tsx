@@ -229,12 +229,24 @@ export default function ModernClockPanel({
         const schedStart = userSettings.work_start_time || '09:00:00'
         const schedEnd = userSettings.work_end_time || '18:00:00'
 
-        // 表定總分鐘數 - 午休扣除分鐘數 = 表定應上分鐘數
-        const scheduledGross = timeStrToMinutes(schedEnd) - timeStrToMinutes(schedStart)
-        const scheduledNet = scheduledGross - (Number(attendanceRecord.break_duration) || 0)
+        // 打卡總時長（毛工時）
+        const actualGross = timeStrToMinutes(formatTime(new Date(attendanceRecord.clock_out_time!))) - timeStrToMinutes(formatTime(new Date(attendanceRecord.clock_in_time!)))
 
-        // 落差：正值代表多做，負值代表少做
-        const diffMinutes = Number(attendanceRecord.work_minutes) - scheduledNet
+        // 個人當日設定的固定午休（或預設：月薪1h，時薪0h）
+        const defaultBreak = userSettings.break_hours !== null ? userSettings.break_hours : (salaryType === 'monthly' ? 1.0 : 0)
+        const fixedBreakMins = Math.round(defaultBreak * 60)
+
+        // 表定總時長（毛工時）
+        const scheduledGross = timeStrToMinutes(schedEnd) - timeStrToMinutes(schedStart)
+
+        // 目標工時 (Target Net) = 表定毛工時 - 固定午休
+        const targetNet = scheduledGross - fixedBreakMins
+
+        // 實際計算出來的工時 (Net Time: 已依據當日情況扣光所需的午休)
+        const actualNet = Number(attendanceRecord.work_minutes)
+
+        // 落差 = 實作的淨工時 vs 應該達成的目標淨工時
+        const diffMinutes = actualNet - targetNet
 
         if (diffMinutes <= -11) {
             showDiffWarning = true
