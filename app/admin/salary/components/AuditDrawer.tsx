@@ -162,13 +162,45 @@ export const AuditDrawer: React.FC<Props> = ({ isOpen, record, onClose, onEditBo
                         const expectedMins = isHourly ? scheduledNet : scheduledGross
                         const diffMinutes = displayMins - expectedMins
 
+                        const warnings = []
+
                         // 誤差超過 11 分鐘才顯示 (與 ModernClockPanel 相同)
                         if (diffMinutes <= -11) {
                             isAbnormal = true
-                            diffMarkup = <span className="text-red-500 text-xs font-mono">不足 {formatHM(Math.abs(diffMinutes) / 60)}</span>
+                            warnings.push(
+                                <div key="under" className="flex flex-col items-end gap-1">
+                                    <span className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 px-1.5 py-0.5 rounded leading-none font-medium">不足</span>
+                                    <span className="text-red-500 text-xs font-mono">{formatHM(Math.abs(diffMinutes) / 60)}</span>
+                                </div>
+                            )
                         } else if (diffMinutes >= 11) {
-                            diffMarkup = <span className="text-emerald-600 text-xs font-mono">超時 {formatHM(diffMinutes / 60)}</span>
+                            warnings.push(
+                                <div key="over" className="flex flex-col items-end gap-1">
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 px-1.5 py-0.5 rounded leading-none font-medium">超時</span>
+                                    <span className="text-emerald-600 text-xs font-mono">{formatHM(diffMinutes / 60)}</span>
+                                </div>
+                            )
                         }
+
+                        if (isHourly && grossMins > 240 && (!att.break_duration || att.break_duration === 0)) {
+                            isAbnormal = true
+                            warnings.push(
+                                <div key="nobreak" className="flex flex-col items-end gap-1">
+                                    <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 rounded leading-none font-medium whitespace-nowrap">未填午休</span>
+                                </div>
+                            )
+                        }
+
+                        if (warnings.length > 0) {
+                            diffMarkup = <div className="flex flex-col items-end gap-2">{warnings}</div>
+                        }
+                    } else if (clockIn && !clockOut) {
+                        isAbnormal = true
+                        diffMarkup = (
+                            <div className="flex flex-col items-end gap-1">
+                                <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 rounded leading-none font-medium whitespace-nowrap">未打下班卡</span>
+                            </div>
+                        )
                     }
                 }
             } else if (leave) {
