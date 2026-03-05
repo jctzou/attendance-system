@@ -4,6 +4,7 @@ import "./globals.css";
 import MainLayout from "@/components/MainLayout";
 import { createClient } from "@/utils/supabase/server";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ProgressBarProvider from "@/components/ProgressBarProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,9 +49,11 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <MainLayout userProfile={userProfile}>
-            {children}
-          </MainLayout>
+          <ProgressBarProvider>
+            <MainLayout userProfile={userProfile}>
+              {children}
+            </MainLayout>
+          </ProgressBarProvider>
         </ThemeProvider>
       </body>
     </html>
