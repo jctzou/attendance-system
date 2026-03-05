@@ -18,10 +18,9 @@ interface DonutItem {
     used: number
     total: number
     color: string
-    trackColor: string
 }
 
-function Donut({ label, sublabel, used, total, color, trackColor }: DonutItem) {
+function Donut({ label, sublabel, used, total, color }: DonutItem) {
     const pct = total > 0 ? Math.min(used / total, 1) : 0
     const dash = _CIRC * pct
     const exhausted = total > 0 && used >= total
@@ -29,21 +28,37 @@ function Donut({ label, sublabel, used, total, color, trackColor }: DonutItem) {
     return (
         <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
             <svg width={60} height={60} viewBox={`0 0 ${_CX * 2} ${_CY * 2}`}>
-                <circle cx={_CX} cy={_CY} r={_R} fill="none" stroke={trackColor} strokeWidth={_STROKE} />
+                {/* 背景軌道圈：淺色模式用極淡灰色，深色模式用深色 */}
+                <circle 
+                    cx={_CX} cy={_CY} r={_R} 
+                    fill="none" 
+                    className="stroke-slate-100 dark:stroke-neutral-800" 
+                    strokeWidth={_STROKE} 
+                />
+                {/* 進度圈：使用亮色 */}
                 <circle
                     cx={_CX} cy={_CY} r={_R}
                     fill="none"
-                    stroke={exhausted ? '#f87171' : color}
+                    stroke={exhausted ? '#ef4444' : color}
                     strokeWidth={_STROKE}
                     strokeLinecap="round"
                     strokeDasharray={`${dash} ${_CIRC}`}
                     strokeDashoffset={0}
+                    style={{ transition: 'stroke-dasharray 0.5s ease' }}
                     transform={`rotate(-90 ${_CX} ${_CY})`}
                 />
-                <text x={_CX} y={_CY - 3} textAnchor="middle" dominantBaseline="middle" fontSize="10" fontWeight="700" fill={exhausted ? '#ef4444' : '#334155'}>
+                {/* 中心文字：適配深淺色模式 */}
+                <text 
+                    x={_CX} y={_CY - 3} 
+                    textAnchor="middle" 
+                    dominantBaseline="middle" 
+                    fontSize="10" 
+                    fontWeight="700" 
+                    className={exhausted ? 'fill-red-500' : 'fill-slate-700 dark:fill-neutral-200'}
+                >
                     {used}
                 </text>
-                <text x={_CX} y={_CY + 9} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#94a3b8">
+                <text x={_CX} y={_CY + 9} textAnchor="middle" dominantBaseline="middle" fontSize="8" className="fill-slate-400 dark:fill-neutral-500">
                     /{total}
                 </text>
             </svg>
@@ -57,11 +72,11 @@ function Donut({ label, sublabel, used, total, color, trackColor }: DonutItem) {
 
 function LeaveBalanceChart({ summary }: { summary: LeaveBalanceSummary }) {
     const items: DonutItem[] = [
-        { label: '特休假', sublabel: summary.annual_leave.grantDate || '週年制', used: summary.annual_leave.used, total: summary.annual_leave.total, color: '#6366f1', trackColor: '#e0e7ff' },
-        { label: '事假', sublabel: '年上限 14 天', used: summary.personal_leave.used, total: 14, color: '#f59e0b', trackColor: '#fef3c7' },
-        { label: '家庭照顧假', sublabel: '年上限 7 天', used: summary.family_care_leave.used, total: 7, color: '#8b5cf6', trackColor: '#ede9fe' },
-        { label: '病假', sublabel: '年上限 30 天', used: summary.sick_leave.used, total: 30, color: '#06b6d4', trackColor: '#cffafe' },
-        { label: '生理假', sublabel: '月上限 1 天', used: summary.menstrual_leave.used, total: 1, color: '#ec4899', trackColor: '#fce7f3' },
+        { label: '特休假', sublabel: summary.annual_leave.grantDate || '週年制', used: summary.annual_leave.used, total: summary.annual_leave.total, color: '#818cf8' }, // Indigo 400 (brighter)
+        { label: '事假', sublabel: '年上限 14 天', used: summary.personal_leave.used, total: 14, color: '#fbbf24' }, // Amber 400
+        { label: '家庭照顧假', sublabel: '年上限 7 天', used: summary.family_care_leave.used, total: 7, color: '#a78bfa' }, // Violet 400
+        { label: '病假', sublabel: '年上限 30 天', used: summary.sick_leave.used, total: 30, color: '#22d3ee' }, // Cyan 400
+        { label: '生理假', sublabel: '月上限 1 天', used: summary.menstrual_leave.used, total: 1, color: '#f472b6' }, // Pink 400
     ]
 
     return (

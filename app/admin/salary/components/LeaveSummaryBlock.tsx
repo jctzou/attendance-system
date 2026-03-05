@@ -14,10 +14,9 @@ interface DonutProps {
     label: string
     sublabel: string
     color: string        // stroke color (tailwind class 替代，直接用 hex)
-    trackColor: string
 }
 
-function Donut({ used, total, label, sublabel, color, trackColor }: DonutProps) {
+function Donut({ used, total, label, sublabel, color }: DonutProps) {
     const pct = total > 0 ? Math.min(used / total, 1) : 0
     const dash = CIRCUMFERENCE * pct
     const isExhausted = total > 0 && used >= total
@@ -27,18 +26,18 @@ function Donut({ used, total, label, sublabel, color, trackColor }: DonutProps) 
             {/* 圓形圖 */}
             <div className="relative">
                 <svg width={64} height={64} viewBox={`0 0 ${CX * 2} ${CY * 2}`}>
-                    {/* 軌道圈 */}
+                    {/* 軌道圈：深色模式下改為較暗顏色 */}
                     <circle
                         cx={CX} cy={CY} r={R}
                         fill="none"
-                        stroke={trackColor}
+                        className="stroke-slate-100 dark:stroke-neutral-800"
                         strokeWidth={STROKE}
                     />
-                    {/* 進度弧 */}
+                    {/* 進度弧：使用亮色 */}
                     <circle
                         cx={CX} cy={CY} r={R}
                         fill="none"
-                        stroke={isExhausted ? '#f87171' : color}
+                        stroke={isExhausted ? '#ef4444' : color}
                         strokeWidth={STROKE}
                         strokeLinecap="round"
                         strokeDasharray={`${dash} ${CIRCUMFERENCE}`}
@@ -46,15 +45,14 @@ function Donut({ used, total, label, sublabel, color, trackColor }: DonutProps) 
                         transform={`rotate(-90 ${CX} ${CY})`}
                         style={{ transition: 'stroke-dasharray 0.5s ease' }}
                     />
-                    {/* 中心數字 */}
+                    {/* 中心數字：適配深淺色模式 */}
                     <text
                         x={CX} y={CY - 3}
                         textAnchor="middle"
                         dominantBaseline="middle"
                         fontSize="10"
                         fontWeight="700"
-                        fill={isExhausted ? '#ef4444' : '#334155'}
-                        className="dark:fill-neutral-200"
+                        className={isExhausted ? 'fill-red-500' : 'fill-slate-700 dark:fill-neutral-200'}
                     >
                         {used}
                     </text>
@@ -63,7 +61,7 @@ function Donut({ used, total, label, sublabel, color, trackColor }: DonutProps) 
                         textAnchor="middle"
                         dominantBaseline="middle"
                         fontSize="8"
-                        fill="#94a3b8"
+                        className="fill-slate-400 dark:fill-neutral-500"
                     >
                         /{total}
                     </text>
@@ -96,40 +94,35 @@ export const LeaveSummaryBlock: React.FC<Props> = ({ summary }) => {
             sublabel: al?.grantDate ? al.grantDate : '週年制',
             used: al?.used ?? 0,
             total: al?.total ?? 0,
-            color: '#6366f1',
-            trackColor: '#e0e7ff',
+            color: '#818cf8',
         },
         {
             label: '事假',
             sublabel: '年上限 14 天',
             used: pl?.used ?? 0,
             total: 14,
-            color: '#f59e0b',
-            trackColor: '#fef3c7',
+            color: '#fbbf24',
         },
         {
             label: '家庭照顧假',
             sublabel: '年上限 7 天',
             used: fc?.used ?? 0,
             total: 7,
-            color: '#8b5cf6',
-            trackColor: '#ede9fe',
+            color: '#a78bfa',
         },
         {
             label: '病假',
             sublabel: '年上限 30 天',
             used: sl?.used ?? 0,
             total: 30,
-            color: '#06b6d4',
-            trackColor: '#cffafe',
+            color: '#22d3ee',
         },
         {
             label: '生理假',
             sublabel: '月上限 1 天',
             used: ml?.used ?? 0,
             total: 1,
-            color: '#ec4899',
-            trackColor: '#fce7f3',
+            color: '#f472b6',
         },
     ]
 
