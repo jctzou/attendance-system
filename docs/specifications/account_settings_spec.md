@@ -57,5 +57,5 @@
 ## 4. 參考文件 (References to Global Rules)
 開發此頁面前，請務必詳閱 [系統架構白皮書 (System Architecture)](system_architecture.md)：
 - **[2. 資料庫綱要設計]**: 參照 `users` 表與 `Storage` 設定。
-- **[10.1 對話框與彈出視窗]**: 參照全域 `ConfirmDialog` 及 `AlertDialog` 使用規範。
-- **[13. 檔案儲存與圖片處理規範]**: 參照 `ImageCropper` (1:1 裁切) 與 200KB 壓縮之開發要求。
+- **[3.2 對話框與彈跳視窗]**: 參照全域 `ConfirmDialog` 及 `AlertDialog` 使用規範。
+- **[6.1 前端裁切與壓縮]**: 參照 `ImageCropper` (1:1 裁切) 與 200KB 壓縮之開發要求。

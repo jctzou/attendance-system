@@ -1,8 +1,8 @@
 # 薪資管理規格書 (Salary Management Spec)
 
-> **版本**: v2.3
+> **版本**: v2.6
 > **狀態**: 已實作 (Implemented)
-> **最後更新**: 2026-03-01
+> **最後更新**: 2026-03-05
 > **目標**: 定義薪資管理頁面的完整架構、資料流、UI 行為，以及所有已實施的優化與 Bug 修正記錄。
 
 ---
@@ -46,8 +46,9 @@ app/admin/salary/
   SalaryClient.tsx (Client Component)  ← HTML 初始即含完整資料，無 loading
       ├── ControlBar（月份切換 → router.push → URL 更新 → SSR 重算）
       ├── EmployeeCard × N（展示薪資卡片）
-      ├── BonusDialog（更新獎金 → router.refresh()）
+├── BonusDialog（更新獎金 → router.refresh()）
       ├── SalarySettingsDialog（更新設定 → router.refresh()）
+      ├── Settle ConfirmDialog（結算薪資 → router.refresh()）(v2.6)
       └── Resettle ConfirmDialog（取消結算 → router.refresh()）
 ```
 
@@ -145,18 +146,14 @@ const salaryRecordByUser = new Map<string, any>()
        - **未填午休 (時薪專屬)**：時薪制人員當日總停留時間大於 4 小時 (240 分)，且午休長度為 0 時，顯示橘色警示「未填午休」，可與超時警示並存。
    - **假勤扣除明細展開 (v2.4 追加)**：
        當扣薪大於 0 時，會展開呈現個別假別的天數與扣除權重乘數。
+   - **假別餘額圓形圖表 (v2.6 追加)**：
+       針對月薪制員工，在抽屜中以 **5 個 SVG 甜甜圈圖**顯示該年度假別的使用概況（特休、事假、照顧假、病假、生理假）。這有助於管理員在結算時快速複核員工的請假額度是否正常。已結算紀錄會顯示結算當下的資料快照。
 
 ### 4.4 員工薪資單頁面與薪資計算精度 (v2.4 更新)
 - **前端呈現**：員工在個人端的 `[我的薪資單]` 會同步看到與主管 `AuditDrawer` 完全一致的「假別扣除展開明細」。
 - **無條件進位小數點 (Math.ceil)**：因應月薪人員扣薪計算時常出現小數點，基於勞資友善與財務整數原則，系統於計算 **`deduction` (扣薪)** 及最後的 **`totalSalary` (實領總額)** 皆全面套用 `Math.ceil()` 向上取整數計算。
 
-### 4.5 全域載入體驗優化 (v2.5 新增)
-為解決 Next.js App Router 軟體導航 (Soft Navigation) 時 Server Component 載入的視覺停頓感 (Zero-latency UI)：
-- 導入 **`nextjs-toploader`** 取代預設的無回饋切換，封裝為 `ProgressBarProvider`。
-- 切換至 `/admin/salary` 或其他選單時，頂部會出現企業品牌色 (`#FF5F05`) 的細高進度條。
-- 確保在等待 SSR 資料結算與渲染完成前，使用者能獲得即時的視覺進度回饋，避免重複點擊。
 
----
 
 ## 5. 狀態邏輯
 
@@ -166,7 +163,7 @@ const salaryRecordByUser = new Map<string, any>()
 - **資料來源**：SSR 即時計算（`calculateAllMonthlySalaries`）。
 - **允許操作**：
     - `[編輯獎金]`：開啟 `BonusDialog` 更新任意加給。
-    - `[結算薪資]`：觸發 `settleSalary` Server Action，將計算結果**永久存成 Snapshot（JSONB）**，狀態轉為已結算。
+    - `[結算薪資]`：開啟 `ConfirmDialog` 進行確認 (v2.6)，確認後觸發 `settleSalary` Server Action，將計算結果**永久存成 Snapshot（JSONB）**，狀態轉為已結算。
 
 ### 5.2 已結算 (Settled)
 
@@ -205,35 +202,7 @@ const salaryRecordByUser = new Map<string, any>()
 
 ---
 
-## 7. Bug 修正記錄
-
-### 7.1 `endDate` Timezone 問題（修正於 v1.2）
-
-**問題**：`calculateMonthlySalary` 中 `endDate` 使用 `toISOString()` 計算月底，在 UTC+8 本機環境下會少算一天。
-
-```typescript
-// 舊寫法（有問題）
-const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0]
-
-// 新寫法（安全，與 attendance/actions.ts 一致）
-const lastDay = new Date(yearNum, monthNum, 0).getDate()
-const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
-```
-
-已同步修正至 `calculateAllMonthlySalaries` 的日期計算。
-
-### 7.2 工時異常診斷 Log（v1.2 新增，v2.0 延伸至批次函式）
-
-兩個函式（`calculateMonthlySalary`、`calculateAllMonthlySalaries`）均內建異常偵測：
-
-- **單筆 `work_minutes > 24`** → `console.warn` 目標記錄的 `work_date` 與工時值
-- **單月筆數 > 35** → 警告日期篩選可能未生效（僅 `calculateMonthlySalary`）
-
-> **已知案例 - 工時 625h**：補登/修改對話框 `TimeSlotSelector` 的日期 fallback bug，導致 `clock_out_time` 寫入今日（而非補登日期），造成工時橫跨 26 天。根本原因已修正並記錄於 `attendance_record_spec.md §3.6`。
-
----
-
-## 8. 參考文件
+## 7. 參考文件
 
 - [系統架構白皮書](system_architecture.md)（薪資計算公式 §6.1、查詢防呆 §11.5、RWD §10.3）
 - [考勤記錄規格書](attendance_record_spec.md)（補登时間安全規範 §3.6）

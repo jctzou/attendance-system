@@ -72,6 +72,73 @@ export async function getAnnualLeaveBalance(): Promise<ActionResult<{ total_days
     })
 }
 
+export interface LeaveBalanceSummary {
+    annual_leave: { used: number; total: number; grantDate?: string }
+    personal_leave: { used: number; total: number }
+    family_care_leave: { used: number; total: number }
+    sick_leave: { used: number; total: number }
+    menstrual_leave: { used: number; total: number }
+}
+
+/** 查詢目前員工全假別的當年度/本月使用量，供請假頁圓形圖表使用 */
+export async function getMyLeaveBalances(): Promise<ActionResult<LeaveBalanceSummary>> {
+    return withErrorHandling(async () => {
+        const profile = await requireUserProfile()
+        const supabase = await createClient()
+
+        const now = new Date()
+        const yearStr = now.getFullYear().toString()
+        const monthStr = `${yearStr}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        const yearStart = `${yearStr}-01-01`
+        const yearEnd = `${yearStr}-12-31`
+        const monthStart = `${monthStr}-01`
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+        const monthEnd = `${monthStr}-${String(lastDay).padStart(2, '0')}`
+
+        const { data: yearLeaves } = await supabase
+            .from('leaves')
+            .select('leave_type, days, start_date')
+            .eq('user_id', profile.id)
+            .in('status', ['approved', 'cancel_pending'])
+            .gte('start_date', yearStart)
+            .lte('start_date', yearEnd)
+
+        const { data: monthMenstrual } = await supabase
+            .from('leaves')
+            .select('days')
+            .eq('user_id', profile.id)
+            .eq('leave_type', 'menstrual_leave')
+            .in('status', ['approved', 'cancel_pending'])
+            .gte('start_date', monthStart)
+            .lte('start_date', monthEnd)
+
+        const yearTotals: Record<string, number> = {}
+            ; (yearLeaves || []).forEach((l: any) => {
+                yearTotals[l.leave_type] = (yearTotals[l.leave_type] || 0) + (Number(l.days) || 0)
+            })
+        const monthMenstrualUsed = (monthMenstrual || []).reduce((s: number, l: any) => s + (Number(l.days) || 0), 0)
+
+        let annualGrantDate: string | undefined = undefined
+        if ((profile as any).onboard_date) {
+            const onboard = new Date((profile as any).onboard_date)
+            const settleYear = now.getFullYear()
+            let grantYear = settleYear
+            const grantCandidate = new Date(settleYear, onboard.getMonth(), onboard.getDate())
+            if (grantCandidate > now) grantYear = settleYear - 1
+            const grantD = new Date(grantYear, onboard.getMonth(), onboard.getDate())
+            annualGrantDate = `${grantD.getFullYear()}/${String(grantD.getMonth() + 1).padStart(2, '0')}/${String(grantD.getDate()).padStart(2, '0')}`
+        }
+
+        return {
+            annual_leave: { used: Number(profile.annual_leave_used) || 0, total: Number(profile.annual_leave_total) || 0, grantDate: annualGrantDate },
+            personal_leave: { used: yearTotals['personal_leave'] || 0, total: 14 },
+            family_care_leave: { used: yearTotals['family_care_leave'] || 0, total: 7 },
+            sick_leave: { used: yearTotals['sick_leave'] || 0, total: 30 },
+            menstrual_leave: { used: monthMenstrualUsed, total: 1 },
+        }
+    })
+}
+
 export async function applyLeave(
     leaveType: string,
     startDate: string,

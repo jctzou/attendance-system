@@ -24,33 +24,39 @@ export const BonusDialog: React.FC<Props> = ({
     const [amount, setAmount] = useState('')
     const [notes, setNotes] = useState('')
     const [saving, setSaving] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [saved, setSaved] = useState(false)
 
     useEffect(() => {
         if (isOpen) {
             setAmount(currentBonus.toString())
             setNotes(currentNotes || '')
             setSaving(false)
+            setError(null)
+            setSaved(false)
         }
     }, [isOpen, currentBonus, currentNotes])
 
     const handleSave = async () => {
         const numAmount = parseFloat(amount)
         if (isNaN(numAmount) || numAmount < 0) {
-            alert('請輸入有效的獎金金額')
+            setError('請輸入有效的獎金金額（不可為負數）')
             return
         }
 
         setSaving(true)
+        setError(null)
+        setSaved(false)
         try {
             const res = await updateBonus(userId, yearMonth, numAmount, notes)
             if (res.error) {
-                alert('更新失敗: ' + res.error)
+                setError(res.error)
             } else {
-                onSuccess()
-                onClose()
+                setSaved(true)  // 顯示成功提示，不關閉 Dialog
+                onSuccess()     // 通知 parent 刷新資料
             }
         } catch (e) {
-            alert('系統錯誤')
+            setError('發生系統錯誤，請稍後再試')
             console.error(e)
         } finally {
             setSaving(false)
@@ -88,11 +94,26 @@ export const BonusDialog: React.FC<Props> = ({
                         placeholder="選填..."
                     />
                 </div>
+
+                {error && (
+                    <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+                        <span className="material-symbols-outlined text-base">error</span>
+                        {error}
+                    </div>
+                )}
+                {saved && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+                        <span className="material-symbols-outlined text-base">check_circle</span>
+                        獎金已成功更新！
+                    </div>
+                )}
             </DialogContent>
 
             <DialogFooter>
-                <Button variant="ghost" onClick={onClose}>取消</Button>
-                <Button onClick={handleSave} isLoading={saving}>確認</Button>
+                <Button variant="ghost" onClick={onClose} disabled={saving}>關閉</Button>
+                {!saved && (
+                    <Button onClick={handleSave} isLoading={saving}>確認儲存</Button>
+                )}
             </DialogFooter>
         </Dialog>
     )

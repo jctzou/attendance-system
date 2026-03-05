@@ -4,6 +4,7 @@ import { getEmployeeAttendanceRecords, getEmployeeLeaveRecords } from '@/app/att
 import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { getLeaveTypeName, getLeaveDeductionWeight } from '@/utils/leave-policies'
+import { LeaveSummaryBlock } from './LeaveSummaryBlock'
 
 function timeStrToMinutes(timeStr: string): number {
     if (!timeStr) return 0;
@@ -19,9 +20,10 @@ interface Props {
     onSettle: (userId: string) => void
     onResettle: (userId: string) => void
     isProcessing: boolean
+    settleError?: string | null
 }
 
-export const AuditDrawer: React.FC<Props> = ({ isOpen, record, onClose, onEditBonus, onSettle, onResettle, isProcessing }) => {
+export const AuditDrawer: React.FC<Props> = ({ isOpen, record, onClose, onEditBonus, onSettle, onResettle, isProcessing, settleError }) => {
     const [attendance, setAttendance] = useState<any[]>([])
     const [leaves, setLeaves] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
@@ -364,6 +366,11 @@ export const AuditDrawer: React.FC<Props> = ({ isOpen, record, onClose, onEditBo
                         )}
                     </div>
 
+                    {/* Section 1.5: Leave Summary（月薪制才顯示）*/}
+                    {!isHourly && record.leaveSummary && (
+                        <LeaveSummaryBlock summary={record.leaveSummary} />
+                    )}
+
                     {/* Section 2: Ledger */}
                     <div>
                         <h3 className="text-sm font-bold text-slate-800 dark:text-neutral-200 mb-4 flex items-center gap-2">
@@ -380,15 +387,23 @@ export const AuditDrawer: React.FC<Props> = ({ isOpen, record, onClose, onEditBo
                 {/* Footer Actions */}
                 <div className="px-6 py-4 bg-white dark:bg-neutral-900 border-t border-slate-200 dark:border-neutral-800 shrink-0">
                     {!isSettled ? (
-                        <Button
-                            onClick={() => onSettle(record.userId)}
-                            isLoading={isProcessing}
-                            disabled={isProcessing}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-6"
-                        >
-                            <span className="material-symbols-outlined mr-2">check_circle</span>
-                            確認無誤，結算薪資
-                        </Button>
+                        <div className="space-y-2">
+                            <Button
+                                onClick={() => onSettle(record.userId)}
+                                isLoading={isProcessing}
+                                disabled={isProcessing}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-6"
+                            >
+                                <span className="material-symbols-outlined mr-2">check_circle</span>
+                                確認無誤，結算薪資
+                            </Button>
+                            {settleError && (
+                                <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+                                    <span className="material-symbols-outlined text-base">error</span>
+                                    {settleError}
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <div className="flex items-center justify-between w-full">
                             <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">

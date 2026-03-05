@@ -1,8 +1,8 @@
 # 請假系統規格書 (Leave System Specification)
 
-> **版本**: v2.3
+> **版本**: v2.4
 > **狀態**: 現行系統描述（Active）
-> **最後更新**: 2026-02-28
+> **最後更新**: 2026-03-05
 > **目標**: 100% 描述現有請假系統的資料架構、業務規則、介面設計與 API 行為，作為重構或新實作的唯一技術參考。
 
 ---
@@ -236,7 +236,8 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 | Function | 參數 | 說明 |
 |----------|------|------|
-| `getAnnualLeaveBalance()` | — | 取得特休總額、已用、剩餘 |
+| `getAnnualLeaveBalance()` | — | 取得特休總額、已用、剩餘（供 ApplyLeaveDialog 額度判斷使用）|
+| `getMyLeaveBalances()` | — | 取得全假別當年度/本月使用量，回傳 `LeaveBalanceSummary`，供圓形圖表顯示 |
 | `getMyLeaves()` | — | 取得目前員工所有假單（含 approver 姓名）|
 | `applyLeave(...)` | leaveType, startDate, endDate, days, reason, dailyStatus | 申請請假 |
 | `cancelLeave(leaveId)` | `number` | 撤銷單筆 pending 假單（硬刪除）|
@@ -276,9 +277,22 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 **正確做法**：統一使用 `formatToTaipeiTime(date, formatStr)` 來格式化所有日期時間顯示。
 
-#### 頂部特休餘額區塊
-- 顯示：特休總天數、已使用、剩餘天數
+#### 頂部假別餘額圖表區塊（v2.4 更新）
+
+以 **5 個 SVG 甜甜圈圓形圖**並排顯示所有假別的使用狀態：
+
+| 圓形圖 | 假別 | 額度來源 | 顏色 |
+|--------|------|---------|------|
+| 1 | 特休假 | `users.annual_leave_used / annual_leave_total`，週年發放日顯示於圖下 | 靛藍 |
+| 2 | 事假 | 當年度已批准天數 / 14 天 | 琥珀 |
+| 3 | 家庭照顧假 | 當年度已批准天數 / 7 天 | 紫色 |
+| 4 | 病假 | 當年度已批准天數 / 30 天 | 青色 |
+| 5 | 生理假 | 當月已批准天數 / 1 天 | 粉色 |
+
+- 圓形圖中心顯示「已使用天數 / 上限天數」
+- 使用量超過上限時，弧線自動轉為紅色
 - **鐘點制人員不顯示此區塊**
+- 資料來源：`getMyLeaveBalances()` server action（即時查詢，非快照）
 
 #### 申請請假對話框（`ApplyLeaveDialog`）
 
@@ -422,54 +436,16 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 ## 8. 通知系統整合
 
+本模組的通知寄發與推播機制，**嚴格遵循 `system_architecture.md` §4.2 通知產生的最佳實踐**。
+
 ### 8.1 通知事件清單
 
-| 事件 | type | 發送對象 | 觸發時機 |
-|------|------|---------|---------|
-| 新請假申請 | `new_leave_request` | 所有主管 | 員工送出申請後（每個 `group_id` 僅一則）|
-| 批准請假 | `leave_approved` | 申請員工 | 主管批准後（每個 `group_id` 僅一則）|
-| 退回請假 | `leave_rejected` | 申請員工 | 主管退回後（每個 `group_id` 僅一則）|
-| 取消申請（單筆/整批）| `leave_cancel_request` | 所有主管 | 員工申請取消後（每個 `group_id` 僅一則）|
-| 取消審核結果 | `leave_cancel_result` | 申請員工 | 主管同意/拒絕取消後（由 `approveCancelLeave` / `approveCancelLeaveGroup` 呼叫 `createNotification` 發送）|
-
-### 8.2 通知架構規範（重要）
-
-#### 問題背景
-
-採用 `group_id` 多日拆分架構後，每次請假操作會對 `leaves` 資料表產生多筆 row INSERT/UPDATE。若 `FOR EACH ROW` Trigger 加上 Server Action 也各自插入通知，則：
-
-```
-通知數 = 請假天數 × 2（Trigger 各一則 + Server Action 各一則）
-```
-
-#### 現行解決方案：職責分離
-
-| 職責 | 負責方 | 說明 |
-|------|--------|------|
-| **通知記錄入庫**（`new_leave_request`, `leave_approved`, `leave_rejected`, `leave_cancel_request`）| **DB Trigger** | `handle_leave_notifications()` FOR EACH ROW，但以 `group_id` 最小 `id` 去重，每個 group 只插入一則 |
-| **取消審核結果通知**（`leave_cancel_result`）| **Server Action** 直接呼叫 `createNotification()` | DB Trigger 不處理 DELETE 與「cancel_pending → approved」的回滾，故此事件例外由 Server Action 負責 |
-| **即時鈴噹 Broadcast 訊號** | **Server Action** 呼叫 `broadcastToManagers()` / `broadcastToUser()` | 通知記錄已存在於 DB，Broadcast 只是讓前端的 `NotificationBell` 即時刷新計數，不插入任何資料 |
-
-#### 各場景 Broadcast 與通知對照表
-
-| 操作場景 | Broadcast 目標 | 通知入庫方式 |
-|---------|---------------|------------|
-| 員工申請假單 | 所有主管 (`broadcastToManagers`) | DB Trigger（`new_leave_request`）|
-| 員工申請取消（單筆/整批）| 所有主管 (`broadcastToManagers`) | DB Trigger（`leave_cancel_request`）|
-| 主管批准/退回（單筆）| 員工 (`broadcastToUser`) | DB Trigger（`leave_approved` / `leave_rejected`）|
-| 主管批准/退回（整批群組）| 員工 (`broadcastToUser`) | DB Trigger（`leave_approved` / `leave_rejected`，group_id 去重）|
-| 主管同意/拒絕取消（單筆）| 員工（`createNotification` 內含 broadcast）| `createNotification()` 直接呼叫（含入庫 + broadcast）|
-| 主管同意/拒絕取消（整批）| 員工（`createNotification` 內含 broadcast）| `createNotification()` 直接呼叫（含入庫 + broadcast）|
-
-#### 規範
-
-1. **`handle_leave_notifications` Trigger 去重邏輯**：每個 `group_id` 的所有 row 中，只有 `id` 最小的那筆 row 才執行通知插入；`group_id` 為 NULL 的舊資料視為獨立一筆，永遠插入。
-2. **Server Action 中禁止對 `new_leave_request` / `leave_approved` / `leave_rejected` / `leave_cancel_request` 呼叫 `createNotification`**：這四類通知由 DB Trigger 統一負責，避免重複。
-3. **`leave_cancel_result` 例外**：`approveCancelLeave` 和 `approveCancelLeaveGroup` 可呼叫 `createNotification()`，因為 Trigger 不處理此情境（DELETE 不觸發 Trigger 通知）。
-4. **通知內容使用中文假別**：DB Trigger 以 `CASE` 語句將 `leave_type` 原始值（如 `personal_leave`）轉為中文（如 `事假`）。
-5. **Broadcast 物件格式**：`{ targetUserId: string }`，前端 `NotificationBell` 比對 `targetUserId === currentUserId` 後才刷新。
-
-> `SECURITY DEFINER` 加持的 DB Trigger 可跨 RLS 讀取所有使用者角色，等效於 Server Action 中使用 `createAdminClient()`。
+| 事件 | 發送對象 | 實作方式 (符合全域防呆) |
+|------|---------|---------|
+| 新請假申請 (`new_leave_request`) | 所有主管 | DB Trigger (`handle_leave_notifications`)，以 `group_id` 去重 |
+| 批准/退回請假 (`leave_approved/rejected`)| 申請員工 | DB Trigger |
+| 取消申請 (`leave_cancel_request`) | 所有主管 | DB Trigger |
+| 取消審核結果 (`leave_cancel_result`) | 申請員工 | Server Action 直接呼叫 (因 Trigger 無法捕捉 Delete 回滾) |
 
 ---
 
@@ -500,8 +476,8 @@ status IN ('pending', 'approved', 'rejected', 'cancelled', 'cancel_pending')
 
 | 檔案 | 說明 |
 |------|------|
-| `app/leaves/page.tsx` | 員工請假管理頁（**Server Component**，伺服器端取資料）|
-| `app/leaves/LeavesClient.tsx` | 員工請假管理頁互動層（**Client Component**，dialog/刷新）|
+| `app/leaves/page.tsx` | 員工請假管理頁（**Server Component**，伺服器端取資料，含 `getMyLeaveBalances` 查詢）|
+| `app/leaves/LeavesClient.tsx` | 員工請假管理頁互動層（**Client Component**，含假別餘額五圓形圖 `LeaveBalanceChart`）|
 | `app/leaves/actions.ts` | 所有請假 Server Actions（含 `LeaveRow` 型別定義、群組批次 cancel 函式）|
 | `components/LeaveTable.tsx` | 員工假單列表（Client Component，含群組取消申請 UI）|
 | `components/ApplyLeaveDialog.tsx` | 請假申請對話框 |

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ControlBar } from './components/ControlBar'
 import { EmployeeCard } from './components/EmployeeCard'
@@ -20,28 +20,41 @@ interface Props {
 export default function SalaryClient({ initialRecords, initialYearMonth, usersList }: Props) {
     const router = useRouter()
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const [settleError, setSettleError] = useState<string | null>(null)
 
     // Dialogs & Drawers
     const [showSettings, setShowSettings] = useState(false)
     const [selectedAuditRecord, setSelectedAuditRecord] = useState<SalaryRecordData | null>(null)
     const [bonusTarget, setBonusTarget] = useState<SalaryRecordData | null>(null)
     const [resettleTarget, setResettleTarget] = useState<SalaryRecordData | null>(null)
+    const [settleTarget, setSettleTarget] = useState<SalaryRecordData | null>(null)
     const [resettleError, setResettleError] = useState<string | null>(null)
+
+    // 🔑 方案一：每次 initialRecords (Server Component) 更新後，自動同步 Drawer 的資料
+    // 這讓結算、取消結算、獎金編輯後，Drawer 就地更新，無須關閉再重開
+    useEffect(() => {
+        if (selectedAuditRecord) {
+            const updated = initialRecords.find(r => r.userId === selectedAuditRecord.userId)
+            if (updated) setSelectedAuditRecord(updated)
+        }
+    }, [initialRecords])
 
     // 切換月份：URL-based navigation，觸發 Server Component 重新取資料
     const handleMonthChange = (month: string) => {
         router.push(`/admin/salary?month=${month}`)
     }
 
-    const handleSettle = async (userId: string) => {
-        setProcessingId(userId)
+    const handleSettleConfirm = async () => {
+        if (!settleTarget) return
+        setProcessingId(settleTarget.userId)
+        setSettleError(null)
         try {
-            const res = await settleSalary(userId, initialYearMonth)
+            const res = await settleSalary(settleTarget.userId, initialYearMonth)
             if (res.success) {
-                router.refresh() // 重新觸發 SSR 計算，取得最新快照
+                setSettleTarget(null) // 關閉確認對話框
+                router.refresh()      // useEffect 會自動同步 Drawer 到已結算狀態
             } else {
-                console.error('結算失敗:', res.error)
-                alert('結算失敗: ' + res.error)
+                setSettleError(res.error || '結算失敗，請稍後再試')
             }
         } finally {
             setProcessingId(null)
@@ -56,8 +69,8 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
         try {
             const res = await resettleSalary(resettleTarget.userId, initialYearMonth)
             if (res.success) {
-                setResettleTarget(null)
-                router.refresh()
+                setResettleTarget(null) // 關閉確認對話框
+                router.refresh()        // useEffect 會自動同步 Drawer 到未結算狀態
             } else {
                 setResettleError(res.error || '重新結算失敗')
             }
@@ -112,6 +125,7 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
                     currentNotes={bonusTarget.notes || ''}
                     onClose={() => setBonusTarget(null)}
                     onSuccess={() => {
+                        // 不關閉 Drawer，只關閉 BonusDialog，router.refresh 後 useEffect 同步 Drawer
                         setBonusTarget(null)
                         router.refresh()
                     }}
@@ -147,12 +161,48 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
                 </DialogFooter>
             </Dialog>
 
+            <Dialog isOpen={!!settleTarget} onClose={() => setSettleTarget(null)} maxWidth="sm">
+                <DialogHeader title="確認結算薪資" onClose={() => setSettleTarget(null)} />
+                <DialogContent>
+                    <div className="text-slate-600 dark:text-neutral-300">
+                        <p className="mb-2">您確定要結算 <strong>{settleTarget?.displayName}</strong> 的薪資嗎？</p>
+                        <p className="text-sm text-slate-500 bg-slate-50 dark:bg-neutral-800 p-3 rounded-lg border border-slate-100 dark:border-neutral-700">
+                            這將會凍結本月薪資記錄，並發送通知給員工。結算後若要修改獎金，需先取消結算。
+                        </p>
+                        {settleError && (
+                            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">error</span>
+                                {settleError}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setSettleTarget(null)} disabled={!!processingId}>取消</Button>
+                    <Button
+                        onClick={handleSettleConfirm}
+                        variant="primary"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={!!processingId}
+                        isLoading={!!processingId}
+                    >
+                        {processingId ? '處理中...' : '確定結算'}
+                    </Button>
+                </DialogFooter>
+            </Dialog>
+
             <AuditDrawer
                 isOpen={!!selectedAuditRecord}
                 record={selectedAuditRecord}
                 onClose={() => setSelectedAuditRecord(null)}
                 onEditBonus={setBonusTarget}
-                onSettle={handleSettle}
+                onSettle={(userId) => {
+                    const rec = initialRecords.find(r => r.userId === userId)
+                    if (rec) {
+                        setSettleTarget(rec)
+                        setSettleError(null)
+                    }
+                }}
                 onResettle={(userId) => {
                     const rec = initialRecords.find(r => r.userId === userId)
                     if (rec) {
@@ -161,6 +211,7 @@ export default function SalaryClient({ initialRecords, initialYearMonth, usersLi
                     }
                 }}
                 isProcessing={!!processingId}
+                settleError={settleError}
             />
         </>
     )

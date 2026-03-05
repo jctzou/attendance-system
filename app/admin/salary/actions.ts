@@ -22,6 +22,20 @@ export interface SalaryDetails {
     deduction?: number
 }
 
+export interface LeaveSummaryItem {
+    used: number
+    total: number
+    grantDate?: string  // 特休週年發放日
+}
+
+export interface LeaveSummary {
+    annual_leave?: LeaveSummaryItem
+    personal_leave?: LeaveSummaryItem
+    family_care_leave?: LeaveSummaryItem
+    sick_leave?: LeaveSummaryItem
+    menstrual_leave?: LeaveSummaryItem
+}
+
 export interface SalaryRecordData {
     id?: number
     userId: string
@@ -29,7 +43,7 @@ export interface SalaryRecordData {
     yearMonth: string
     type: SalaryType
     status: 'SETTLED' | 'UNSETTLED'
-    avatarUrl?: string | null // New field
+    avatarUrl?: string | null
 
     // Financials
     baseSalary: number
@@ -43,15 +57,18 @@ export interface SalaryRecordData {
     earlyLeaveCount: number
     leaveDays: number
     leaveDetails: Record<string, number>
-    totalBreakHours?: number // New field
-    defaultBreakHours?: number // User's break hours setting
+    totalBreakHours?: number
+    defaultBreakHours?: number
 
-    rate: number // Hourly rate or Monthly base
+    rate: number
 
     notes?: string
     settledDate?: string
     workStartTime?: string
     workEndTime?: string
+
+    // 假別餘額摘要（月薪制才有，鐘點制為 undefined）
+    leaveSummary?: LeaveSummary
 }
 
 export interface ActionResponse<T = any> {
@@ -195,7 +212,8 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
                 settledDate: existingRecord.paid_at,
                 workStartTime: settledData.details?.workStartTime || userData.work_start_time || '09:00:00',
                 workEndTime: settledData.details?.workEndTime || userData.work_end_time || '18:00:00',
-                defaultBreakHours: userData.break_hours !== null ? userData.break_hours : ((settledData.salaryType as SalaryType) === 'monthly' ? 1.0 : 0)
+                defaultBreakHours: userData.break_hours !== null ? userData.break_hours : ((settledData.salaryType as SalaryType) === 'monthly' ? 1.0 : 0),
+                leaveSummary: settledData.leave_summary || undefined
             }
         }
     }
@@ -210,7 +228,7 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
         .gte('work_date', startDate)
         .lte('work_date', endDate)
 
-    // 5. Get Leaves
+    // 5. Get Leaves (this month, for deduction calc)
     const { data: leaves } = await supabase
         .from('leaves')
         .select('*')
@@ -218,6 +236,67 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
         .eq('status', 'approved')
         .gte('start_date', startDate)
         .lte('end_date', endDate)
+
+    // 5b. 年度/月度假別查詢（月薪制才建立摘要）
+    let leaveSummary: LeaveSummary | undefined = undefined
+    if ((userData.salary_type || 'monthly') === 'monthly') {
+        const yearStr2 = yearMonth.split('-')[0]
+        const yearStart = `${yearStr2}-01-01`
+        const yearEnd = `${yearStr2}-12-31`
+
+        // 全年批准假單（排除 annual_leave，它有自己的 user 欄位）
+        const { data: yearLeaves } = await supabase
+            .from('leaves')
+            .select('leave_type, days, start_date')
+            .eq('user_id', userId)
+            .eq('status', 'approved')
+            .gte('start_date', yearStart)
+            .lte('start_date', yearEnd)
+
+        // 本月生理假
+        const { data: monthMenstrual } = await supabase
+            .from('leaves')
+            .select('days')
+            .eq('user_id', userId)
+            .eq('leave_type', 'menstrual_leave')
+            .eq('status', 'approved')
+            .gte('start_date', startDate)
+            .lte('start_date', endDate)
+
+        // 特休：從 users 欄位讀取，並計算週年發放日
+        const { data: annualUser } = await supabase
+            .from('users')
+            .select('annual_leave_total, annual_leave_used, onboard_date')
+            .eq('id', userId)
+            .single()
+
+        let annualGrantDate: string | undefined = undefined
+        if (annualUser?.onboard_date) {
+            const onboard = new Date(annualUser.onboard_date)
+            const settleYear = parseInt(yearStr2)
+            // 找最近一次已過的週年日（可能在result月份當年或前一年）
+            let grantYear = settleYear
+            const grantCandidate = new Date(settleYear, onboard.getMonth(), onboard.getDate())
+            if (grantCandidate > new Date(`${yearStr2}-12-31`)) grantYear = settleYear - 1
+            const grantD = new Date(grantYear, onboard.getMonth(), onboard.getDate())
+            annualGrantDate = `${grantD.getFullYear()}/${String(grantD.getMonth() + 1).padStart(2, '0')}/${String(grantD.getDate()).padStart(2, '0')}`
+        }
+
+        // 加總各假別
+        const yearTotals: Record<string, number> = {}
+            ; (yearLeaves || []).forEach((l: any) => {
+                yearTotals[l.leave_type] = (yearTotals[l.leave_type] || 0) + (Number(l.days) || 0)
+            })
+        const monthMenstrualUsed = (monthMenstrual || []).reduce((s: number, l: any) => s + (Number(l.days) || 0), 0)
+
+        leaveSummary = {
+            annual_leave: { used: annualUser?.annual_leave_used || 0, total: annualUser?.annual_leave_total || 0, grantDate: annualGrantDate },
+            personal_leave: { used: yearTotals['personal_leave'] || 0, total: 14 },
+            family_care_leave: { used: yearTotals['family_care_leave'] || 0, total: 7 },
+            sick_leave: { used: yearTotals['sick_leave'] || 0, total: 30 },
+            menstrual_leave: { used: monthMenstrualUsed, total: 1 },
+        }
+    }
 
     const salaryType = (userData.salary_type as SalaryType) || 'monthly'
     const salaryAmount = userData.salary_amount || 0
@@ -315,7 +394,8 @@ export async function calculateMonthlySalary(userId: string, yearMonth: string, 
         notes,
         workStartTime: userData.work_start_time || '09:00:00',
         workEndTime: userData.work_end_time || '18:00:00',
-        defaultBreakHours: userData.break_hours !== null ? userData.break_hours : (salaryType === 'monthly' ? 1.0 : 0)
+        defaultBreakHours: userData.break_hours !== null ? userData.break_hours : (salaryType === 'monthly' ? 1.0 : 0),
+        leaveSummary
     }
 
     return { success: true, data: result }
@@ -372,30 +452,36 @@ export async function updateBonus(userId: string, yearMonth: string, amount: num
     // Check if settled first
     const { data: record } = await supabase
         .from('salary_records')
-        .select('is_paid')
+        .select('id, is_paid')
         .eq('user_id', userId)
         .eq('year_month', yearMonth)
         .single()
 
     if (record?.is_paid) return { error: '已結算之薪資無法修改獎金' }
 
-    // Trigger update
-    const { error } = await supabase
-        .from('salary_records')
-        .update({
-            bonus: amount,
-            notes: notes,
-            updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .eq('year_month', yearMonth)
-
-    if (error) return { error: error.message }
-
-    // Re-calculate total immediately to keep DB consistent
-    const calc = await calculateMonthlySalary(userId, yearMonth)
-    if (calc.success && calc.data) {
-        await saveSalaryRecord(calc.data)
+    if (record) {
+        // 已存在紀錄 → 只更新 bonus / notes
+        const { error } = await supabase
+            .from('salary_records')
+            .update({
+                bonus: amount,
+                notes: notes,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', record.id)
+        if (error) return { error: error.message }
+    } else {
+        // 尚無紀錄 → 建立一筆（僅含獎金，工時等留給結算時快照）
+        const { error } = await supabase
+            .from('salary_records')
+            .insert({
+                user_id: userId,
+                year_month: yearMonth,
+                bonus: amount,
+                notes: notes,
+                is_paid: false
+            })
+        if (error) return { error: error.message }
     }
 
     revalidatePath('/admin/salary')
@@ -427,6 +513,7 @@ export async function settleSalary(userId: string, yearMonth: string): Promise<A
         work_minutes: data.workHours,
         rate: data.rate,
         details: {
+            deduction: data.deduction,
             lateCount: data.lateCount,
             earlyLeaveCount: data.earlyLeaveCount,
             leaveDays: data.leaveDays,
@@ -434,26 +521,55 @@ export async function settleSalary(userId: string, yearMonth: string): Promise<A
             totalBreakHours: data.totalBreakHours,
             workStartTime: data.workStartTime,
             workEndTime: data.workEndTime
-        }
+        },
+        leave_summary: data.leaveSummary || null  // ← 假別餘額快照，月薪才有
     }
 
-    // 3. Update DB - Lock it
-    const { error } = await supabase
+    // 3. Upsert DB - Lock it (Manual Check & Insert/Update to avoid constraint name issues)
+    const { data: existingRecord } = await supabase
         .from('salary_records')
-        .update({
-            is_paid: true,
-            paid_at: new Date().toISOString(),
-            settled_data: settledData,
-            total_salary: data.totalSalary,
-            base_salary: data.baseSalary, // Ensure columns match snapshot
-            work_minutes: data.workHours,
-            bonus: data.bonus,
-            updated_at: new Date().toISOString()
-        })
+        .select('id')
         .eq('user_id', userId)
         .eq('year_month', yearMonth)
+        .single()
 
-    if (error) return { error: error.message }
+    let dbError
+
+    if (existingRecord) {
+        // Update existing
+        const { error } = await supabase
+            .from('salary_records')
+            .update({
+                is_paid: true,
+                paid_at: new Date().toISOString(),
+                settled_data: settledData,
+                total_salary: data.totalSalary,
+                base_salary: data.baseSalary, // Ensure columns match snapshot
+                work_minutes: data.workHours,
+                bonus: data.bonus,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', existingRecord.id)
+        dbError = error
+    } else {
+        // Insert new
+        const { error } = await supabase
+            .from('salary_records')
+            .insert({
+                user_id: userId,
+                year_month: yearMonth,
+                is_paid: true,
+                paid_at: new Date().toISOString(),
+                settled_data: settledData,
+                total_salary: data.totalSalary,
+                base_salary: data.baseSalary,
+                work_minutes: data.workHours,
+                bonus: data.bonus
+            })
+        dbError = error
+    }
+
+    if (dbError) return { error: dbError.message }
 
     revalidatePath('/admin/salary')
     return { success: true }

@@ -13,47 +13,45 @@ const PDFDownloadLink = dynamic(
     }
 )
 
+const LEAVE_MAP: Record<string, { name: string; weight: number }> = {
+    'personal_leave': { name: '事假', weight: 1 },
+    'sick_leave': { name: '病假（未住院）', weight: 0.5 },
+    'family_care_leave': { name: '家庭照顧假', weight: 1 },
+    'menstrual_leave': { name: '生理假', weight: 0.5 },
+    'annual_leave': { name: '特休假', weight: 0 },
+    'other': { name: '其他假', weight: 1 },
+}
+
+function formatMoney(val: number | undefined | null): string {
+    if (val === undefined || val === null) return '$0'
+    return '$' + Math.ceil(val).toLocaleString()
+}
+
+function formatHM(minutes: number | undefined | null): string {
+    if (!minutes) return '-'
+    const h = Math.floor(minutes / 60)
+    const m = Math.round(minutes % 60)
+    if (h === 0) return `${m}分`
+    if (m === 0) return `${h}小時`
+    return `${h}小時${m}分`
+}
+
 export default function MySalaryPage() {
     const [records, setRecords] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        const fetchRecords = async () => {
+            setLoading(true)
+            const res = await getMySalaryRecords()
+            if (res.success) setRecords(res.data)
+            setLoading(false)
+        }
         fetchRecords()
     }, [])
 
-    const fetchRecords = async () => {
-        setLoading(true)
-        const res = await getMySalaryRecords()
-        if (res.success) {
-            setRecords(res.data)
-        }
-        setLoading(false)
-    }
-
-    const formatHM = (val: number | undefined) => {
-        if (val === undefined || val === 0) return '-'
-        // 判斷是否為分鐘級數據 (通常工時不大於 500 小時，若大於則視為分鐘)
-        // 或者是針對新數據統一處理
-        const totalMinutes = val > 500 ? Math.round(val) : Math.round(val * 60)
-        const h = Math.floor(totalMinutes / 60)
-        const m = totalMinutes % 60
-        return `${h}小時${m}分`
-    }
-
-    // 渲染出勤統計詳情
-    const renderDetails = (details: any) => {
-        if (!details) return null
-        return (
-            <div className="text-sm text-slate-600 dark:text-neutral-400 space-y-1">
-                {details.lateCount > 0 && <div>遲到: {details.lateCount} 次</div>}
-                {details.earlyLeaveCount > 0 && <div>早退: {details.earlyLeaveCount} 次</div>}
-                {details.leaveDays > 0 && <div>請假: {details.leaveDays} 天</div>}
-            </div>
-        )
-    }
-
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
             <h1 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">payments</span>
                 我的薪資單
@@ -61,148 +59,131 @@ export default function MySalaryPage() {
 
             {loading ? (
                 <div className="text-center py-10 text-slate-500">載入中...</div>
+            ) : records.length === 0 ? (
+                <div className="text-center py-16 bg-white dark:bg-neutral-900 rounded-xl shadow text-slate-500 border border-slate-100 dark:border-neutral-800">
+                    目前沒有已發放的薪資記錄
+                </div>
             ) : (
                 <div className="space-y-6">
-                    {records.length > 0 ? (
-                        records.map((record) => (
-                            <div key={record.id} className="bg-white dark:bg-neutral-900 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-300/50 dark:border-neutral-700/50 overflow-hidden">
-                                <div className="bg-slate-50/50 dark:bg-neutral-800/50 px-6 py-4 flex justify-between items-center border-b border-slate-200 dark:border-neutral-700">
+                    {records.map((record) => {
+                        const s = record.settled_data as any
+                        const isHourly = (record.user?.salary_type || s?.salaryType) === 'hourly'
+                        const baseSalary: number = s?.base_salary ?? record.base_salary ?? 0
+                        const bonus: number = s?.bonus ?? record.bonus ?? 0
+                        const deduction: number = s?.details?.deduction ?? record.deduction ?? 0
+                        const totalSalary: number = s?.total_salary ?? record.total_salary ?? 0
+                        const workMinutes: number = s?.work_minutes ?? record.work_minutes ?? 0
+                        const rate: number = s?.rate ?? record.rate ?? baseSalary
+                        const leaveDetails: Record<string, number> = s?.details?.leaveDetails ?? record.details?.leaveDetails ?? {}
+                        const leaveDays: number = s?.details?.leaveDays ?? 0
+                        const dailyRate = isHourly ? 0 : rate / 30
+
+                        return (
+                            <div key={record.id} className="bg-white dark:bg-neutral-900 rounded-2xl border border-slate-100 dark:border-neutral-800 shadow-sm overflow-hidden">
+
+                                {/* Card Header */}
+                                <div className="px-5 py-4 bg-slate-50/60 dark:bg-neutral-800/60 border-b border-slate-100 dark:border-neutral-800 flex flex-wrap justify-between items-center gap-3">
                                     <div className="flex items-center gap-3">
-                                        <h3 className="font-bold text-lg text-slate-800 dark:text-white">
-                                            {record.year_month} 薪資單
-                                        </h3>
-                                        <span className="text-sm text-primary bg-white dark:bg-neutral-800 px-2 py-1 rounded border border-primary/20">
-                                            {record.user?.salary_type === 'hourly' ? '鐘點薪資' : '月薪'}
+                                        <span className="material-symbols-outlined text-primary">receipt_long</span>
+                                        <div>
+                                            <h3 className="font-bold text-base text-slate-800 dark:text-white">
+                                                {record.year_month.replace('-', ' 年 ')} 月薪資單
+                                            </h3>
+                                            <p className="text-xs text-slate-400 mt-0.5">
+                                                結算日：{record.paid_at ? new Date(record.paid_at).toLocaleDateString('zh-TW') : '-'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${isHourly ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'}`}>
+                                            {isHourly ? '鐘點制' : '月薪制'}
                                         </span>
+                                        <PDFDownloadLink
+                                            document={<SalaryPDF record={record} user={record.user} />}
+                                            fileName={`salary_${record.year_month}.pdf`}
+                                            className="text-xs px-3 py-1.5 border border-primary/30 text-primary rounded-lg hover:bg-primary/5 transition-colors flex items-center gap-1"
+                                        >
+                                            {/* @ts-ignore */}
+                                            {({ loading: pdfLoading }) => pdfLoading ? '生成中...' : '📥 下載 PDF'}
+                                        </PDFDownloadLink>
                                     </div>
-
-                                    {/* PDF 下載按鈕 */}
-                                    <PDFDownloadLink
-                                        document={<SalaryPDF record={record} user={record.user} />}
-                                        fileName={`salary_${record.year_month}.pdf`}
-                                        className="px-3 py-1 bg-white dark:bg-neutral-800 border border-primary/30 text-primary rounded-lg text-sm hover:bg-primary/5 transition-colors"
-                                    >
-                                        {/* @ts-ignore */}
-                                        {({ loading }) =>
-                                            loading ? '生成中...' : '📥 下載 PDF'
-                                        }
-                                    </PDFDownloadLink>
                                 </div>
-                                <div className="p-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-500 dark:text-neutral-400 mb-1">出勤統計 / 工時</label>
-                                            <div className="text-slate-900 dark:text-white">
-                                                {record.user?.salary_type === 'hourly' ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-lg">{formatHM((record.settled_data as any)?.work_minutes || record.work_minutes || 0)}</span>
-                                                        {((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours) > 0 && (
-                                                            <span className="text-xs text-slate-500 font-normal">
-                                                                (已扣除 {formatHM((record.settled_data as any)?.details?.totalBreakHours || (record.details as any)?.totalBreakHours)} 午休)
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div>
-                                                        {((record.settled_data as any)?.details || record.details) ? renderDetails((record.settled_data as any)?.details || record.details) : <span className="text-slate-400">-</span>}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-500 dark:text-neutral-400 mb-1">基本薪資</label>
-                                            <div className="text-slate-900 dark:text-white text-lg font-medium">
-                                                ${((record.settled_data as any)?.base_salary || record.base_salary)?.toLocaleString()}
-                                            </div>
-                                        </div>
+
+                                {/* ===== 薪資公式拆解 ===== */}
+                                <div className="p-5 space-y-3">
+
+                                    {/* 基本薪資 */}
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-slate-500 dark:text-neutral-400 flex items-center gap-1.5">
+                                            <span className="material-symbols-outlined text-base text-slate-400">work</span>
+                                            {isHourly
+                                                ? `基本計算（$${rate.toLocaleString()} × ${formatHM(workMinutes)}）`
+                                                : '月薪基本薪資'
+                                            }
+                                        </span>
+                                        <span className="font-mono font-medium text-slate-800 dark:text-white">{formatMoney(baseSalary)}</span>
                                     </div>
 
-                                    {/* 獎金區域 - 僅當有獎金時顯示 */}
-                                    {(((record.settled_data as any)?.bonus || record.bonus) > 0) && (
-                                        <div className="bg-sky-50 dark:bg-sky-900/20 rounded-lg p-4 mb-3 border border-sky-200 dark:border-sky-800">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-sky-700 dark:text-sky-400 mb-1">額外獎金</label>
-                                                    {record.notes && (
-                                                        <p className="text-sm text-sky-600 dark:text-sky-500 mt-1">{record.notes}</p>
-                                                    )}
-                                                </div>
-                                                <div className="text-sky-700 dark:text-sky-400 font-bold text-lg">
-                                                    +${((record.settled_data as any)?.bonus || record.bonus)?.toLocaleString()}
-                                                </div>
-                                            </div>
+                                    {/* 獎金 */}
+                                    {bonus > 0 && (
+                                        <div className="flex justify-between items-start text-sm">
+                                            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                                <span className="material-symbols-outlined text-base">redeem</span>
+                                                獎金 / 補貼
+                                                {record.notes && (
+                                                    <span className="ml-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] px-1.5 py-0.5 rounded border border-amber-100 dark:border-amber-900/30 max-w-[140px] truncate">
+                                                        {record.notes}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span className="font-mono font-medium text-amber-500">+{formatMoney(bonus)}</span>
                                         </div>
                                     )}
 
-                                    {/* 扣除區域 - 僅當有扣除時顯示 */}
-                                    {(((record.settled_data as any)?.details?.deduction || record.deduction || (record.settled_data as any)?.deduction) > 0) && (
-                                        <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-4 mb-6 border border-red-200 dark:border-red-900/30">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-red-700 dark:text-red-400 mb-1">假勤扣除</label>
-
-                                                    {/* 明細展開 */}
-                                                    {(() => {
-                                                        const settledData = record.settled_data as any
-                                                        const details = settledData?.details || record.details
-                                                        const leaveDetails = details?.leaveDetails
-                                                        const rate = (settledData?.rate || record.rate || 0)
-                                                        const dailyRate = rate / 30
-
-                                                        if (leaveDetails && Object.keys(leaveDetails).length > 0 && record.user?.salary_type !== 'hourly') {
-                                                            return (
-                                                                <div className="text-xs text-red-600/80 dark:text-red-400/80 mt-1.5 space-y-1">
-                                                                    {Object.entries(leaveDetails).map(([leaveType, count]) => {
-                                                                        // 這裡無法直接呼叫 getLeaveTypeName，用簡單的中文映射
-                                                                        const leaveMap: Record<string, { name: string, weight: number }> = {
-                                                                            'personal_leave': { name: '事假', weight: 1 },
-                                                                            'sick_leave': { name: '病假 (未住院)', weight: 0.5 },
-                                                                            'family_care_leave': { name: '家庭照顧假', weight: 1 },
-                                                                            'menstrual_leave': { name: '生理假', weight: 0.5 },
-                                                                            'annual_leave': { name: '特休假', weight: 0 }
-                                                                        }
-                                                                        const info = leaveMap[leaveType as string]
-                                                                        if (!info || info.weight === 0) return null
-                                                                        const countNum = count as number
-                                                                        const deductVal = Math.ceil(dailyRate * countNum * info.weight)
-                                                                        return (
-                                                                            <div key={leaveType}>
-                                                                                ↳ {info.name} ({countNum}天 × {info.weight}係數) : -${deductVal.toLocaleString()}
-                                                                            </div>
-                                                                        )
-                                                                    })}
-                                                                </div>
-                                                            )
-                                                        }
-                                                        return null
-                                                    })()}
-                                                </div>
-                                                <div className="text-red-600 dark:text-red-400 font-bold text-lg">
-                                                    -${(((record.settled_data as any)?.details?.deduction || record.deduction || (record.settled_data as any)?.deduction))?.toLocaleString()}
-                                                </div>
+                                    {/* 假勤扣除 + 明細 */}
+                                    {deduction > 0 && (
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-red-500 dark:text-red-400 flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-base">event_busy</span>
+                                                    假勤扣除{leaveDays > 0 ? `（共 ${leaveDays} 天）` : ''}
+                                                </span>
+                                                <span className="font-mono font-medium text-red-500">-{formatMoney(deduction)}</span>
                                             </div>
+
+                                            {/* 假別明細 */}
+                                            {!isHourly && Object.keys(leaveDetails).length > 0 && (
+                                                <div className="ml-5 pl-3 border-l-2 border-red-100 dark:border-red-900/30 space-y-1">
+                                                    {Object.entries(leaveDetails).map(([type, count]) => {
+                                                        const info = LEAVE_MAP[type]
+                                                        if (!info || info.weight === 0) return null
+                                                        const deductVal = Math.ceil(dailyRate * (count as number) * info.weight)
+                                                        return (
+                                                            <div key={type} className="flex justify-between text-xs text-red-400/80">
+                                                                <span>↳ {info.name} {count as number} 天 × {info.weight} 係數</span>
+                                                                <span className="font-mono">-{formatMoney(deductVal)}</span>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
-                                    <div className="border-t border-slate-200 dark:border-neutral-700 pt-4 flex justify-between items-center">
-                                        <div className="text-slate-500 dark:text-neutral-400 text-sm">
-                                            結算日期: {record.paid_at ? new Date(record.paid_at).toLocaleDateString() : '-'}
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-sm text-slate-500 dark:text-neutral-400 mb-1">實領薪資</div>
-                                            <div className="text-2xl font-bold text-primary">
-                                                ${((record.settled_data as any)?.total_salary || record.total_salary)?.toLocaleString()}
-                                            </div>
-                                        </div>
+                                    {/* 實領合計 */}
+                                    <div className="border-t border-slate-100 dark:border-neutral-800 pt-3 mt-1 flex justify-between items-center">
+                                        <span className="font-bold text-slate-700 dark:text-neutral-200 flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-emerald-500">payments</span>
+                                            實領薪資
+                                        </span>
+                                        <span className="font-mono text-3xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
+                                            {formatMoney(totalSalary)}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-16 bg-card-light dark:bg-card-dark rounded-xl shadow text-slate-500">
-                            目前沒有已發放的薪資記錄
-                        </div>
-                    )}
+                        )
+                    })}
                 </div>
             )}
         </div>
